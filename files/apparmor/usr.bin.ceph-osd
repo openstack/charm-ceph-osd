@@ -27,6 +27,7 @@
   /srv/ceph/** rwk,
   /tmp/ r,
   /var/lib/ceph/** rwk,
+  /var/lib/ceph/osd/** l,
   /var/lib/charm/*/ceph.conf r,
   /var/log/ceph/* rwk,
   /var/run/ceph/* rwk,
