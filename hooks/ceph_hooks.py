@@ -244,6 +244,8 @@ def get_ceph_context(upgrading=False):
         'old_auth': cmp_pkgrevno('ceph', "0.51") < 0,
         'crush_initial_weight': config('crush-initial-weight'),
         'osd_journal_size': config('osd-journal-size'),
+        'osd_max_backfills': config('osd-max-backfills'),
+        'osd_recovery_max_active': config('osd-recovery-max-active'),
         'use_syslog': str(config('use-syslog')).lower(),
         'ceph_public_network': public_network,
         'ceph_cluster_network': cluster_network,

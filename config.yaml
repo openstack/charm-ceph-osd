@@ -135,6 +135,24 @@ options:
       default, the initial crush weight for the newly added osd is set to its
       volume size in TB.  Leave this option unset to use the default provided
       by Ceph itself. This option only affects NEW OSDs, not existing ones.
+  osd-max-backfills:
+    type: int
+    default:
+    description: |
+      The maximum number of backfills allowed to or from a single OSD.
+      .
+      Setting this option on a running Ceph OSD node will not affect running
+      OSD devices, but will add the setting to ceph.conf for the next restart.
+  osd-recovery-max-active:
+    type: int
+    default:
+    description: |
+      The number of active recovery requests per OSD at one time. More requests
+      will accelerate recovery, but the requests places an increased load on the
+      cluster.
+      .
+      Setting this option on a running Ceph OSD node will not affect running
+      OSD devices, but will add the setting to ceph.conf for the next restart.
   ignore-device-errors:
     type: boolean
     default: False
