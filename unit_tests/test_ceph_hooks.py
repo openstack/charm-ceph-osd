@@ -62,6 +62,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
+                    'upgrade_in_progress': False,
                     'use_syslog': 'true'}
         self.assertEqual(ctxt, expected)
 
@@ -94,6 +95,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
+                    'upgrade_in_progress': False,
                     'use_syslog': 'true'}
         self.assertEqual(ctxt, expected)
 
@@ -128,6 +130,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
+                    'upgrade_in_progress': False,
                     'use_syslog': 'true'}
         self.assertEqual(ctxt, expected)
 

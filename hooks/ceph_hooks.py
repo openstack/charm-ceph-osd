@@ -26,8 +26,9 @@ import ceph
 from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import (
     log,
-    ERROR,
     DEBUG,
+    ERROR,
+    INFO,
     config,
     relation_ids,
     related_units,
@@ -100,16 +101,27 @@ def check_for_upgrade():
                                             'distro')
     log('new_version: {}'.format(new_version))
 
-    if old_version == new_version:
+    # May be in a previous upgrade that was failed if the directories
+    # still need an ownership update. Check this condition.
+    resuming_upgrade = ceph.dirs_need_ownership_update('osd')
+
+    if old_version == new_version and not resuming_upgrade:
         log("No new ceph version detected, skipping upgrade.", DEBUG)
         return
 
-    if (old_version in ceph.UPGRADE_PATHS and
-            new_version == ceph.UPGRADE_PATHS[old_version]):
-        log("{} to {} is a valid upgrade path.  Proceeding.".format(
-            old_version, new_version))
+    if (ceph.UPGRADE_PATHS.get(old_version) == new_version) or\
+       resuming_upgrade:
+        if old_version == new_version:
+            log('Attempting to resume possibly failed upgrade.',
+                INFO)
+        else:
+            log("{} to {} is a valid upgrade path. Proceeding.".format(
+                old_version, new_version))
+
+        emit_cephconf(upgrading=True)
         ceph.roll_osd_cluster(new_version=new_version,
                               upgrade_key='osd-upgrade')
+        emit_cephconf(upgrading=False)
     else:
         # Log a helpful error message
         log("Invalid upgrade path from {} to {}.  "
@@ -215,7 +227,14 @@ def use_short_objects():
     return False
 
 
-def get_ceph_context():
+def get_ceph_context(upgrading=False):
+    """Returns the current context dictionary for generating ceph.conf
+
+    :param upgrading: bool - determines if the context is invoked as
+                      part of an upgrade proedure Setting this to true
+                      causes settings useful during an upgrade to be
+                      defined in the ceph.conf file
+    """
     mon_hosts = get_mon_hosts()
     log('Monitor hosts are ' + repr(mon_hosts))
 
@@ -237,6 +256,7 @@ def get_ceph_context():
         'loglevel': config('loglevel'),
         'dio': str(config('use-direct-io')).lower(),
         'short_object_len': use_short_objects(),
+        'upgrade_in_progress': upgrading,
     }
 
     if config('prefer-ipv6'):
@@ -267,14 +287,15 @@ def get_ceph_context():
     return cephcontext
 
 
-def emit_cephconf():
+def emit_cephconf(upgrading=False):
     # Install ceph.conf as an alternative to support
     # co-existence with other charms that write this file
     charm_ceph_conf = "/var/lib/charm/{}/ceph.conf".format(service_name())
     mkdir(os.path.dirname(charm_ceph_conf), owner=ceph.ceph_user(),
           group=ceph.ceph_user())
     with open(charm_ceph_conf, 'w') as cephconf:
-        cephconf.write(render_template('ceph.conf', get_ceph_context()))
+        context = get_ceph_context(upgrading)
+        cephconf.write(render_template('ceph.conf', context))
     install_alternative('ceph.conf', '/etc/ceph/ceph.conf',
                         charm_ceph_conf, 90)
 
