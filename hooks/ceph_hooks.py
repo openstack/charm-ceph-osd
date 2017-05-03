@@ -242,6 +242,7 @@ def get_ceph_context(upgrading=False):
         'mon_hosts': ' '.join(mon_hosts),
         'fsid': get_fsid(),
         'old_auth': cmp_pkgrevno('ceph', "0.51") < 0,
+        'crush_initial_weight': config('crush-initial-weight'),
         'osd_journal_size': config('osd-journal-size'),
         'use_syslog': str(config('use-syslog')).lower(),
         'ceph_public_network': public_network,
