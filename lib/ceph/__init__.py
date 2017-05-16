@@ -40,6 +40,7 @@ from charmhelpers.core.host import (
     service_start,
     service_stop,
     CompareHostReleases,
+    is_container,
 )
 from charmhelpers.core.hookenv import (
     cached,
@@ -52,10 +53,7 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.fetch import (
     apt_cache,
-    add_source,
-    apt_install,
-    apt_update,
-)
+    add_source, apt_install, apt_update)
 from charmhelpers.contrib.storage.linux.ceph import (
     monitor_key_set,
     monitor_key_exists,
@@ -124,6 +122,42 @@ NETWORK_ADAPTER_SYSCTLS = {
         'net.ipv4.tcp_adv_win_scale': 1
     }
 }
+
+
+class Partition(object):
+    def __init__(self, name, number, size, start, end, sectors, uuid):
+        """
+        A block device partition
+        :param name: Name of block device
+        :param number:  Partition number
+        :param size:  Capacity of the device
+        :param start:  Starting block
+        :param end:  Ending block
+        :param sectors:  Number of blocks
+        :param uuid:  UUID of the partition
+        """
+        self.name = name,
+        self.number = number
+        self.size = size
+        self.start = start
+        self.end = end
+        self.sectors = sectors
+        self.uuid = uuid
+
+    def __str__(self):
+        return "number: {} start: {} end: {} sectors: {} size: {} " \
+               "name: {} uuid: {}".format(self.number, self.start,
+                                          self.end,
+                                          self.sectors, self.size,
+                                          self.name, self.uuid)
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 def unmounted_disks():
@@ -768,9 +802,12 @@ DISK_FORMATS = [
 ]
 
 CEPH_PARTITIONS = [
+    '89C57F98-2FE5-4DC0-89C1-5EC00CEFF2BE',  # ceph encrypted disk in creation
+    '45B0969E-9B03-4F30-B4C6-5EC00CEFF106',  # ceph encrypted journal
     '4FBD7E29-9D25-41B8-AFD0-5EC00CEFF05D',  # ceph encrypted osd data
     '4FBD7E29-9D25-41B8-AFD0-062C0CEFF05D',  # ceph osd data
     '45B0969E-9B03-4F30-B4C6-B4B80CEFF106',  # ceph osd journal
+    '89C57F98-2FE5-4DC0-89C1-F3AD0CEFF2BE',  # ceph disk in creation
 ]
 
 
@@ -881,17 +918,48 @@ def replace_osd(dead_osd_number,
         log('replace_osd failed with error: ' + e.output)
 
 
-def is_osd_disk(dev):
+def get_partition_list(dev):
+    """
+    Lists the partitions of a block device
+    :param dev: Path to a block device. ex: /dev/sda
+    :return: :raise:  Returns a list of Partition objects.
+        Raises CalledProcessException if lsblk fails
+    """
+    partitions_list = []
     try:
-        info = check_output(['sgdisk', '-i', '1', dev])
-        info = info.split("\n")  # IGNORE:E1103
-        for line in info:
-            for ptype in CEPH_PARTITIONS:
-                sig = 'Partition GUID code: {}'.format(ptype)
-                if line.startswith(sig):
-                    return True
+        partitions = get_partitions(dev)
+        # For each line of output
+        for partition in partitions:
+            parts = partition.split()
+            partitions_list.append(
+                Partition(number=parts[0],
+                          start=parts[1],
+                          end=parts[2],
+                          sectors=parts[3],
+                          size=parts[4],
+                          name=parts[5],
+                          uuid=parts[6])
+            )
+        return partitions_list
     except subprocess.CalledProcessError:
-        pass
+        raise
+
+
+def is_osd_disk(dev):
+    partitions = get_partition_list(dev)
+    for partition in partitions:
+        try:
+            info = check_output(['sgdisk', '-i', partition.number, dev])
+            info = info.split("\n")  # IGNORE:E1103
+            for line in info:
+                for ptype in CEPH_PARTITIONS:
+                    sig = 'Partition GUID code: {}'.format(ptype)
+                    if line.startswith(sig):
+                        return True
+        except subprocess.CalledProcessError as e:
+            log("sgdisk inspection of partition {} on {} failed with "
+                "error: {}. Skipping".format(partition.minor, dev, e.message),
+                level=ERROR)
     return False
 
 
@@ -1347,7 +1415,7 @@ def osdize_dir(path, encrypt=False):
     if cmp_pkgrevno('ceph', "0.56.6") < 0:
         log('Unable to use directories for OSDs with ceph < 0.56.6',
             level=ERROR)
-        raise
+        return
 
     mkdir(path, owner=ceph_user(), group=ceph_user(), perms=0o755)
     chownr('/var/lib/ceph', ceph_user(), ceph_user())
@@ -1516,7 +1584,7 @@ def upgrade_monitor(new_version):
                 service_stop('ceph-mon@{}'.format(mon_id))
         else:
             service_stop('ceph-mon-all')
-        apt_install(packages=PACKAGES, fatal=True)
+        apt_install(packages=determine_packages(), fatal=True)
 
         # Ensure the files and directories under /var/lib/ceph is chowned
         # properly as part of the move to the Jewel release, which moved the
@@ -1700,7 +1768,7 @@ def upgrade_osd(new_version):
     try:
         # Upgrade the packages before restarting the daemons.
         status_set('maintenance', 'Upgrading packages to %s' % new_version)
-        apt_install(packages=PACKAGES, fatal=True)
+        apt_install(packages=determine_packages(), fatal=True)
 
         # If the upgrade does not need an ownership update of any of the
         # directories in the osd service directory, then simply restart
@@ -1932,7 +2000,6 @@ def dirs_need_ownership_update(service):
     # All child directories had the expected ownership
     return False
 
-
 # A dict of valid ceph upgrade paths.  Mapping is old -> new
 UPGRADE_PATHS = {
     'firefly': 'hammer',
@@ -1967,3 +2034,86 @@ def resolve_ceph_version(source):
     '''
     os_release = get_os_codename_install_source(source)
     return UCA_CODENAME_MAP.get(os_release)
+
+
+def get_ceph_pg_stat():
+    """
+    Returns the result of ceph pg stat
+    :return: dict
+    """
+    try:
+        tree = check_output(['ceph', 'pg', 'stat', '--format=json'])
+        try:
+            json_tree = json.loads(tree)
+            if not json_tree['num_pg_by_state']:
+                return None
+            return json_tree
+        except ValueError as v:
+            log("Unable to parse ceph pg stat json: {}. Error: {}".format(
+                tree, v.message))
+            raise
+    except subprocess.CalledProcessError as e:
+        log("ceph pg stat command failed with message: {}".format(
+            e.message))
+        raise
+
+
+def get_ceph_health():
+    """
+    Returns the health of the cluster from a 'ceph health'
+    :return: dict
+      Also raises CalledProcessError if our ceph command fails
+      To get the overall status, use get_ceph_health()['overall_status']
+    """
+    try:
+        tree = check_output(
+            ['ceph', 'health', '--format=json'])
+        try:
+            json_tree = json.loads(tree)
+            # Make sure children are present in the json
+            if not json_tree['overall_status']:
+                return None
+            return json_tree
+        except ValueError as v:
+            log("Unable to parse ceph tree json: {}. Error: {}".format(
+                tree, v.message))
+            raise
+    except subprocess.CalledProcessError as e:
+        log("ceph osd tree command failed with message: {}".format(
+            e.message))
+        raise
+
+
+def reweight_osd(osd_num, new_weight):
+    """
+    Changes the crush weight of an OSD to the value specified.
+    :param osd_num: the osd id which should be changed
+    :param new_weight: the new weight for the OSD
+    :returns: bool.  True if output looks right, else false.
+    :raises CalledProcessError: if an error occurs invoking the systemd cmd
+    """
+    try:
+        cmd_result = subprocess.check_output(
+            ['ceph', 'osd', 'crush', 'reweight', "osd.{}".format(osd_num),
+             new_weight], stderr=subprocess.STDOUT)
+        expected_result = "reweighted item id {ID} name \'osd.{ID}\'".format(
+                          ID=osd_num) + " to {}".format(new_weight)
+        log(cmd_result)
+        if expected_result in cmd_result:
+            return True
+        return False
+    except subprocess.CalledProcessError as e:
+        log("ceph osd tree command failed with message: {}".format(
+            e.message))
+        raise
+
+
+def determine_packages():
+    '''
+    Determines packages for installation.
+
+    @returns: list of ceph packages
+    '''
+    if is_container():
+        PACKAGES.remove('ntp')
+    return PACKAGES

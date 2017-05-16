@@ -168,6 +168,8 @@ def handle_add_permissions_to_key(request, service):
     A group can optionally have a namespace defined that will be used to
     further restrict pool access.
     """
+    resp = {'exit-code': 0}
+
     service_name = request.get('name')
     group_name = request.get('group')
     group_namespace = request.get('group-namespace')
@@ -189,6 +191,8 @@ def handle_add_permissions_to_key(request, service):
     service_obj['groups'] = _build_service_groups(service_obj,
                                                   group_namespace)
     update_service_permissions(service_name, service_obj, group_namespace)
+
+    return resp
 
 
 def update_service_permissions(service, service_obj=None, namespace=None):

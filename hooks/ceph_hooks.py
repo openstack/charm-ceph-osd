@@ -191,7 +191,7 @@ def install_apparmor_profile():
 def install():
     add_source(config('source'), config('key'))
     apt_update(fatal=True)
-    apt_install(packages=ceph.PACKAGES, fatal=True)
+    apt_install(packages=ceph.determine_packages(), fatal=True)
     if config('autotune'):
         tune_network_adapters()
 
@@ -479,7 +479,7 @@ def mon_relation():
 def upgrade_charm():
     if get_fsid() and get_auth():
         emit_cephconf()
-    apt_install(packages=filter_installed_packages(ceph.PACKAGES),
+    apt_install(packages=filter_installed_packages(ceph.determine_packages()),
                 fatal=True)
 
 
