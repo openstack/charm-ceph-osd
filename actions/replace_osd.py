@@ -18,6 +18,7 @@ import os
 import sys
 
 sys.path.append('hooks/')
+sys.path.append('lib/')
 
 from charmhelpers.core.hookenv import action_get, log, config, action_fail
 
