@@ -1,68 +1,98 @@
 options:
   loglevel:
-    default: 1
     type: int
+    default: 1
     description: OSD debug level. Max is 20.
+  source:
+    type: string
+    default:
+    description: |
+      Optional configuration to support use of additional sources such as:
+      .
+        - ppa:myteam/ppa
+        - cloud:xenial-proposed/ocata
+        - http://my.archive.com/ubuntu main
+      .
+      The last option should be used in conjunction with the key configuration
+      option.
+  key:
+    type: string
+    default:
+    description: |
+      Key ID to import to the apt keyring to support use with arbitary source
+      configuration from outside of Launchpad archives or PPA's.
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      If set to True, supporting services will log to syslog.
+  harden:
+    type: string
+    default:
+    description: |
+      Apply system hardening. Supports a space-delimited list of modules
+      to run. Supported modules currently include os, ssh, apache and mysql.
   config-flags:
     type: string
     default:
     description: |
-        User provided Ceph configuration. Supports a string representation of
-        a python dictionary where each top-level key represents a section in
-        the ceph.conf template. You may only use sections supported in the
-        template.
-        .
-        WARNING: this is not the recommended way to configure the underlying
-        services that this charm installs and is used at the user's own risk.
-        This option is mainly provided as a stop-gap for users that either
-        want to test the effect of modifying some config or who have found
-        a critical bug in the way the charm has configured their services
-        and need it fixed immediately. We ask that whenever this is used,
-        that the user consider opening a bug on this charm at
-        http://bugs.launchpad.net/charms providing an explanation of why the
-        config was needed so that we may consider it for inclusion as a
-        natively supported config in the the charm.
+      User provided Ceph configuration. Supports a string representation of
+      a python dictionary where each top-level key represents a section in
+      the ceph.conf template. You may only use sections supported in the
+      template.
+      .
+      WARNING: this is not the recommended way to configure the underlying
+      services that this charm installs and is used at the user's own risk.
+      This option is mainly provided as a stop-gap for users that either
+      want to test the effect of modifying some config or who have found
+      a critical bug in the way the charm has configured their services
+      and need it fixed immediately. We ask that whenever this is used,
+      that the user consider opening a bug on this charm at
+      http://bugs.launchpad.net/charms providing an explanation of why the
+      config was needed so that we may consider it for inclusion as a
+      natively supported config in the the charm.
   osd-devices:
     type: string
     default: /dev/vdb
     description: |
-      The devices to format and set up as osd volumes.
-
+      The devices to format and set up as OSD volumes.
+      .
       These devices are the range of devices that will be checked for and
       used across all service units, in addition to any volumes attached
       via the --storage flag during deployment.
-
+      .
       For ceph >= 0.56.6 these can also be directories instead of devices - the
       charm assumes anything not starting with /dev is a directory instead.
   osd-journal:
     type: string
     default:
     description: |
-      The device to use as a shared journal drive for all OSD's.  By default
-      no journal device will be used.
-
+      The device to use as a shared journal drive for all OSD's. By default
+      a journal partition will be created on each OSD volume device for use by
+      that OSD.
+      .
       Only supported with ceph >= 0.48.3.
   osd-journal-size:
     type: int
     default: 1024
     description: |
-      Ceph osd journal size. The journal size should be at least twice the
+      Ceph OSD journal size. The journal size should be at least twice the
       product of the expected drive speed multiplied by filestore max sync
       interval. However, the most common practice is to partition the journal
       drive (often an SSD), and mount it such that Ceph uses the entire
       partition for the journal.
-
+      .
       Only supported with ceph >= 0.48.3.
   osd-format:
     type: string
     default: xfs
     description: |
       Format of filesystem to use for OSD devices; supported formats include:
-
+      .
         xfs (Default >= 0.48.3)
         ext4 (Only option < 0.48.3)
         btrfs (experimental and not recommended)
-
+      .
       Only supported with ceph >= 0.48.3.
   bluestore:
     type: boolean
@@ -75,9 +105,9 @@ options:
     default:
     description: |
       By default, the charm will not re-format a device that already looks
-      as if it might be an OSD device.  This is a safeguard to try to
+      as if it might be an OSD device. This is a safeguard to try to
       prevent data loss.
-
+      .
       Specifying this option (any value) forces a reformat of any OSD devices
       found which are not already mounted.
   osd-encrypt:
@@ -87,7 +117,7 @@ options:
       By default, the charm will not encrypt Ceph OSD devices; however, by
       setting osd-encrypt to True, Ceph's dmcrypt support will be used to
       encrypt OSD devices.
-
+      .
       Specifying this option on a running Ceph OSD node will have no effect
       until new disks are added, at which point new disks will be encrypted.
   ignore-device-errors:
@@ -97,7 +127,7 @@ options:
       By default, the charm will raise errors if a whitelisted device is found,
       but for some reason the charm is unable to initialize the device for use
       by Ceph.
-
+      .
       Setting this option to 'True' will result in the charm classifying such
       problems as warnings only and will not result in a hook error.
   ephemeral-unmount:
@@ -106,38 +136,11 @@ options:
     description: |
       Cloud instances provide ephermeral storage which is normally mounted
       on /mnt.
-
+      .
       Setting this option to the path of the ephemeral mountpoint will force
       an unmount of the corresponding device so that it can be used as a OSD
-      storage device.  This is useful for testing purposes (cloud deployment
+      storage device. This is useful for testing purposes (cloud deployment
       is not a typical use case).
-  source:
-    type: string
-    default:
-    description: |
-      Optional configuration to support use of additional sources such as:
-
-        - ppa:myteam/ppa
-        - cloud:trusty-proposed/kilo
-        - http://my.archive.com/ubuntu main
-
-      The last option should be used in conjunction with the key configuration
-      option.
-
-      Note that a minimum ceph version of 0.48.2 is required for use with this
-      charm which is NOT provided by the packages in the main Ubuntu archive
-      for precise but is provided in the Ubuntu cloud archive.
-  key:
-    type: string
-    default:
-    description: |
-      Key ID to import to the apt keyring to support use with arbitary source
-      configuration from outside of Launchpad archives or PPA's.
-  use-syslog:
-    type: boolean
-    default: False
-    description: |
-      If set to True, supporting services will log to syslog.
   ceph-public-network:
     type: string
     default:
@@ -189,14 +192,14 @@ options:
     type: string
     default: 
     description: |
-      Custom availablility zone to provide to Ceph for the OSD placement
+      Custom availability zone to provide to Ceph for the OSD placement
   max-sectors-kb:
-    default: 1048576
     type: int
+    default: 1048576
     description: |
       This parameter will adjust every block device in your server to allow
-      greater IO operation sizes.  If you have a RAID card with cache on it
-      consider tuning this much higher than the 1MB default.  1MB is a safe
+      greater IO operation sizes. If you have a RAID card with cache on it
+      consider tuning this much higher than the 1MB default. 1MB is a safe
       default for spinning HDDs that don't have much cache.
   nagios_context:
     type: string
@@ -204,42 +207,39 @@ options:
     type: string
     description: |
       Used by the nrpe-external-master subordinate charm.
-      A string that will be prepended to instance name to set the host name
+      A string that will be prepended to instance name to set the hostname
       in nagios. So for instance the hostname would be something like:
+      .
           juju-myservice-0
+      .
       If you're running multiple environments with the same services in them
       this allows you to differentiate between them.
   nagios_servicegroups:
-    default: ""
     type: string
+    default: ""
     description: |
       A comma-separated list of nagios servicegroups.
       If left empty, the nagios_context will be used as the servicegroup
   use-direct-io:
+    type: boolean
     default: True
-    type: boolean
     description: Configure use of direct IO for OSD journals.
-  harden:
-    default:
-    type: string
-    description: |
-      Apply system hardening. Supports a space-delimited list of modules
-      to run. Supported modules currently include os, ssh, apache and mysql.
   autotune:
-    default: False
     type: boolean
+    default: False
     description: |
       Enabling this option will attempt to tune your network card sysctls and
       hard drive settings. This changes hard drive read ahead settings and
-      max_sectors_kb.  For the network card this will detect the link speed
+      max_sectors_kb. For the network card this will detect the link speed
       and make appropriate sysctl changes. Enabling this option should
       generally be safe.
   aa-profile-mode:
     type: string
     default: 'disable'
     description: |
-      Enable apparmor profile. Valid settings: 'complain', 'enforce' or 'disable'.
+      Enable apparmor profile. Valid settings: 'complain', 'enforce' or
+      'disable'.
       .
       NOTE: changing the value of this option is disruptive to a running Ceph
-      cluster as all ceph-osd processes must be restarted as part of changing the
-      apparmor profile enforcement mode.
+      cluster as all ceph-osd processes must be restarted as part of changing
+      the apparmor profile enforcement mode.
