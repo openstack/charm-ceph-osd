@@ -257,6 +257,7 @@ def get_ceph_context(upgrading=False):
         'dio': str(config('use-direct-io')).lower(),
         'short_object_len': use_short_objects(),
         'upgrade_in_progress': upgrading,
+        'bluestore': config('bluestore'),
     }
 
     if config('prefer-ipv6'):
@@ -376,7 +377,8 @@ def prepare_disks_and_activate():
             ceph.osdize(dev, config('osd-format'),
                         osd_journal, config('osd-reformat'),
                         config('ignore-device-errors'),
-                        config('osd-encrypt'))
+                        config('osd-encrypt'),
+                        config('bluestore'))
             # Make it fast!
             if config('autotune'):
                 ceph.tune_dev(dev)

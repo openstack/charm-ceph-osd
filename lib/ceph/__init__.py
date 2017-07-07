@@ -1299,6 +1299,15 @@ def bootstrap_monitor_cluster(secret):
                 service_restart('ceph-mon')
             else:
                 service_restart('ceph-mon-all')
+
+            if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+                # NOTE(jamespage): Later ceph releases require explicit
+                #                  call to ceph-create-keys to setup the
+                #                  admin keys for the cluster; this command
+                #                  will wait for quorum in the cluster before
+                #                  returning.
+                cmd = ['ceph-create-keys', '--id', hostname]
+                subprocess.check_call(cmd)
         except:
             raise
         finally:
@@ -1346,16 +1355,17 @@ def find_least_used_journal(journal_devices):
 
 
 def osdize(dev, osd_format, osd_journal, reformat_osd=False,
-           ignore_errors=False, encrypt=False):
+           ignore_errors=False, encrypt=False, bluestore=False):
     if dev.startswith('/dev'):
         osdize_dev(dev, osd_format, osd_journal,
-                   reformat_osd, ignore_errors, encrypt)
+                   reformat_osd, ignore_errors, encrypt,
+                   bluestore)
     else:
         osdize_dir(dev, encrypt)
 
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
-               ignore_errors=False, encrypt=False):
+               ignore_errors=False, encrypt=False, bluestore=False):
     if not os.path.exists(dev):
         log('Path {} does not exist - bailing'.format(dev))
         return
@@ -1383,9 +1393,16 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         if osd_format:
             cmd.append('--fs-type')
             cmd.append(osd_format)
+
         if reformat_osd:
             cmd.append('--zap-disk')
+
+        # NOTE(jamespage): enable experimental bluestore support
+        if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
+            cmd.append('--bluestore')
+
         cmd.append(dev)
+
         if osd_journal:
             least_used = find_least_used_journal(osd_journal)
             cmd.append(least_used)

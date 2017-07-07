@@ -42,7 +42,8 @@ def add_device(request, device_path, bucket=None):
     ceph.osdize(dev, config('osd-format'),
                 get_journal_devices(), config('osd-reformat'),
                 config('ignore-device-errors'),
-                config('osd-encrypt'))
+                config('osd-encrypt'),
+                config('bluestore'))
     # Make it fast!
     if config('autotune'):
         ceph.tune_dev(dev)

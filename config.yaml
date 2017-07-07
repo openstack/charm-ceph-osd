@@ -64,6 +64,12 @@ options:
         btrfs (experimental and not recommended)
 
       Only supported with ceph >= 0.48.3.
+  bluestore:
+    type: boolean
+    default: false
+    description: |
+      Use experimental bluestore storage format for OSD devices; only supported
+      in Ceph Jewel (10.2.0) or later.
   osd-reformat:
     type: string
     default:
