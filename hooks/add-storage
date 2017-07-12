@@ -1,7 +1,17 @@
 #!/bin/bash
-# Wrapper to deal with newer Ubuntu versions that don't have py2 installed
-# by default.
+# shim used to determine that the ceph packages have been installed
+# before running hook execution. The add-storage hook fires before
+# the install hook in order to provide storage for charms which need
+# it at install time, however the storage added for the ceph-osd
+# application will be used to create OSDs, which require the ceph
+# binaries, bootstrapping the node, etc.
+#
+# Note: this doesn't wait to ensure that ceph is bootstrapped because
+# that logic is already existing in the charm's hook.
 
-dpkg -l|grep 'python-apt ' || exit 0
+if ! dpkg -s ceph > /dev/null 2>&1; then
+    juju-log "Ceph not yet installed."
+    exit 0
+fi
 
 exec ./hooks/storage.real
