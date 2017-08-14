@@ -1,7 +1,7 @@
 __author__ = 'Chris Holcombe <chris.holcombe@canonical.com>'
 from mock import patch, call
 import test_utils
-import ceph
+import ceph.utils as ceph
 
 TO_PATCH = [
     'hookenv',
@@ -14,7 +14,7 @@ class PerformanceTestCase(test_utils.CharmTestCase):
     def setUp(self):
         super(PerformanceTestCase, self).setUp(ceph, TO_PATCH)
 
-    @patch.object(ceph, 'check_output')
+    @patch.object(ceph.subprocess, 'check_output')
     @patch.object(ceph, 'get_link_speed')
     @patch.object(ceph, 'save_sysctls')
     def test_tune_nic(self, save_sysctls, get_link_speed, check_output):
@@ -42,19 +42,19 @@ class PerformanceTestCase(test_utils.CharmTestCase):
             call('maintenance', 'Tuning device eth0'),
         ])
 
-    @patch('ceph.check_output')
+    @patch.object(ceph.subprocess, 'check_output')
     def test_get_block_uuid(self, check_output):
         check_output.return_value = \
             'UUID=378f3c86-b21a-4172-832d-e2b3d4bc7511\nTYPE=ext2\n'
         uuid = ceph.get_block_uuid('/dev/sda1')
         self.assertEqual(uuid, '378f3c86-b21a-4172-832d-e2b3d4bc7511')
 
-    @patch('ceph.persist_settings')
-    @patch('ceph.set_hdd_read_ahead')
-    @patch('ceph.get_max_sectors_kb')
-    @patch('ceph.get_max_hw_sectors_kb')
-    @patch('ceph.set_max_sectors_kb')
-    @patch('ceph.get_block_uuid')
+    @patch.object(ceph, 'persist_settings')
+    @patch.object(ceph, 'set_hdd_read_ahead')
+    @patch.object(ceph, 'get_max_sectors_kb')
+    @patch.object(ceph, 'get_max_hw_sectors_kb')
+    @patch.object(ceph, 'set_max_sectors_kb')
+    @patch.object(ceph, 'get_block_uuid')
     def test_tune_dev(self,
                       block_uuid,
                       set_max_sectors_kb,
@@ -84,12 +84,12 @@ class PerformanceTestCase(test_utils.CharmTestCase):
             call('maintenance', 'Finished tuning device /dev/sda')
         ])
 
-    @patch('ceph.persist_settings')
-    @patch('ceph.set_hdd_read_ahead')
-    @patch('ceph.get_max_sectors_kb')
-    @patch('ceph.get_max_hw_sectors_kb')
-    @patch('ceph.set_max_sectors_kb')
-    @patch('ceph.get_block_uuid')
+    @patch.object(ceph, 'persist_settings')
+    @patch.object(ceph, 'set_hdd_read_ahead')
+    @patch.object(ceph, 'get_max_sectors_kb')
+    @patch.object(ceph, 'get_max_hw_sectors_kb')
+    @patch.object(ceph, 'set_max_sectors_kb')
+    @patch.object(ceph, 'get_block_uuid')
     def test_tune_dev_2(self,
                         block_uuid,
                         set_max_sectors_kb,
@@ -118,7 +118,7 @@ class PerformanceTestCase(test_utils.CharmTestCase):
             call('maintenance', 'Finished tuning device /dev/sda')
         ])
 
-    @patch('ceph.check_output')
+    @patch.object(ceph.subprocess, 'check_output')
     def test_set_hdd_read_ahead(self, check_output):
         ceph.set_hdd_read_ahead(dev_name='/dev/sda')
         check_output.assert_called_with(

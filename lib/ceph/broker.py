@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright 2016 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +14,14 @@
 
 import json
 import os
+
 from tempfile import NamedTemporaryFile
+
+from ceph.utils import (
+    get_cephfs,
+    get_osd_weight
+)
+from ceph.crush_utils import Crushmap
 
 from charmhelpers.core.hookenv import (
     log,
@@ -24,11 +29,6 @@ from charmhelpers.core.hookenv import (
     INFO,
     ERROR,
 )
-from ceph import (
-    get_cephfs,
-    get_osd_weight
-)
-from ceph.ceph_helpers import Crushmap
 from charmhelpers.contrib.storage.linux.ceph import (
     create_erasure_profile,
     delete_pool,
@@ -112,6 +112,9 @@ def process_requests(reqs):
 
     This is a versioned api. API version must be supplied by the client making
     the request.
+
+    :param reqs: dict of request parameters.
+    :returns: dict. exit-code and reason if not 0
     """
     request_id = reqs.get('request-id')
     try:
@@ -140,6 +143,12 @@ def process_requests(reqs):
 
 
 def handle_create_erasure_profile(request, service):
+    """Create an erasure profile.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     # "local" | "shec" or it defaults to "jerasure"
     erasure_type = request.get('erasure-type')
     # "host" | "rack" or it defaults to "host"  # Any valid Ceph bucket
@@ -160,10 +169,9 @@ def handle_create_erasure_profile(request, service):
 
 
 def handle_add_permissions_to_key(request, service):
-    """
-    Groups are defined by the key cephx.groups.(namespace-)?-(name). This key
-    will contain a dict serialized to JSON with data about the group, including
-    pools and members.
+    """Groups are defined by the key cephx.groups.(namespace-)?-(name). This
+    key will contain a dict serialized to JSON with data about the group,
+    including pools and members.
 
     A group can optionally have a namespace defined that will be used to
     further restrict pool access.
@@ -238,8 +246,7 @@ def pool_permission_list_for_service(service):
 
 
 def get_service_groups(service, namespace=None):
-    """
-    Services are objects stored with some metadata, they look like (for a
+    """Services are objects stored with some metadata, they look like (for a
     service named "nova"):
     {
         group_names: {'rwx': ['images']},
@@ -272,7 +279,7 @@ def get_service_groups(service, namespace=None):
 
 
 def _build_service_groups(service, namespace=None):
-    '''Rebuild the 'groups' dict for a service group
+    """Rebuild the 'groups' dict for a service group
 
     :returns: dict: dictionary keyed by group name of the following
                     format:
@@ -287,7 +294,7 @@ def _build_service_groups(service, namespace=None):
                             services: ['nova']
                          }
                     }
-    '''
+    """
     all_groups = {}
     for _, groups in service['group_names'].items():
         for group in groups:
@@ -299,8 +306,7 @@ def _build_service_groups(service, namespace=None):
 
 
 def get_group(group_name):
-    """
-    A group is a structure to hold data about a named group, structured as:
+    """A group is a structure to hold data about a named group, structured as:
     {
         pools: ['glance'],
         services: ['nova']
@@ -344,6 +350,12 @@ def get_group_key(group_name):
 
 
 def handle_erasure_pool(request, service):
+    """Create a new erasure coded pool.
+
+    :param request: dict of request operations and params.
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0.
+    """
     pool_name = request.get('name')
     erasure_profile = request.get('erasure-profile')
     quota = request.get('max-bytes')
@@ -390,6 +402,12 @@ def handle_erasure_pool(request, service):
 
 
 def handle_replicated_pool(request, service):
+    """Create a new replicated pool.
+
+    :param request: dict of request operations and params.
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0.
+    """
     pool_name = request.get('name')
     replicas = request.get('replicas')
     quota = request.get('max-bytes')
@@ -441,6 +459,13 @@ def handle_replicated_pool(request, service):
 
 
 def handle_create_cache_tier(request, service):
+    """Create a cache tier on a cold pool.  Modes supported are
+    "writeback" and "readonly".
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     # mode = "writeback" | "readonly"
     storage_pool = request.get('cold-pool')
     cache_pool = request.get('hot-pool')
@@ -462,6 +487,12 @@ def handle_create_cache_tier(request, service):
 
 
 def handle_remove_cache_tier(request, service):
+    """Remove a cache tier from the cold pool.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     storage_pool = request.get('cold-pool')
     cache_pool = request.get('hot-pool')
     # cache and storage pool must exist first
@@ -477,6 +508,12 @@ def handle_remove_cache_tier(request, service):
 
 
 def handle_set_pool_value(request, service):
+    """Sets an arbitrary pool value.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     # Set arbitrary pool values
     params = {'pool': request.get('name'),
               'key': request.get('key'),
@@ -501,6 +538,12 @@ def handle_set_pool_value(request, service):
 
 
 def handle_rgw_regionmap_update(request, service):
+    """Change the radosgw region map.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     name = request.get('client-name')
     if not name:
         msg = "Missing rgw-region or client-name params"
@@ -516,6 +559,12 @@ def handle_rgw_regionmap_update(request, service):
 
 
 def handle_rgw_regionmap_default(request, service):
+    """Create a radosgw region map.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     region = request.get('rgw-region')
     name = request.get('client-name')
     if not region or not name:
@@ -537,6 +586,12 @@ def handle_rgw_regionmap_default(request, service):
 
 
 def handle_rgw_zone_set(request, service):
+    """Create a radosgw zone.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     json_file = request.get('zone-json')
     name = request.get('client-name')
     region_name = request.get('region-name')
@@ -567,6 +622,12 @@ def handle_rgw_zone_set(request, service):
 
 
 def handle_put_osd_in_bucket(request, service):
+    """Move an osd into a specified crush bucket.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     osd_id = request.get('osd')
     target_bucket = request.get('bucket')
     if not osd_id or not target_bucket:
@@ -597,6 +658,12 @@ def handle_put_osd_in_bucket(request, service):
 
 
 def handle_rgw_create_user(request, service):
+    """Create a new rados gateway user.
+
+    :param request: dict of request operations and params
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     user_id = request.get('rgw-uid')
     display_name = request.get('display-name')
     name = request.get('client-name')
@@ -630,11 +697,11 @@ def handle_rgw_create_user(request, service):
 
 
 def handle_create_cephfs(request, service):
-    """
-    Create a new cephfs.
+    """Create a new cephfs.
+
     :param request: The broker request
-    :param service: The cephx user to run this command under
-    :return:
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
     """
     cephfs_name = request.get('mds_name')
     data_pool = request.get('data_pool')
@@ -678,6 +745,12 @@ def handle_create_cephfs(request, service):
 
 def handle_rgw_region_set(request, service):
     # radosgw-admin region set --infile us.json --name client.radosgw.us-east-1
+    """Set the rados gateway region.
+
+    :param request: dict. The broker request.
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0
+    """
     json_file = request.get('region-json')
     name = request.get('client-name')
     region_name = request.get('region-name')
