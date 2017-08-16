@@ -1405,6 +1405,8 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         # NOTE(jamespage): enable experimental bluestore support
         if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
             cmd.append('--bluestore')
+        elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
+            cmd.append('--filestore')
 
         cmd.append(dev)
 
@@ -2061,6 +2063,7 @@ def dirs_need_ownership_update(service):
 UPGRADE_PATHS = {
     'firefly': 'hammer',
     'hammer': 'jewel',
+    'jewel': 'luminous',
 }
 
 # Map UCA codenames to ceph codenames
@@ -2072,6 +2075,8 @@ UCA_CODENAME_MAP = {
     'mitaka': 'jewel',
     'newton': 'jewel',
     'ocata': 'jewel',
+    'pike': 'luminous',
+    'queens': 'luminous',
 }
 
 
