@@ -57,7 +57,6 @@ from charmhelpers.fetch import (
     get_upstream_version,
 )
 from charmhelpers.core.sysctl import create as create_sysctl
-from charmhelpers.core import host
 from charmhelpers.contrib.openstack.context import AppArmorContext
 from utils import (
     get_host_ip,
@@ -85,12 +84,6 @@ STORAGE_MOUNT_PATH = '/var/lib/ceph'
 def check_for_upgrade():
     if not ceph.is_bootstrapped():
         log("Ceph is not bootstrapped, skipping upgrade checks.")
-        return
-
-    release_info = host.lsb_release()
-    if not release_info['DISTRIB_CODENAME'] == 'trusty':
-        log("Invalid upgrade path from {}.  Only trusty is currently "
-            "supported".format(release_info['DISTRIB_CODENAME']))
         return
 
     c = hookenv.config()
