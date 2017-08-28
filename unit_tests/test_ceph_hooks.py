@@ -65,7 +65,42 @@ class CephHooksTestCase(unittest.TestCase):
                     'short_object_len': True,
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
-                    'bluestore': False}
+                    'bluestore': False,
+                    'bluestore_experimental': False}
+        self.assertEqual(ctxt, expected)
+
+    @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
+    @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
+    @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
+    @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
+    @patch.object(ceph_hooks, 'cmp_pkgrevno',
+                  lambda pkg, ver: -1 if ver == '12.1.0' else 1)
+    @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
+                                                              '10.0.0.2'])
+    @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph, 'config')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_ceph_context_filestore_old(self, mock_config, mock_config2):
+        config = copy.deepcopy(CHARM_CONFIG)
+        mock_config.side_effect = lambda key: config[key]
+        mock_config2.side_effect = lambda key: config[key]
+        ctxt = ceph_hooks.get_ceph_context()
+        expected = {'auth_supported': False,
+                    'ceph_cluster_network': '',
+                    'ceph_public_network': '',
+                    'cluster_addr': '10.1.0.1',
+                    'dio': 'true',
+                    'fsid': '1234',
+                    'loglevel': 1,
+                    'mon_hosts': '10.0.0.1 10.0.0.2',
+                    'old_auth': False,
+                    'osd_journal_size': 1024,
+                    'public_addr': '10.0.0.1',
+                    'short_object_len': True,
+                    'upgrade_in_progress': False,
+                    'use_syslog': 'true',
+                    'bluestore': False,
+                    'bluestore_experimental': True}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -98,7 +133,43 @@ class CephHooksTestCase(unittest.TestCase):
                     'short_object_len': True,
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
-                    'bluestore': True}
+                    'bluestore': True,
+                    'bluestore_experimental': False}
+        self.assertEqual(ctxt, expected)
+
+    @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
+    @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
+    @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
+    @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
+    @patch.object(ceph_hooks, 'cmp_pkgrevno',
+                  lambda pkg, ver: -1 if ver == '12.1.0' else 1)
+    @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
+                                                              '10.0.0.2'])
+    @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph, 'config')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_ceph_context_bluestore_old(self, mock_config, mock_config2):
+        config = copy.deepcopy(CHARM_CONFIG)
+        config['bluestore'] = True
+        mock_config.side_effect = lambda key: config[key]
+        mock_config2.side_effect = lambda key: config[key]
+        ctxt = ceph_hooks.get_ceph_context()
+        expected = {'auth_supported': False,
+                    'ceph_cluster_network': '',
+                    'ceph_public_network': '',
+                    'cluster_addr': '10.1.0.1',
+                    'dio': 'true',
+                    'fsid': '1234',
+                    'loglevel': 1,
+                    'mon_hosts': '10.0.0.1 10.0.0.2',
+                    'old_auth': False,
+                    'osd_journal_size': 1024,
+                    'public_addr': '10.0.0.1',
+                    'short_object_len': True,
+                    'upgrade_in_progress': False,
+                    'use_syslog': 'true',
+                    'bluestore': True,
+                    'bluestore_experimental': True}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -132,7 +203,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'short_object_len': True,
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
-                    'bluestore': False}
+                    'bluestore': False,
+                    'bluestore_experimental': False}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -168,7 +240,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'short_object_len': True,
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
-                    'bluestore': False}
+                    'bluestore': False,
+                    'bluestore_experimental': False}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'ceph')
