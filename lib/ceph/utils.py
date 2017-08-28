@@ -1366,7 +1366,7 @@ def osdize(dev, osd_format, osd_journal, reformat_osd=False,
                    reformat_osd, ignore_errors, encrypt,
                    bluestore)
     else:
-        osdize_dir(dev, encrypt)
+        osdize_dir(dev, encrypt, bluestore)
 
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
@@ -1395,7 +1395,7 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         if encrypt:
             cmd.append('--dmcrypt')
     if cmp_pkgrevno('ceph', '0.48.3') >= 0:
-        if osd_format:
+        if osd_format and not bluestore:
             cmd.append('--fs-type')
             cmd.append(osd_format)
 
@@ -1431,7 +1431,7 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
             raise
 
 
-def osdize_dir(path, encrypt=False):
+def osdize_dir(path, encrypt=False, bluestore=False):
     """Ask ceph-disk to prepare a directory to become an osd.
 
     :param path: str. The directory to osdize
@@ -1459,6 +1459,12 @@ def osdize_dir(path, encrypt=False):
     if cmp_pkgrevno('ceph', '0.60') >= 0:
         if encrypt:
             cmd.append('--dmcrypt')
+
+    # NOTE(icey): enable experimental bluestore support
+    if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
+        cmd.append('--bluestore')
+    elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
+        cmd.append('--filestore')
     log("osdize dir cmd: {}".format(cmd))
     subprocess.check_call(cmd)
 
