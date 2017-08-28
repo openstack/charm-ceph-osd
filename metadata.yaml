@@ -37,3 +37,11 @@ storage:
     type: block
     multiple:
       range: 0-
+  bluestore-db:
+    type: block
+    multiple:
+      range: 0-
+  bluestore-wal:
+    type: block
+    multiple:
+      range: 0-

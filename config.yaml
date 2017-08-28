@@ -72,6 +72,16 @@ options:
       that OSD.
       .
       Only supported with ceph >= 0.48.3.
+  bluestore-wal:
+    type: string
+    default:
+    description: |
+      Path to a BlueStore WAL block device or file.
+  bluestore-db:
+    type: string
+    default:
+    description: |
+      Path to a BlueStore WAL db block device or file
   osd-journal-size:
     type: int
     default: 1024
@@ -83,6 +93,20 @@ options:
       partition for the journal.
       .
       Only supported with ceph >= 0.48.3.
+  bluestore-block-wal-size:
+    type: int
+    default: 0
+    description: |
+      Size of a partition or file to use for BlueStore WAL (RocksDB WAL)
+      A default value is not set as it is calculated by ceph-disk if
+      not specified.
+  bluestore-block-db-size:
+    type: int
+    default: 0
+    description: |
+      Size of a partition or file to use for BlueStore metadata
+      or RocksDB SSTs. A default value is not set as it is calculated
+      by ceph-disk if not specified.
   osd-format:
     type: string
     default: xfs

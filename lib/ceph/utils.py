@@ -1477,11 +1477,13 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
             if wal:
                 cmd.append('--block.wal')
                 least_used_wal = find_least_used_utility_device(wal)
+
                 cmd.append(least_used_wal)
             db = get_devices('bluestore-db')
             if db:
                 cmd.append('--block.db')
                 least_used_db = find_least_used_utility_device(db)
+
                 cmd.append(least_used_db)
         elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
             cmd.append('--filestore')

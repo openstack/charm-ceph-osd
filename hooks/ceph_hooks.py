@@ -264,6 +264,8 @@ def get_ceph_context(upgrading=False):
         'upgrade_in_progress': upgrading,
         'bluestore': config('bluestore'),
         'bluestore_experimental': cmp_pkgrevno('ceph', '12.1.0') < 0,
+        'bluestore_block_wal_size': config('bluestore-block-wal-size'),
+        'bluestore_block_db_size': config('bluestore-block-db-size'),
     }
 
     if config('prefer-ipv6'):

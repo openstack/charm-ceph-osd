@@ -1,4 +1,5 @@
 # Copyright 2016 Canonical Ltd
+
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +36,16 @@ CHARM_CONFIG = {'config-flags': '',
                 'prefer-ipv6': False,
                 'customize-failure-domain': False,
                 'bluestore': False,
-                'crush-initial-weight': '0'}
+                'crush-initial-weight': '0',
+                'bluestore': False,
+                'bluestore-block-wal-size': 0,
+                'bluestore-block-db-size': 0,
+                'bluestore-wal': None,
+                'bluestore-db': None}
+
+
+BLUESTORE_WAL_TEST_SIZE = 128 * 2 ** 20
+BLUESTORE_DB_TEST_SIZE = 2 * 2 ** 30
 
 
 class CephHooksTestCase(unittest.TestCase):
@@ -75,7 +85,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': False,
-                    'bluestore_experimental': False}
+                    'bluestore_experimental': False,
+                    'bluestore_block_wal_size': 0,
+                    'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -112,7 +124,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': False,
-                    'bluestore_experimental': True}
+                    'bluestore_experimental': True,
+                    'bluestore_block_wal_size': 0,
+                    'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -128,6 +142,12 @@ class CephHooksTestCase(unittest.TestCase):
     def test_get_ceph_context_bluestore(self, mock_config, mock_config2):
         config = copy.deepcopy(CHARM_CONFIG)
         config['bluestore'] = True
+        BLUESTORE_WAL = '/dev/sdb /dev/sdc'
+        BLUESTORE_DB = '/dev/sdb /dev/sdc'
+        config['bluestore-block-wal-size'] = BLUESTORE_WAL_TEST_SIZE
+        config['bluestore-block-db-size'] = BLUESTORE_DB_TEST_SIZE
+        config['bluestore-wal'] = BLUESTORE_WAL
+        config['bluestore-db'] = BLUESTORE_DB
         mock_config.side_effect = lambda key: config[key]
         mock_config2.side_effect = lambda key: config[key]
         ctxt = ceph_hooks.get_ceph_context()
@@ -149,7 +169,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': True,
-                    'bluestore_experimental': False}
+                    'bluestore_experimental': False,
+                    'bluestore_block_wal_size': BLUESTORE_WAL_TEST_SIZE,
+                    'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -166,6 +188,8 @@ class CephHooksTestCase(unittest.TestCase):
     def test_get_ceph_context_bluestore_old(self, mock_config, mock_config2):
         config = copy.deepcopy(CHARM_CONFIG)
         config['bluestore'] = True
+        config['bluestore-block-wal-size'] = BLUESTORE_WAL_TEST_SIZE
+        config['bluestore-block-db-size'] = BLUESTORE_DB_TEST_SIZE
         mock_config.side_effect = lambda key: config[key]
         mock_config2.side_effect = lambda key: config[key]
         ctxt = ceph_hooks.get_ceph_context()
@@ -187,7 +211,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': True,
-                    'bluestore_experimental': True}
+                    'bluestore_experimental': True,
+                    'bluestore_block_wal_size': BLUESTORE_WAL_TEST_SIZE,
+                    'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -225,7 +251,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': False,
-                    'bluestore_experimental': False}
+                    'bluestore_experimental': False,
+                    'bluestore_block_wal_size': 0,
+                    'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -265,7 +293,9 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bluestore': False,
-                    'bluestore_experimental': False}
+                    'bluestore_experimental': False,
+                    'bluestore_block_wal_size': 0,
+                    'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
     @patch.object(ceph_hooks, 'ceph')
