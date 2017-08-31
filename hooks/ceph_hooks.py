@@ -251,6 +251,7 @@ def get_ceph_context(upgrading=False):
         'short_object_len': use_short_objects(),
         'upgrade_in_progress': upgrading,
         'bluestore': config('bluestore'),
+        'bluestore_experimental': cmp_pkgrevno('ceph', '12.1.0') < 0,
     }
 
     if config('prefer-ipv6'):
