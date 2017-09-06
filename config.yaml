@@ -100,6 +100,9 @@ options:
     description: |
       Use experimental bluestore storage format for OSD devices; only supported
       in Ceph Jewel (10.2.0) or later.
+      .
+      Note that despite bluestore being the default for Ceph Luminous, if this
+      option is False, OSDs will still use filestore.
   osd-reformat:
     type: string
     default:
