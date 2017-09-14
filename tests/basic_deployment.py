@@ -327,7 +327,6 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
                 'auth cluster required': 'none',
                 'auth service required': 'none',
                 'auth client required': 'none',
-                'keyring': '/etc/ceph/$cluster.$name.keyring',
                 'fsid': '6547bd3e-1397-11e2-82e5-53567c8d32dc',
                 'log to syslog': 'false',
                 'err to syslog': 'false',
