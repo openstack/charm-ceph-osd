@@ -123,6 +123,18 @@ options:
       .
       Specifying this option on a running Ceph OSD node will have no effect
       until new disks are added, at which point new disks will be encrypted.
+  crush-initial-weight:
+    type: float
+    default:
+    description: |
+      The initial crush weight for newly added osds into crushmap.  Use this
+      option only if you wish to set the weight for newly added OSDs in order
+      to gradually increase the weight over time.  Be very aware that setting
+      this overrides the default setting, which can lead to imbalance in the
+      cluster, especially if there are OSDs of different sizes in use.  By
+      default, the initial crush weight for the newly added osd is set to its
+      volume size in TB.  Leave this option unset to use the default provided
+      by Ceph itself. This option only affects NEW OSDs, not existing ones.
   ignore-device-errors:
     type: boolean
     default: False
