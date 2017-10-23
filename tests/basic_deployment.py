@@ -66,7 +66,8 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
             {'name': 'rabbitmq-server'},
             {'name': 'nova-compute'},
             {'name': 'glance'},
-            {'name': 'cinder'}
+            {'name': 'cinder'},
+            {'name': 'cinder-ceph'},
         ]
         super(CephOsdBasicDeployment, self)._add_services(this_service,
                                                           other_services)
@@ -87,8 +88,9 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
             'cinder:identity-service': 'keystone:identity-service',
             'cinder:amqp': 'rabbitmq-server:amqp',
             'cinder:image-service': 'glance:image-service',
-            'cinder:ceph': 'ceph-mon:client',
-            'ceph-osd:mon': 'ceph-mon:osd'
+            'cinder-ceph:storage-backend': 'cinder:storage-backend',
+            'cinder-ceph:ceph': 'ceph-mon:client',
+            'ceph-osd:mon': 'ceph-mon:osd',
         }
         super(CephOsdBasicDeployment, self)._add_relations(relations)
 
@@ -356,12 +358,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Checking cinder (rbd) config file data...')
         unit = self.cinder_sentry
         conf = '/etc/cinder/cinder.conf'
-        # NOTE(jamespage): Deal with section config for >= ocata.
-        if self._get_openstack_release() >= self.xenial_ocata:
-            section_key = 'CEPH'
-        else:
-            section_key = 'DEFAULT'
-
+        section_key = 'cinder-ceph'
         expected = {
             section_key: {
                 'volume_driver': 'cinder.volume.drivers.rbd.RBDDriver'
@@ -468,7 +465,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         obj_count_samples = []
         pool_size_samples = []
         pools = u.get_ceph_pools(self.ceph0_sentry)
-        cinder_pool = pools['cinder']
+        cinder_pool = pools['cinder-ceph']
 
         # Check ceph cinder pool object count, disk space usage and pool name
         u.log.debug('Checking ceph cinder pool original samples...')
@@ -477,7 +474,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         obj_count_samples.append(obj_count)
         pool_size_samples.append(kb_used)
 
-        expected = 'cinder'
+        expected = 'cinder-ceph'
         if pool_name != expected:
             msg = ('Ceph pool {} unexpected name (actual, expected): '
                    '{}. {}'.format(cinder_pool, pool_name, expected))
