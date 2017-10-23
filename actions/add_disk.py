@@ -21,32 +21,23 @@ import sys
 sys.path.append('lib')
 sys.path.append('hooks')
 
-from charmhelpers.core.hookenv import (
-    config,
-    action_get,
-)
+import charmhelpers.contrib.storage.linux.ceph as ch_ceph
+import charmhelpers.core.hookenv as hookenv
 
-from charmhelpers.contrib.storage.linux.ceph import (
-    CephBrokerRq,
-    send_request_if_needed,
-)
-
-import ceph
-
-from ceph_hooks import (
-    get_journal_devices,
-)
+import ceph_hooks
+import ceph.utils
 
 
 def add_device(request, device_path, bucket=None):
-    ceph.osdize(dev, config('osd-format'),
-                get_journal_devices(), config('osd-reformat'),
-                config('ignore-device-errors'),
-                config('osd-encrypt'),
-                config('bluestore'))
+    ceph.utils.osdize(dev, hookenv.config('osd-format'),
+                      ceph_hooks.get_journal_devices(),
+                      hookenv.config('osd-reformat'),
+                      hookenv.config('ignore-device-errors'),
+                      hookenv.config('osd-encrypt'),
+                      hookenv.config('bluestore'))
     # Make it fast!
-    if config('autotune'):
-        ceph.tune_dev(dev)
+    if hookenv.config('autotune'):
+        ceph.utils.tune_dev(dev)
     mounts = filter(lambda disk: device_path
                     in disk.device, psutil.disk_partitions())
     if mounts:
@@ -61,7 +52,7 @@ def add_device(request, device_path, bucket=None):
 
 def get_devices():
     devices = []
-    for path in action_get('osd-devices').split(' '):
+    for path in hookenv.action_get('osd-devices').split(' '):
         path = path.strip()
         if os.path.isabs(path):
             devices.append(path)
@@ -70,9 +61,9 @@ def get_devices():
 
 
 if __name__ == "__main__":
-    request = CephBrokerRq()
+    request = ch_ceph.CephBrokerRq()
     for dev in get_devices():
         request = add_device(request=request,
                              device_path=dev,
-                             bucket=action_get("bucket"))
-    send_request_if_needed(request, relation='mon')
+                             bucket=hookenv.action_get("bucket"))
+    ch_ceph.send_request_if_needed(request, relation='mon')
