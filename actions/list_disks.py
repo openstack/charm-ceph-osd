@@ -28,7 +28,7 @@ sys.path.append('lib/')
 
 from charmhelpers.core.hookenv import action_set
 
-from ceph import unmounted_disks
+from ceph.utils import unmounted_disks
 
 if __name__ == '__main__':
     action_set({

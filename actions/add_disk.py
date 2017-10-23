@@ -31,7 +31,10 @@ from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
 )
 
-import ceph
+from ceph.utils import (
+    osdize,
+    tune_dev,
+)
 
 from ceph_hooks import (
     get_journal_devices,
@@ -39,14 +42,14 @@ from ceph_hooks import (
 
 
 def add_device(request, device_path, bucket=None):
-    ceph.osdize(dev, config('osd-format'),
-                get_journal_devices(), config('osd-reformat'),
-                config('ignore-device-errors'),
-                config('osd-encrypt'),
-                config('bluestore'))
+    osdize(dev, config('osd-format'),
+           get_journal_devices(), config('osd-reformat'),
+           config('ignore-device-errors'),
+           config('osd-encrypt'),
+           config('bluestore'))
     # Make it fast!
     if config('autotune'):
-        ceph.tune_dev(dev)
+        tune_dev(dev)
     mounts = filter(lambda disk: device_path
                     in disk.device, psutil.disk_partitions())
     if mounts:

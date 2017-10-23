@@ -22,7 +22,9 @@ sys.path.append('lib/')
 
 from charmhelpers.core.hookenv import action_get, log, config, action_fail
 
-import ceph
+from ceph.utils import (
+    replace_osd,
+)
 
 """
 Given a OSD number this script will attempt to turn that back into a mount
@@ -90,8 +92,8 @@ if __name__ == '__main__':
     osd_format = config('osd-format')
     osd_journal = config('osd-journal')
 
-    ceph.replace_osd(dead_osd_number=dead_osd_number,
-                     dead_osd_device="/dev/{}".format(device_name),
-                     new_osd_device=replacement_device,
-                     osd_format=osd_format,
-                     osd_journal=osd_journal)
+    replace_osd(dead_osd_number=dead_osd_number,
+                dead_osd_device="/dev/{}".format(device_name),
+                new_osd_device=replacement_device,
+                osd_format=osd_format,
+                osd_journal=osd_journal)
