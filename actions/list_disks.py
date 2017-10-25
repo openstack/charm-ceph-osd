@@ -26,10 +26,10 @@ import sys
 sys.path.append('hooks/')
 sys.path.append('lib/')
 
-from charmhelpers.core.hookenv import action_set
+import charmhelpers.core.hookenv as hookenv
 
-from ceph.utils import unmounted_disks
+import ceph.utils
 
 if __name__ == '__main__':
-    action_set({
-        'disks': unmounted_disks()})
+    hookenv.action_set({
+        'disks': ceph.utils.unmounted_disks()})
