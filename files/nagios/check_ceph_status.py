@@ -15,19 +15,28 @@ def check_ceph_status(args):
         nagios_plugin.check_file_freshness(args.status_file, 3600)
         with open(args.status_file, "r") as f:
             lines = f.readlines()
-            status_data = dict(l.strip().split(' ', 1) for l in lines if len(l) > 1)
     else:
         lines = subprocess.check_output(["ceph", "status"]).split('\n')
-        status_data = dict(l.strip().split(' ', 1) for l in lines if len(l) > 1)
+    status_data = dict(l.strip().split(' ', 1) for l in lines if len(l) > 1)
 
-    if ('health' not in status_data
-            or 'monmap' not in status_data
-            or 'osdmap'not in status_data):
+    if ('health' not in status_data or
+            'monmap' not in status_data or
+            'osdmap' not in status_data):
         raise nagios_plugin.UnknownError('UNKNOWN: status data is incomplete')
 
     if status_data['health'] != 'HEALTH_OK':
-        msg = 'CRITICAL: ceph health status: "{}"'.format(status_data['health'])
+        msg = 'CRITICAL: ceph health status: "{}'.format(status_data['health'])
+        if (len(status_data['health'].split(' '))) == 1:
+            a = iter(lines)
+            for line in a:
+                if re.search('health', line) is not None:
+                    msg1 = next(a)
+                    msg += " "
+                    msg += msg1.strip()
+                    break
+        msg += '"'
         raise nagios_plugin.CriticalError(msg)
+
     osds = re.search("^.*: (\d+) osds: (\d+) up, (\d+) in", status_data['osdmap'])
     if osds.group(1) > osds.group(2):  # not all OSDs are "up"
         msg = 'CRITICAL: Some OSDs are not up. Total: {}, up: {}'.format(
