@@ -82,8 +82,8 @@ STORAGE_MOUNT_PATH = '/var/lib/ceph'
 
 
 def check_for_upgrade():
-    if not ceph.is_bootstrapped():
-        log("Ceph is not bootstrapped, skipping upgrade checks.")
+    if not os.path.exists(ceph._upgrade_keyring):
+        log("Ceph upgrade keyring not detected, skipping upgrade checks.")
         return
 
     c = hookenv.config()

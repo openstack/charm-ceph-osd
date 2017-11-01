@@ -19,16 +19,16 @@ def config_side_effect(*args):
 class UpgradeRollingTestCase(unittest.TestCase):
 
     @patch('ceph_hooks.ceph.dirs_need_ownership_update')
-    @patch('ceph_hooks.ceph.is_bootstrapped')
+    @patch('ceph_hooks.os.path.exists')
     @patch('ceph_hooks.ceph.resolve_ceph_version')
     @patch('ceph_hooks.emit_cephconf')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_osd_cluster')
     def test_check_for_upgrade(self, roll_osd_cluster, hookenv,
-                               emit_cephconf, version, is_bootstrapped,
+                               emit_cephconf, version, exists,
                                dirs_need_ownership_update):
         dirs_need_ownership_update.return_value = False
-        is_bootstrapped.return_value = True
+        exists.return_value = True
         version.side_effect = ['firefly', 'hammer']
         previous_mock = MagicMock().return_value
         previous_mock.previous.return_value = "cloud:trusty-juno"
@@ -40,19 +40,21 @@ class UpgradeRollingTestCase(unittest.TestCase):
                                             upgrade_key='osd-upgrade')
         emit_cephconf.assert_has_calls([call(upgrading=True),
                                         call(upgrading=False)])
+        exists.assert_called_with(
+            "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring")
 
     @patch('ceph_hooks.ceph.dirs_need_ownership_update')
-    @patch('ceph_hooks.ceph.is_bootstrapped')
+    @patch('ceph_hooks.os.path.exists')
     @patch('ceph_hooks.ceph.resolve_ceph_version')
     @patch('ceph_hooks.emit_cephconf')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_osd_cluster')
     def test_resume_failed_upgrade(self, roll_osd_cluster,
                                    hookenv, emit_cephconf, version,
-                                   is_bootstrapped,
+                                   exists,
                                    dirs_need_ownership_update):
         dirs_need_ownership_update.return_value = True
-        is_bootstrapped.return_value = True
+        exists.return_value = True
         version.side_effect = ['jewel', 'jewel']
 
         check_for_upgrade()
@@ -61,15 +63,17 @@ class UpgradeRollingTestCase(unittest.TestCase):
                                             upgrade_key='osd-upgrade')
         emit_cephconf.assert_has_calls([call(upgrading=True),
                                         call(upgrading=False)])
+        exists.assert_called_with(
+            "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring")
 
-    @patch('ceph_hooks.ceph.is_bootstrapped')
+    @patch('ceph_hooks.os.path.exists')
     @patch('ceph_hooks.ceph.resolve_ceph_version')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_monitor_cluster')
     def test_check_for_upgrade_not_bootstrapped(self, roll_monitor_cluster,
                                                 hookenv,
-                                                version, is_bootstrapped):
-        is_bootstrapped.return_value = False
+                                                version, exists):
+        exists.return_value = False
         version.side_effect = ['firefly', 'hammer']
         previous_mock = MagicMock().return_value
         previous_mock.previous.return_value = "cloud:trusty-juno"
@@ -78,3 +82,5 @@ class UpgradeRollingTestCase(unittest.TestCase):
         check_for_upgrade()
 
         roll_monitor_cluster.assert_not_called()
+        exists.assert_called_with(
+            "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring")

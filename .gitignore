@@ -2,6 +2,7 @@
 .project
 .tox
 .testrepository
+.stestr
 bin
 *.sw[nop]
 *.pyc
