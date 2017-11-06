@@ -48,3 +48,39 @@ add-disk:
       description: The name of the bucket in Ceph to add these devices into
   required:
     - osd-devices
+blacklist-add-disk:
+  description: |
+    Add disk(s) to blacklist. Blacklisted disks will not be
+    initialized for use with Ceph even if listed in the application
+    level osd-devices configuration option.
+    .
+    The current blacklist can be viewed with list-disks action.
+    .
+    NOTE: This action and blacklist will not have any effect on
+    already initialized disks.
+  params:
+    osd-devices:
+      type: string
+      description: |
+        A space-separated list of devices to add to blacklist.
+        .
+        Each element should be a absolute path to a device node or filesystem
+        directory (the latter is supported for ceph >= 0.56.6).
+        .
+        Example: '/dev/vdb /var/tmp/test-osd'
+  required:
+    - osd-devices
+blacklist-remove-disk:
+  description: Remove disk(s) from blacklist.
+  params:
+    osd-devices:
+      type: string
+      description: |
+        A space-separated list of devices to remove from blacklist.
+        .
+        Each element should be a existing entry in the units blacklist.
+        Use list-disks action to list current blacklist entries.
+        .
+        Example: '/dev/vdb /var/tmp/test-osd'
+  required:
+    - osd-devices

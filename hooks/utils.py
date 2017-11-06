@@ -207,3 +207,9 @@ def is_unit_paused_set():
             return not(not(kv.get('unit-paused')))
     except:
         return False
+
+
+def get_blacklist():
+    """Get blacklist stored in the local kv() store"""
+    db = unitdata.kv()
+    return db.get('osd-blacklist', [])

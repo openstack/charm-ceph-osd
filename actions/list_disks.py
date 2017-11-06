@@ -29,7 +29,10 @@ sys.path.append('lib/')
 import charmhelpers.core.hookenv as hookenv
 
 import ceph.utils
+import utils
 
 if __name__ == '__main__':
     hookenv.action_set({
-        'disks': ceph.utils.unmounted_disks()})
+        'disks': ceph.utils.unmounted_disks(),
+        'blacklist': utils.get_blacklist(),
+    })
