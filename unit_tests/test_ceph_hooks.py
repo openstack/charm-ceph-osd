@@ -18,8 +18,11 @@ import unittest
 from mock import patch, MagicMock, call
 
 import charmhelpers.contrib.storage.linux.ceph as ceph
-import ceph_hooks
 
+with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
+    mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
+                            lambda *args, **kwargs: f(*args, **kwargs))
+    import ceph_hooks
 
 CHARM_CONFIG = {'config-flags': '',
                 'loglevel': 1,
@@ -311,3 +314,28 @@ class CephHooksTestCase(unittest.TestCase):
             call('ceph-osd@1'),
             call('ceph-osd@2'),
         ])
+
+    @patch.object(ceph_hooks, 'storage_list')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_devices(self, mock_config, mock_storage_list):
+        '''Devices returned as expected'''
+        config = {'osd-devices': '/dev/vda /dev/vdb'}
+        mock_config.side_effect = lambda key: config[key]
+        mock_storage_list.return_value = []
+        devices = ceph_hooks.get_devices()
+        self.assertEqual(devices, ['/dev/vda', '/dev/vdb'])
+
+    @patch('os.path.exists')
+    @patch.object(ceph_hooks, 'storage_list')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_journal_devices(self, mock_config, mock_storage_list,
+                                 mock_os_path_exists):
+        '''Devices returned as expected'''
+        config = {'osd-journal': '/dev/vda /dev/vdb'}
+        mock_config.side_effect = lambda key: config[key]
+        mock_storage_list.return_value = []
+        mock_os_path_exists.return_value = True
+        devices = ceph_hooks.get_journal_devices()
+        mock_storage_list.assert_called()
+        mock_os_path_exists.assert_called()
+        self.assertEqual(devices, set(['/dev/vda', '/dev/vdb']))
