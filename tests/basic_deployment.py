@@ -672,3 +672,52 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         assert u.wait_on_action(action_id), "Resume action failed."
         assert u.status_get(sentry_unit)[0] == "active"
         u.log.debug('OK')
+
+    def test_911_blacklist(self):
+        """The blacklist actions execute and behave as expected. """
+        u.log.debug('Checking blacklist-add-disk and'
+                    'blacklist-remove-disk actions...')
+        sentry_unit = self.ceph_osd_sentry
+
+        assert u.status_get(sentry_unit)[0] == "active"
+
+        # Attempt to add device with non-absolute path should fail
+        action_id = u.run_action(sentry_unit,
+                                 "blacklist-add-disk",
+                                 params={"osd-devices": "vda"})
+        assert not u.wait_on_action(action_id), "completed"
+        assert u.status_get(sentry_unit)[0] == "active"
+
+        # Attempt to add device with non-existent path should fail
+        action_id = u.run_action(sentry_unit,
+                                 "blacklist-add-disk",
+                                 params={"osd-devices": "/non-existent"})
+        assert not u.wait_on_action(action_id), "completed"
+        assert u.status_get(sentry_unit)[0] == "active"
+
+        # Attempt to add device with existent path should succeed
+        action_id = u.run_action(sentry_unit,
+                                 "blacklist-add-disk",
+                                 params={"osd-devices": "/dev/vda"})
+        assert u.wait_on_action(action_id), "completed"
+        assert u.status_get(sentry_unit)[0] == "active"
+
+        # Attempt to remove listed device should always succeed
+        action_id = u.run_action(sentry_unit,
+                                 "blacklist-remove-disk",
+                                 params={"osd-devices": "/dev/vda"})
+        assert u.wait_on_action(action_id), "completed"
+        assert u.status_get(sentry_unit)[0] == "active"
+        u.log.debug('OK')
+
+    def test_912_list_disks(self):
+        """The list-disks action execute. """
+        u.log.debug('Checking list-disks action...')
+        sentry_unit = self.ceph_osd_sentry
+
+        assert u.status_get(sentry_unit)[0] == "active"
+
+        action_id = u.run_action(sentry_unit, "list-disks")
+        assert u.wait_on_action(action_id), "completed"
+        assert u.status_get(sentry_unit)[0] == "active"
+        u.log.debug('OK')

@@ -66,6 +66,7 @@ from utils import (
     is_unit_paused_set,
     get_public_addr,
     get_cluster_addr,
+    get_blacklist,
 )
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.network.ip import (
@@ -441,7 +442,11 @@ def get_devices():
     # their block device paths to the list.
     storage_ids = storage_list('osd-devices')
     devices.extend((storage_get('location', s) for s in storage_ids))
-    return devices
+
+    # Filter out any devices in the action managed unit-local device blacklist
+    return filter(
+        lambda device: device not in get_blacklist(), devices
+    )
 
 
 def get_journal_devices():
@@ -451,6 +456,11 @@ def get_journal_devices():
         devices = []
     storage_ids = storage_list('osd-journals')
     devices.extend((storage_get('location', s) for s in storage_ids))
+
+    # Filter out any devices in the action managed unit-local device blacklist
+    devices = filter(
+        lambda device: device not in get_blacklist(), devices
+    )
     devices = filter(os.path.exists, devices)
 
     return set(devices)
