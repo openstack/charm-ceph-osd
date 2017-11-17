@@ -121,7 +121,7 @@ class ReplaceOsdTestCase(test_utils.CharmTestCase):
     @patch('replace_osd.os.lstat')
     def test_get_device_number(self, lstat):
         lstat.return_value = posix.stat_result([
-            16877, 16, 51729L, 3, 0, 0, 217, 0, 1458086872, 1458086872
+            16877, 16, 51729, 3, 0, 0, 217, 0, 1458086872, 1458086872
         ])
         major, minor = replace_osd.get_device_number(1)
         assert major == 202

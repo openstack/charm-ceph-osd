@@ -44,14 +44,14 @@ TEMPLATES_DIR = 'templates'
 try:
     import jinja2
 except ImportError:
-    apt_install(filter_installed_packages(['python-jinja2']),
+    apt_install(filter_installed_packages(['python3-jinja2']),
                 fatal=True)
     import jinja2
 
 try:
     import dns.resolver
 except ImportError:
-    apt_install(filter_installed_packages(['python-dnspython']),
+    apt_install(filter_installed_packages(['python3-dnspython']),
                 fatal=True)
     import dns.resolver
 
@@ -65,9 +65,9 @@ def render_template(template_name, context, template_dir=TEMPLATES_DIR):
 
 def enable_pocket(pocket):
     apt_sources = "/etc/apt/sources.list"
-    with open(apt_sources, "r") as sources:
+    with open(apt_sources, "rt", encoding='UTF-8') as sources:
         lines = sources.readlines()
-    with open(apt_sources, "w") as sources:
+    with open(apt_sources, "wt", encoding='UTF-8') as sources:
         for line in lines:
             if pocket in line:
                 sources.write(re.sub('^# deb', 'deb', line))

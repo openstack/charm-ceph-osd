@@ -60,7 +60,7 @@ class Crushmap(object):
         ids = list(map(
             lambda x: int(x),
             re.findall(CRUSHMAP_ID_RE, self._crushmap)))
-        ids.sort()
+        ids = sorted(ids)
         if roots != []:
             for root in roots:
                 buckets.append(CRUSHBucket(root[0], root[1], True))
@@ -73,8 +73,11 @@ class Crushmap(object):
 
     def load_crushmap(self):
         try:
-            crush = check_output(['ceph', 'osd', 'getcrushmap'])
-            return check_output(['crushtool', '-d', '-'], stdin=crush.stdout)
+            crush = str(check_output(['ceph', 'osd', 'getcrushmap'])
+                        .decode('UTF-8'))
+            return str(check_output(['crushtool', '-d', '-'],
+                                    stdin=crush.stdout)
+                       .decode('UTF-8'))
         except CalledProcessError as e:
             log("Error occured while loading and decompiling CRUSH map:"
                 "{}".format(e), ERROR)
@@ -99,10 +102,12 @@ class Crushmap(object):
         """Persist Crushmap to Ceph"""
         try:
             crushmap = self.build_crushmap()
-            compiled = check_output(['crushtool', '-c', '/dev/stdin', '-o',
-                                     '/dev/stdout'], stdin=crushmap)
-            ceph_output = check_output(['ceph', 'osd', 'setcrushmap', '-i',
-                                        '/dev/stdin'], stdin=compiled)
+            compiled = str(check_output(['crushtool', '-c', '/dev/stdin', '-o',
+                                         '/dev/stdout'], stdin=crushmap)
+                           .decode('UTF-8'))
+            ceph_output = str(check_output(['ceph', 'osd', 'setcrushmap', '-i',
+                                            '/dev/stdin'], stdin=compiled)
+                              .decode('UTF-8'))
             return ceph_output
         except CalledProcessError as e:
             log("save error: {}".format(e))

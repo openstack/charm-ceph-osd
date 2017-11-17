@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import json
 import os
 
@@ -134,7 +135,7 @@ def process_requests(reqs):
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
-    msg = ("Missing or invalid api version (%s)" % version)
+    msg = ("Missing or invalid api version ({})".format(version))
     resp = {'exit-code': 1, 'stderr': msg}
     if request_id:
         resp['request-id'] = request_id
@@ -231,7 +232,7 @@ def add_pool_to_group(pool, group, namespace=None):
 def pool_permission_list_for_service(service):
     """Build the permission string for Ceph for a given service"""
     permissions = []
-    permission_types = {}
+    permission_types = collections.OrderedDict()
     for permission, group in service["group_names"].items():
         if permission not in permission_types:
             permission_types[permission] = []
@@ -267,9 +268,7 @@ def get_service_groups(service, namespace=None):
                                    key="cephx.services.{}".format(service))
     try:
         service = json.loads(service_json)
-    except TypeError:
-        service = None
-    except ValueError:
+    except (TypeError, ValueError):
         service = None
     if service:
         service['groups'] = _build_service_groups(service, namespace)
@@ -296,7 +295,7 @@ def _build_service_groups(service, namespace=None):
                     }
     """
     all_groups = {}
-    for _, groups in service['group_names'].items():
+    for groups in service['group_names'].values():
         for group in groups:
             name = group
             if namespace:
@@ -316,9 +315,7 @@ def get_group(group_name):
     group_json = monitor_key_get(service='admin', key=group_key)
     try:
         group = json.loads(group_json)
-    except TypeError:
-        group = None
-    except ValueError:
+    except (TypeError, ValueError):
         group = None
     if not group:
         group = {
@@ -391,9 +388,8 @@ def handle_erasure_pool(request, service):
                        percent_data=weight)
     # Ok make the erasure pool
     if not pool_exists(service=service, name=pool_name):
-        log("Creating pool '%s' (erasure_profile=%s)" % (pool.name,
-                                                         erasure_profile),
-            level=INFO)
+        log("Creating pool '{}' (erasure_profile={})"
+            .format(pool.name, erasure_profile), level=INFO)
         pool.create()
 
     # Set a quota if requested
@@ -446,11 +442,11 @@ def handle_replicated_pool(request, service):
     pool = ReplicatedPool(service=service,
                           name=pool_name, **kwargs)
     if not pool_exists(service=service, name=pool_name):
-        log("Creating pool '%s' (replicas=%s)" % (pool.name, replicas),
+        log("Creating pool '{}' (replicas={})".format(pool.name, replicas),
             level=INFO)
         pool.create()
     else:
-        log("Pool '%s' already exists - skipping create" % pool.name,
+        log("Pool '{}' already exists - skipping create".format(pool.name),
             level=DEBUG)
 
     # Set a quota if requested
@@ -519,7 +515,7 @@ def handle_set_pool_value(request, service):
               'key': request.get('key'),
               'value': request.get('value')}
     if params['key'] not in POOL_KEYS:
-        msg = "Invalid key '%s'" % params['key']
+        msg = "Invalid key '{}'".format(params['key'])
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
@@ -685,7 +681,7 @@ def handle_rgw_create_user(request, service):
             ]
         )
         try:
-            user_json = json.loads(create_output)
+            user_json = json.loads(str(create_output.decode('UTF-8')))
             return {'exit-code': 0, 'user': user_json}
         except ValueError as err:
             log(err, level=ERROR)
@@ -790,10 +786,10 @@ def process_requests_v1(reqs):
     operation failed along with an explanation).
     """
     ret = None
-    log("Processing %s ceph broker requests" % (len(reqs)), level=INFO)
+    log("Processing {} ceph broker requests".format(len(reqs)), level=INFO)
     for req in reqs:
         op = req.get('op')
-        log("Processing op='%s'" % op, level=DEBUG)
+        log("Processing op='{}'".format(op), level=DEBUG)
         # Use admin client since we do not have other client key locations
         # setup to use them for these operations.
         svc = 'admin'
@@ -848,7 +844,7 @@ def process_requests_v1(reqs):
         elif op == "add-permissions-to-key":
             ret = handle_add_permissions_to_key(request=req, service=svc)
         else:
-            msg = "Unknown operation '%s'" % op
+            msg = "Unknown operation '{}'".format(op)
             log(msg, level=ERROR)
             return {'exit-code': 1, 'stderr': msg}
 
