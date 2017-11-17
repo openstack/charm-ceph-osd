@@ -304,3 +304,54 @@ class CephHooksTestCase(unittest.TestCase):
             call('ceph-osd@1'),
             call('ceph-osd@2'),
         ])
+
+    @patch.object(ceph_hooks, 'log')
+    @patch.object(ceph_hooks, 'config')
+    @patch('os.environ')
+    def test_az_info_unset(self, environ, config, log):
+        config.return_value = None
+        environ.get.return_value = None
+
+        self.assertEqual(ceph_hooks.az_info(), None)
+
+        config.assert_called_with('availability_zone')
+        environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')
+
+    @patch.object(ceph_hooks, 'log')
+    @patch.object(ceph_hooks, 'config')
+    @patch('os.environ')
+    def test_az_info_config(self, environ, config, log):
+        config.return_value = 'dc-01'
+        environ.get.return_value = None
+
+        self.assertEqual(ceph_hooks.az_info(),
+                         ' row=dc-01')
+
+        config.assert_called_with('availability_zone')
+        environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')
+
+    @patch.object(ceph_hooks, 'log')
+    @patch.object(ceph_hooks, 'config')
+    @patch('os.environ')
+    def test_az_info_juju_az(self, environ, config, log):
+        config.return_value = 'dc-01'
+        environ.get.return_value = 'zone1'
+
+        self.assertEqual(ceph_hooks.az_info(),
+                         ' rack=zone1 row=dc-01')
+
+        config.assert_called_with('availability_zone')
+        environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')
+
+    @patch.object(ceph_hooks, 'log')
+    @patch.object(ceph_hooks, 'config')
+    @patch('os.environ')
+    def test_az_info_default_remap(self, environ, config, log):
+        config.return_value = 'default'
+        environ.get.return_value = 'default'
+
+        self.assertEqual(ceph_hooks.az_info(),
+                         ' rack=default-rack row=default-row')
+
+        config.assert_called_with('availability_zone')
+        environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')

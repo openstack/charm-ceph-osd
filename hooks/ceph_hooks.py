@@ -194,8 +194,16 @@ def az_info():
     config_az = config("availability_zone")
     juju_az_info = os.environ.get('JUJU_AVAILABILITY_ZONE')
     if juju_az_info:
+        # NOTE(jamespage): avoid conflicting key with root
+        #                  of crush hierarchy
+        if juju_az_info == 'default':
+            juju_az_info = 'default-rack'
         az_info = "{} rack={}".format(az_info, juju_az_info)
     if config_az:
+        # NOTE(jamespage): avoid conflicting key with root
+        #                  of crush hierarchy
+        if config_az == 'default':
+            config_az = 'default-row'
         az_info = "{} row={}".format(az_info, config_az)
     if az_info != "":
         log("AZ Info: " + az_info)
