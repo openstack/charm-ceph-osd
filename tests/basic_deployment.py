@@ -508,9 +508,12 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
-        # Validate ceph cinder pool disk space usage samples over time
-        ret = u.validate_ceph_pool_samples(pool_size_samples,
-                                           "cinder pool disk usage")
+        # Luminous (pike) ceph seems more efficient at disk usage so we cannot
+        # grantee the ordering of kb_used
+        if self._get_openstack_release() < self.xenial_mitaka:
+            # Validate ceph cinder pool disk space usage samples over time
+            ret = u.validate_ceph_pool_samples(pool_size_samples,
+                                               "cinder pool disk usage")
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
