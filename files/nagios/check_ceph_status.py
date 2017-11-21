@@ -13,10 +13,13 @@ import nagios_plugin
 def check_ceph_status(args):
     if args.status_file:
         nagios_plugin.check_file_freshness(args.status_file, 3600)
-        with open(args.status_file, "r") as f:
+        with open(args.status_file, "rt", encoding='UTF-8') as f:
             lines = f.readlines()
     else:
-        lines = subprocess.check_output(["ceph", "status"]).split('\n')
+        lines = (subprocess
+                 .check_output(["ceph", "status"])
+                 .decode('UTF-8')
+                 .split('\n'))
     status_data = dict(l.strip().split(' ', 1) for l in lines if len(l) > 1)
 
     if ('health' not in status_data or
@@ -42,7 +45,7 @@ def check_ceph_status(args):
         msg = 'CRITICAL: Some OSDs are not up. Total: {}, up: {}'.format(
             osds.group(1), osds.group(2))
         raise nagios_plugin.CriticalError(msg)
-    print "All OK"
+    print("All OK")
 
 
 if __name__ == '__main__':

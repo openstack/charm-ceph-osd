@@ -45,7 +45,7 @@ class PerformanceTestCase(test_utils.CharmTestCase):
     @patch.object(ceph.subprocess, 'check_output')
     def test_get_block_uuid(self, check_output):
         check_output.return_value = \
-            'UUID=378f3c86-b21a-4172-832d-e2b3d4bc7511\nTYPE=ext2\n'
+            b'UUID=378f3c86-b21a-4172-832d-e2b3d4bc7511\nTYPE=ext2\n'
         uuid = ceph.get_block_uuid('/dev/sda1')
         self.assertEqual(uuid, '378f3c86-b21a-4172-832d-e2b3d4bc7511')
 

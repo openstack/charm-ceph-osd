@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -312,7 +312,7 @@ JOURNAL_ZAPPED = '/var/lib/ceph/journal_zapped'
 
 def read_zapped_journals():
     if os.path.exists(JOURNAL_ZAPPED):
-        with open(JOURNAL_ZAPPED) as zapfile:
+        with open(JOURNAL_ZAPPED, 'rt', encoding='UTF-8') as zapfile:
             zapped = set(
                 filter(None,
                        [l.strip() for l in zapfile.readlines()]))
@@ -326,7 +326,7 @@ def write_zapped_journals(journal_devs):
     with os.fdopen(tmpfh, 'wb') as zapfile:
         log("write zapped: {}".format(journal_devs),
             level=DEBUG)
-        zapfile.write('\n'.join(sorted(list(journal_devs))))
+        zapfile.write('\n'.join(sorted(list(journal_devs))).encode('UTF-8'))
     shutil.move(tmpfile, JOURNAL_ZAPPED)
 
 
@@ -407,8 +407,7 @@ def get_mon_hosts():
             if addr:
                 hosts.append('{}:6789'.format(format_ipv6_addr(addr) or addr))
 
-    hosts.sort()
-    return hosts
+    return sorted(hosts)
 
 
 def get_fsid():
@@ -454,9 +453,8 @@ def get_devices():
     devices.extend((storage_get('location', s) for s in storage_ids))
 
     # Filter out any devices in the action managed unit-local device blacklist
-    return filter(
-        lambda device: device not in get_blacklist(), devices
-    )
+    _blacklist = get_blacklist()
+    return [device for device in devices if device not in _blacklist]
 
 
 def get_journal_devices():
@@ -468,12 +466,9 @@ def get_journal_devices():
     devices.extend((storage_get('location', s) for s in storage_ids))
 
     # Filter out any devices in the action managed unit-local device blacklist
-    devices = filter(
-        lambda device: device not in get_blacklist(), devices
-    )
-    devices = filter(os.path.exists, devices)
-
-    return set(devices)
+    _blacklist = get_blacklist()
+    return set(device for device in devices
+               if device not in _blacklist and os.path.exists(device))
 
 
 @hooks.hook('mon-relation-changed',
@@ -504,7 +499,7 @@ def upgrade_charm():
             'nrpe-external-master-relation-changed')
 def update_nrpe_config():
     # python-dbus is used by check_upstart_job
-    apt_install('python-dbus')
+    apt_install('python3-dbus')
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
     nrpe_setup = nrpe.NRPE(hostname=hostname)

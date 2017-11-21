@@ -250,7 +250,14 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         self.log.debug('Waiting up to {}s for extended status on services: '
                        '{}'.format(timeout, services))
         service_messages = {service: message for service in services}
+
+        # Check for idleness
+        self.d.sentry.wait()
+        # Check for error states and bail early
+        self.d.sentry.wait_for_status(self.d.juju_env, services)
+        # Check for ready messages
         self.d.sentry.wait_for_messages(service_messages, timeout=timeout)
+
         self.log.info('OK')
 
     def _get_openstack_release(self):
@@ -303,19 +310,26 @@ class OpenStackAmuletDeployment(AmuletDeployment):
         test scenario, based on OpenStack release and whether ceph radosgw
         is flagged as present or not."""
 
-        if self._get_openstack_release() >= self.trusty_kilo:
-            # Kilo or later
+        if self._get_openstack_release() <= self.trusty_icehouse:
+            # Juno or earlier
+            pools = [
+                'data',
+                'metadata',
+                'rbd',
+                'cinder-ceph',
+                'glance'
+            ]
+        elif (self.trusty_kilo <= self._get_openstack_release() <=
+              self.zesty_ocata):
+            # Kilo through Ocata
             pools = [
                 'rbd',
                 'cinder-ceph',
                 'glance'
             ]
         else:
-            # Juno or earlier
+            # Pike and later
             pools = [
-                'data',
-                'metadata',
-                'rbd',
                 'cinder-ceph',
                 'glance'
             ]

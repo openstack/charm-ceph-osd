@@ -30,6 +30,7 @@ from datetime import datetime
 
 from charmhelpers.core import hookenv
 from charmhelpers.core import templating
+from charmhelpers.core.decorators import retry_on_exception
 from charmhelpers.core.host import (
     chownr,
     cmp_pkgrevno,
@@ -380,8 +381,9 @@ def get_block_uuid(block_dev):
     :returns: The UUID of the device or None on Error.
     """
     try:
-        block_info = subprocess.check_output(
-            ['blkid', '-o', 'export', block_dev])
+        block_info = str(subprocess
+                         .check_output(['blkid', '-o', 'export', block_dev])
+                         .decode('UTF-8'))
         for tag in block_info.split('\n'):
             parts = tag.split('=')
             if parts[0] == 'UUID':
@@ -532,8 +534,9 @@ def get_osd_weight(osd_id):
     :raises: CalledProcessError if our ceph command fails.
     """
     try:
-        tree = subprocess.check_output(
-            ['ceph', 'osd', 'tree', '--format=json'])
+        tree = str(subprocess
+                   .check_output(['ceph', 'osd', 'tree', '--format=json'])
+                   .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
             # Make sure children are present in the json
@@ -560,9 +563,10 @@ def get_osd_tree(service):
              Also raises CalledProcessError if our ceph command fails
     """
     try:
-        tree = subprocess.check_output(
-            ['ceph', '--id', service,
-             'osd', 'tree', '--format=json'])
+        tree = str(subprocess
+                   .check_output(['ceph', '--id', service,
+                                  'osd', 'tree', '--format=json'])
+                   .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
             crush_list = []
@@ -627,7 +631,7 @@ def _get_osd_num_from_dirname(dirname):
     """
     match = re.search('ceph-(?P<osd_id>\d+)', dirname)
     if not match:
-        raise ValueError("dirname not in correct format: %s" % dirname)
+        raise ValueError("dirname not in correct format: {}".format(dirname))
 
     return match.group('osd_id')
 
@@ -717,7 +721,7 @@ def get_version():
 
 
 def error_out(msg):
-    log("FATAL ERROR: %s" % msg,
+    log("FATAL ERROR: {}".format(msg),
         level=ERROR)
     sys.exit(1)
 
@@ -735,7 +739,9 @@ def is_quorum():
     ]
     if os.path.exists(asok):
         try:
-            result = json.loads(subprocess.check_output(cmd))
+            result = json.loads(str(subprocess
+                                    .check_output(cmd)
+                                    .decode('UTF-8')))
         except subprocess.CalledProcessError:
             return False
         except ValueError:
@@ -762,7 +768,9 @@ def is_leader():
     ]
     if os.path.exists(asok):
         try:
-            result = json.loads(subprocess.check_output(cmd))
+            result = json.loads(str(subprocess
+                                    .check_output(cmd)
+                                    .decode('UTF-8')))
         except subprocess.CalledProcessError:
             return False
         except ValueError:
@@ -954,8 +962,9 @@ def is_osd_disk(dev):
     partitions = get_partition_list(dev)
     for partition in partitions:
         try:
-            info = subprocess.check_output(['sgdisk', '-i', partition.number,
-                                            dev])
+            info = str(subprocess
+                       .check_output(['sgdisk', '-i', partition.number, dev])
+                       .decode('UTF-8'))
             info = info.split("\n")  # IGNORE:E1103
             for line in info:
                 for ptype in CEPH_PARTITIONS:
@@ -1038,7 +1047,7 @@ def generate_monitor_secret():
         '--name=mon.',
         '--gen-key'
     ]
-    res = subprocess.check_output(cmd)
+    res = str(subprocess.check_output(cmd).decode('UTF-8'))
 
     return "{}==".format(res.split('=')[1].strip())
 
@@ -1187,7 +1196,10 @@ def create_named_keyring(entity, name, caps=None):
     for subsystem, subcaps in caps.items():
         cmd.extend([subsystem, '; '.join(subcaps)])
     log("Calling check_output: {}".format(cmd), level=DEBUG)
-    return parse_key(subprocess.check_output(cmd).strip())  # IGNORE:E1103
+    return (parse_key(str(subprocess
+                          .check_output(cmd)
+                          .decode('UTF-8'))
+                      .strip()))  # IGNORE:E1103
 
 
 def get_upgrade_key():
@@ -1204,7 +1216,7 @@ def get_named_key(name, caps=None, pool_list=None):
     """
     try:
         # Does the key already exist?
-        output = subprocess.check_output(
+        output = str(subprocess.check_output(
             [
                 'sudo',
                 '-u', ceph_user(),
@@ -1217,7 +1229,7 @@ def get_named_key(name, caps=None, pool_list=None):
                 'auth',
                 'get',
                 'client.{}'.format(name),
-            ]).strip()
+            ]).decode('UTF-8')).strip()
         return parse_key(output)
     except subprocess.CalledProcessError:
         # Couldn't get the key, time to create it!
@@ -1246,7 +1258,10 @@ def get_named_key(name, caps=None, pool_list=None):
         cmd.extend([subsystem, '; '.join(subcaps)])
 
     log("Calling check_output: {}".format(cmd), level=DEBUG)
-    return parse_key(subprocess.check_output(cmd).strip())  # IGNORE:E1103
+    return parse_key(str(subprocess
+                         .check_output(cmd)
+                         .decode('UTF-8'))
+                     .strip())  # IGNORE:E1103
 
 
 def upgrade_key_caps(key, caps):
@@ -1287,38 +1302,51 @@ def bootstrap_monitor_cluster(secret):
         mkdir(path, owner=ceph_user(), group=ceph_user())
         # end changes for Ceph >= 0.61.3
         try:
-            subprocess.check_call(['ceph-authtool', keyring,
-                                   '--create-keyring', '--name=mon.',
-                                   '--add-key={}'.format(secret),
-                                   '--cap', 'mon', 'allow *'])
+            add_keyring_to_ceph(keyring,
+                                secret,
+                                hostname,
+                                path,
+                                done,
+                                init_marker)
 
-            subprocess.check_call(['ceph-mon', '--mkfs',
-                                   '-i', hostname,
-                                   '--keyring', keyring])
-            chownr(path, ceph_user(), ceph_user())
-            with open(done, 'w'):
-                pass
-            with open(init_marker, 'w'):
-                pass
-
-            if systemd():
-                subprocess.check_call(['systemctl', 'enable', 'ceph-mon'])
-                service_restart('ceph-mon')
-            else:
-                service_restart('ceph-mon-all')
-
-            if cmp_pkgrevno('ceph', '12.0.0') >= 0:
-                # NOTE(jamespage): Later ceph releases require explicit
-                #                  call to ceph-create-keys to setup the
-                #                  admin keys for the cluster; this command
-                #                  will wait for quorum in the cluster before
-                #                  returning.
-                cmd = ['ceph-create-keys', '--id', hostname]
-                subprocess.check_call(cmd)
         except:
             raise
         finally:
             os.unlink(keyring)
+
+
+@retry_on_exception(3, base_delay=5)
+def add_keyring_to_ceph(keyring, secret, hostname, path, done, init_marker):
+    subprocess.check_call(['ceph-authtool', keyring,
+                           '--create-keyring', '--name=mon.',
+                           '--add-key={}'.format(secret),
+                           '--cap', 'mon', 'allow *'])
+    subprocess.check_call(['ceph-mon', '--mkfs',
+                           '-i', hostname,
+                           '--keyring', keyring])
+    chownr(path, ceph_user(), ceph_user())
+    with open(done, 'w'):
+        pass
+    with open(init_marker, 'w'):
+        pass
+
+    if systemd():
+        subprocess.check_call(['systemctl', 'enable', 'ceph-mon'])
+        service_restart('ceph-mon')
+    else:
+        service_restart('ceph-mon-all')
+
+    if cmp_pkgrevno('ceph', '12.0.0') >= 0:
+        # NOTE(jamespage): Later ceph releases require explicit
+        #                  call to ceph-create-keys to setup the
+        #                  admin keys for the cluster; this command
+        #                  will wait for quorum in the cluster before
+        #                  returning.
+        cmd = ['ceph-create-keys', '--id', hostname]
+        subprocess.check_call(cmd)
+    osstat = os.stat("/etc/ceph/ceph.client.admin.keyring")
+    if not osstat.st_size:
+        raise Exception
 
 
 def update_monfs():
@@ -1347,7 +1375,7 @@ def maybe_zap_journal(journal_dev):
 def get_partitions(dev):
     cmd = ['partx', '--raw', '--noheadings', dev]
     try:
-        out = subprocess.check_output(cmd).splitlines()
+        out = str(subprocess.check_output(cmd).decode('UTF-8')).splitlines()
         log("get partitions: {}".format(out), level=DEBUG)
         return out
     except subprocess.CalledProcessError as e:
@@ -1515,7 +1543,7 @@ def get_running_osds():
     """Returns a list of the pids of the current running OSD daemons"""
     cmd = ['pgrep', 'ceph-osd']
     try:
-        result = subprocess.check_output(cmd)
+        result = str(subprocess.check_output(cmd).decode('UTF-8'))
         return result.split()
     except subprocess.CalledProcessError:
         return []
@@ -1531,7 +1559,9 @@ def get_cephfs(service):
         # This command wasn't introduced until 0.86 ceph
         return []
     try:
-        output = subprocess.check_output(["ceph", '--id', service, "fs", "ls"])
+        output = str(subprocess
+                     .check_output(["ceph", '--id', service, "fs", "ls"])
+                     .decode('UTF-8'))
         if not output:
             return []
         """
@@ -2065,7 +2095,9 @@ def list_pools(service):
     """
     try:
         pool_list = []
-        pools = subprocess.check_output(['rados', '--id', service, 'lspools'])
+        pools = str(subprocess
+                    .check_output(['rados', '--id', service, 'lspools'])
+                    .decode('UTF-8'))
         for pool in pools.splitlines():
             pool_list.append(pool)
         return pool_list
@@ -2126,10 +2158,8 @@ UCA_CODENAME_MAP = {
 
 def pretty_print_upgrade_paths():
     """Pretty print supported upgrade paths for ceph"""
-    lines = []
-    for key, value in UPGRADE_PATHS.iteritems():
-        lines.append("{} -> {}".format(key, value))
-    return lines
+    return ["{} -> {}".format(key, value)
+            for key, value in UPGRADE_PATHS.iteritems()]
 
 
 def resolve_ceph_version(source):
@@ -2149,7 +2179,9 @@ def get_ceph_pg_stat():
     :returns: dict
     """
     try:
-        tree = subprocess.check_output(['ceph', 'pg', 'stat', '--format=json'])
+        tree = str(subprocess
+                   .check_output(['ceph', 'pg', 'stat', '--format=json'])
+                   .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
             if not json_tree['num_pg_by_state']:
@@ -2173,8 +2205,9 @@ def get_ceph_health():
              status, use get_ceph_health()['overall_status'].
     """
     try:
-        tree = subprocess.check_output(
-            ['ceph', 'status', '--format=json'])
+        tree = str(subprocess
+                   .check_output(['ceph', 'status', '--format=json'])
+                   .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
             # Make sure children are present in the json
@@ -2201,9 +2234,12 @@ def reweight_osd(osd_num, new_weight):
     :raises CalledProcessError: if an error occurs invoking the systemd cmd
     """
     try:
-        cmd_result = subprocess.check_output(
-            ['ceph', 'osd', 'crush', 'reweight', "osd.{}".format(osd_num),
-             new_weight], stderr=subprocess.STDOUT)
+        cmd_result = str(subprocess
+                         .check_output(['ceph', 'osd', 'crush',
+                                        'reweight', "osd.{}".format(osd_num),
+                                        new_weight],
+                                       stderr=subprocess.STDOUT)
+                         .decode('UTF-8'))
         expected_result = "reweighted item id {ID} name \'osd.{ID}\'".format(
                           ID=osd_num) + " to {}".format(new_weight)
         log(cmd_result)
@@ -2246,3 +2282,25 @@ def bootstrap_manager():
         unit = 'ceph-mgr@{}'.format(hostname)
         subprocess.check_call(['systemctl', 'enable', unit])
         service_restart(unit)
+
+
+def osd_noout(enable):
+    """Sets or unsets 'noout'
+
+    :param enable: bool. True to set noout, False to unset.
+    :returns: bool. True if output looks right.
+    :raises CalledProcessError: if an error occurs invoking the systemd cmd
+    """
+    operation = {
+        True: 'set',
+        False: 'unset',
+    }
+    try:
+        subprocess.check_call(['ceph', '--id', 'admin',
+                               'osd', operation[enable],
+                               'noout'])
+        log('running ceph osd {} noout'.format(operation[enable]))
+        return True
+    except subprocess.CalledProcessError as e:
+        log(e)
+        raise

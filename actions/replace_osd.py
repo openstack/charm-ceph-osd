@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -33,7 +33,7 @@ point and then replace the OSD with a new one.
 def get_disk_stats():
     try:
         # https://www.kernel.org/doc/Documentation/iostats.txt
-        with open('/proc/diskstats', 'r') as diskstats:
+        with open('/proc/diskstats', 'rt', encoding='UTF-8') as diskstats:
             return diskstats.readlines()
     except IOError as err:
         hookenv.log('Could not open /proc/diskstats.  Error: {}'
