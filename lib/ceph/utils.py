@@ -943,7 +943,7 @@ def get_partition_list(dev):
         partitions = get_partitions(dev)
         # For each line of output
         for partition in partitions:
-            parts = partition.split()
+            parts = partition.split(' ')
             partitions_list.append(
                 Partition(number=parts[0],
                           start=parts[1],
@@ -1489,6 +1489,8 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
     try:
         log("osdize cmd: {}".format(cmd))
         subprocess.check_call(cmd)
+        #Command to activate the partitions
+        subprocess.check_call(['ceph-disk', 'activate', dev])
     except subprocess.CalledProcessError:
         if ignore_errors:
             log('Unable to initialize device: {}'.format(dev), WARNING)
