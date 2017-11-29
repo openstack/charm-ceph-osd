@@ -195,7 +195,7 @@ def save_sysctls(sysctl_dict, save_location):
 
     except IOError as e:
         log("Unable to persist sysctl settings to {}. Error {}".format(
-            save_location, e.message), level=ERROR)
+            save_location, e), level=ERROR)
         raise
 
 
@@ -221,7 +221,7 @@ def tune_nic(network_interface):
                          save_location=sysctl_file)
         except IOError as e:
             log("Write to /etc/sysctl.d/51-ceph-osd-charm-{} "
-                "failed. {}".format(network_interface, e.message),
+                "failed. {}".format(network_interface, e),
                 level=ERROR)
 
         try:
@@ -266,7 +266,7 @@ def get_link_speed(network_interface):
     except IOError as e:
         log("Unable to open {path} because of error: {error}".format(
             path=speed_path,
-            error=e.message), level='error')
+            error=e), level='error')
         return LinkSpeed["UNKNOWN"]
 
 
@@ -286,13 +286,13 @@ def persist_settings(settings_dict):
                           context=settings_dict)
     except IOError as err:
         log("Unable to open {path} because of error: {error}".format(
-            path=HDPARM_FILE, error=err.message), level=ERROR)
+            path=HDPARM_FILE, error=err), level=ERROR)
     except Exception as e:
         # The templating.render can raise a jinja2 exception if the
         # template is not found. Rather than polluting the import
         # space of this charm, simply catch Exception
         log('Unable to render {path} due to error: {error}'.format(
-            path=HDPARM_FILE, error=e.message), level=ERROR)
+            path=HDPARM_FILE, error=e), level=ERROR)
 
 
 def set_max_sectors_kb(dev_name, max_sectors_size):
@@ -308,7 +308,7 @@ def set_max_sectors_kb(dev_name, max_sectors_size):
             f.write(max_sectors_size)
     except IOError as e:
         log('Failed to write max_sectors_kb to {}. Error: {}'.format(
-            max_sectors_kb_path, e.message), level=ERROR)
+            max_sectors_kb_path, e), level=ERROR)
 
 
 def get_max_sectors_kb(dev_name):
@@ -328,7 +328,7 @@ def get_max_sectors_kb(dev_name):
                 return int(max_sectors_kb)
         except IOError as e:
             log('Failed to read max_sectors_kb to {}. Error: {}'.format(
-                max_sectors_kb_path, e.message), level=ERROR)
+                max_sectors_kb_path, e), level=ERROR)
             # Bail.
             return 0
     return 0
@@ -350,7 +350,7 @@ def get_max_hw_sectors_kb(dev_name):
                 return int(max_hw_sectors_kb)
         except IOError as e:
             log('Failed to read max_hw_sectors_kb to {}. Error: {}'.format(
-                max_hw_sectors_kb_path, e.message), level=ERROR)
+                max_hw_sectors_kb_path, e), level=ERROR)
             return 0
     return 0
 
@@ -547,11 +547,11 @@ def get_osd_weight(osd_id):
                     return device['crush_weight']
         except ValueError as v:
             log("Unable to parse ceph tree json: {}. Error: {}".format(
-                tree, v.message))
+                tree, v))
             raise
     except subprocess.CalledProcessError as e:
         log("ceph osd tree command failed with message: {}".format(
-            e.message))
+            e))
         raise
 
 
@@ -591,11 +591,11 @@ def get_osd_tree(service):
             return crush_list
         except ValueError as v:
             log("Unable to parse ceph tree json: {}. Error: {}".format(
-                tree, v.message))
+                tree, v))
             raise
     except subprocess.CalledProcessError as e:
         log("ceph osd tree command failed with message: {}".format(
-            e.message))
+            e))
         raise
 
 
@@ -973,7 +973,7 @@ def is_osd_disk(dev):
                         return True
         except subprocess.CalledProcessError as e:
             log("sgdisk inspection of partition {} on {} failed with "
-                "error: {}. Skipping".format(partition.minor, dev, e.message),
+                "error: {}. Skipping".format(partition.minor, dev, e),
                 level=ERROR)
     return False
 
@@ -1682,7 +1682,7 @@ def upgrade_monitor(new_version):
         apt_update(fatal=True)
     except subprocess.CalledProcessError as err:
         log("Adding the ceph source failed with message: {}".format(
-            err.message))
+            err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
     try:
@@ -1711,7 +1711,7 @@ def upgrade_monitor(new_version):
             service_start('ceph-mon-all')
     except subprocess.CalledProcessError as err:
         log("Stopping ceph and upgrading packages failed "
-            "with message: {}".format(err.message))
+            "with message: {}".format(err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
 
@@ -1895,7 +1895,7 @@ def upgrade_osd(new_version):
         apt_update(fatal=True)
     except subprocess.CalledProcessError as err:
         log("Adding the ceph sources failed with message: {}".format(
-            err.message))
+            err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
 
@@ -1940,7 +1940,7 @@ def upgrade_osd(new_version):
 
     except (subprocess.CalledProcessError, IOError) as err:
         log("Stopping ceph and upgrading packages failed "
-            "with message: {}".format(err.message))
+            "with message: {}".format(err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
 
@@ -2189,11 +2189,10 @@ def get_ceph_pg_stat():
             return json_tree
         except ValueError as v:
             log("Unable to parse ceph pg stat json: {}. Error: {}".format(
-                tree, v.message))
+                tree, v))
             raise
     except subprocess.CalledProcessError as e:
-        log("ceph pg stat command failed with message: {}".format(
-            e.message))
+        log("ceph pg stat command failed with message: {}".format(e))
         raise
 
 
@@ -2217,11 +2216,10 @@ def get_ceph_health():
             return json_tree
         except ValueError as v:
             log("Unable to parse ceph tree json: {}. Error: {}".format(
-                tree, v.message))
+                tree, v))
             raise
     except subprocess.CalledProcessError as e:
-        log("ceph status command failed with message: {}".format(
-            e.message))
+        log("ceph status command failed with message: {}".format(e))
         raise
 
 
@@ -2247,8 +2245,8 @@ def reweight_osd(osd_num, new_weight):
             return True
         return False
     except subprocess.CalledProcessError as e:
-        log("ceph osd crush reweight command failed with message: {}".format(
-            e.message))
+        log("ceph osd crush reweight command failed"
+            " with message: {}".format(e))
         raise
 
 
