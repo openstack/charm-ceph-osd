@@ -37,10 +37,10 @@ def get_disk_stats():
             return diskstats.readlines()
     except IOError as err:
         hookenv.log('Could not open /proc/diskstats.  Error: {}'
-                    .format(err.message))
+                    .format(str(err)))
         hookenv.action_fail(
             'replace-osd failed because /proc/diskstats could not '
-            'be opened {}'.format(err.message))
+            'be opened {}'.format(str(err)))
         return None
 
 
@@ -65,7 +65,7 @@ def lookup_device_name(major_number, minor_number):
                 return parts[2]
         except ValueError as value_err:
             hookenv.log('Could not convert {} or {} into an integer. Error: {}'
-                        .format(parts[0], parts[1], value_err.message))
+                        .format(parts[0], parts[1], str(value_err)))
             continue
     return None
 
