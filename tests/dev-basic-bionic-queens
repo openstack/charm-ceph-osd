@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amulet tests on a basic ceph-osd deployment on zesty-ocata."""
+"""Amulet tests on a basic ceph-osd deployment on bionic-queens."""
 
 from basic_deployment import CephOsdBasicDeployment
 
 if __name__ == '__main__':
-    deployment = CephOsdBasicDeployment(series='zesty')
+    deployment = CephOsdBasicDeployment(series='bionic')
     deployment.run_tests()
