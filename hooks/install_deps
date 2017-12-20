@@ -2,7 +2,7 @@
 # Wrapper to ensure that python dependencies are installed before we get into
 # the python part of the hook execution
 
-declare -a DEPS=('dnspython' 'pyudev')
+declare -a DEPS=('dnspython' 'pyudev' 'netaddr' 'netifaces')
 
 check_and_install() {
     pkg="${1}-${2}"
