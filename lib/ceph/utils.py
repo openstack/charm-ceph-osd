@@ -1311,7 +1311,8 @@ def bootstrap_monitor_cluster(secret):
         # Ceph >= 0.61.3 needs this for ceph-mon fs creation
         mkdir('/var/run/ceph', owner=ceph_user(),
               group=ceph_user(), perms=0o755)
-        mkdir(path, owner=ceph_user(), group=ceph_user())
+        mkdir(path, owner=ceph_user(), group=ceph_user(),
+              perms=0o755)
         # end changes for Ceph >= 0.61.3
         try:
             add_keyring_to_ceph(keyring,
@@ -1673,12 +1674,23 @@ def roll_monitor_cluster(new_version, upgrade_key):
                           service='mon',
                           my_name=my_name,
                           version=new_version)
+        # NOTE(jamespage):
+        # Wait until all monitors have upgraded before bootstrapping
+        # the ceph-mgr daemons due to use of new mgr keyring profiles
+        if new_version == 'luminous':
+            wait_for_all_monitors_to_upgrade(new_version=new_version,
+                                             upgrade_key=upgrade_key)
+            bootstrap_manager()
     except ValueError:
         log("Failed to find {} in list {}.".format(
             my_name, mon_sorted_list))
         status_set('blocked', 'failed to upgrade monitor')
 
 
+# TODO(jamespage):
+# Mimic support will need to ensure that ceph-mgr daemons are also
+# restarted during upgrades - probably through use of one of the
+# high level systemd targets shipped by the packaging.
 def upgrade_monitor(new_version):
     """Upgrade the current ceph monitor to the new version
 
@@ -1699,26 +1711,31 @@ def upgrade_monitor(new_version):
         sys.exit(1)
     try:
         if systemd():
-            for mon_id in get_local_mon_ids():
-                service_stop('ceph-mon@{}'.format(mon_id))
+            service_stop('ceph-mon')
         else:
             service_stop('ceph-mon-all')
         apt_install(packages=determine_packages(), fatal=True)
+
+        owner = ceph_user()
 
         # Ensure the files and directories under /var/lib/ceph is chowned
         # properly as part of the move to the Jewel release, which moved the
         # ceph daemons to running as ceph:ceph instead of root:root.
         if new_version == 'jewel':
             # Ensure the ownership of Ceph's directories is correct
-            owner = ceph_user()
             chownr(path=os.path.join(os.sep, "var", "lib", "ceph"),
                    owner=owner,
                    group=owner,
                    follow_links=True)
 
+        # Ensure that mon directory is user writable
+        hostname = socket.gethostname()
+        path = '/var/lib/ceph/mon/ceph-{}'.format(hostname)
+        mkdir(path, owner=ceph_user(), group=ceph_user(),
+              perms=0o755)
+
         if systemd():
-            for mon_id in get_local_mon_ids():
-                service_start('ceph-mon@{}'.format(mon_id))
+            service_start('ceph-mon')
         else:
             service_start('ceph-mon-all')
     except subprocess.CalledProcessError as err:
@@ -1799,25 +1816,28 @@ def wait_on_previous_node(upgrade_key, service, previous_node, version):
         previous_node_start_time = monitor_key_get(
             upgrade_key,
             "{}_{}_{}_start".format(service, previous_node, version))
-        if (current_timestamp - (10 * 60)) > previous_node_start_time:
-            # Previous node is probably dead. Lets move on
-            if previous_node_start_time is not None:
-                log(
-                    "Waited 10 mins on node {}. current time: {} > "
-                    "previous node start time: {} Moving on".format(
-                        previous_node,
-                        (current_timestamp - (10 * 60)),
-                        previous_node_start_time))
-                return
-        else:
-            # I have to wait. Sleep a random amount of time and then
-            # check if I can lock,upgrade and roll.
-            wait_time = random.randrange(5, 30)
-            log('waiting for {} seconds'.format(wait_time))
-            time.sleep(wait_time)
-            previous_node_finished = monitor_key_exists(
-                upgrade_key,
-                "{}_{}_{}_done".format(service, previous_node, version))
+        if (previous_node_start_time is not None and
+                ((current_timestamp - (10 * 60)) >
+                 float(previous_node_start_time))):
+            # NOTE(jamespage):
+            # Previous node is probably dead as we've been waiting
+            # for 10 minutes - lets move on and upgrade
+            log("Waited 10 mins on node {}. current time: {} > "
+                "previous node start time: {} Moving on".format(
+                    previous_node,
+                    (current_timestamp - (10 * 60)),
+                    previous_node_start_time))
+            return
+        # NOTE(jamespage)
+        # Previous node has not started, or started less than
+        # 10 minutes ago - sleep a random amount of time and
+        # then check again.
+        wait_time = random.randrange(5, 30)
+        log('waiting for {} seconds'.format(wait_time))
+        time.sleep(wait_time)
+        previous_node_finished = monitor_key_exists(
+            upgrade_key,
+            "{}_{}_{}_done".format(service, previous_node, version))
 
 
 def get_upgrade_position(osd_sorted_list, match_name):
@@ -1874,7 +1894,7 @@ def roll_osd_cluster(new_version, upgrade_key):
                           version=new_version)
         else:
             # Check if the previous node has finished
-            status_set('blocked',
+            status_set('waiting',
                        'Waiting on {} to finish upgrading'.format(
                            osd_sorted_list[position - 1].name))
             wait_on_previous_node(
@@ -1922,7 +1942,10 @@ def upgrade_osd(new_version):
         # way to update the code on the node.
         if not dirs_need_ownership_update('osd'):
             log('Restarting all OSDs to load new binaries', DEBUG)
-            service_restart('ceph-osd-all')
+            if systemd():
+                service_restart('ceph-osd.target')
+            else:
+                service_restart('ceph-osd-all')
             return
 
         # Need to change the ownership of all directories which are not OSD
@@ -2148,11 +2171,11 @@ def dirs_need_ownership_update(service):
     return False
 
 # A dict of valid ceph upgrade paths. Mapping is old -> new
-UPGRADE_PATHS = {
-    'firefly': 'hammer',
-    'hammer': 'jewel',
-    'jewel': 'luminous',
-}
+UPGRADE_PATHS = collections.OrderedDict([
+    ('firefly', 'hammer'),
+    ('hammer', 'jewel'),
+    ('jewel', 'luminous'),
+])
 
 # Map UCA codenames to ceph codenames
 UCA_CODENAME_MAP = {

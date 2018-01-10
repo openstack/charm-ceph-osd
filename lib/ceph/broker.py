@@ -187,6 +187,9 @@ def handle_add_permissions_to_key(request, service):
     group = get_group(group_name=group_name)
     service_obj = get_service_groups(service=service_name,
                                      namespace=group_namespace)
+    if request.get('object-prefix-permissions'):
+        service_obj['object_prefix_perms'] = request.get(
+            'object-prefix-permissions')
     format("Service object: {}".format(service_obj))
     permission = request.get('group-permission') or "rwx"
     if service_name not in group['services']:
@@ -233,7 +236,7 @@ def pool_permission_list_for_service(service):
     """Build the permission string for Ceph for a given service"""
     permissions = []
     permission_types = collections.OrderedDict()
-    for permission, group in service["group_names"].items():
+    for permission, group in sorted(service["group_names"].items()):
         if permission not in permission_types:
             permission_types[permission] = []
         for item in group:
@@ -241,8 +244,13 @@ def pool_permission_list_for_service(service):
     for permission, groups in permission_types.items():
         permission = "allow {}".format(permission)
         for group in groups:
-            for pool in service['groups'][group]['pools']:
+            for pool in service['groups'][group].get('pools', []):
                 permissions.append("{} pool={}".format(permission, pool))
+    for permission, prefixes in sorted(
+            service.get("object_prefix_perms", {}).items()):
+        for prefix in prefixes:
+            permissions.append("allow {} object_prefix {}".format(permission,
+                                                                  prefix))
     return ["mon", "allow r", "osd", ', '.join(permissions)]
 
 
@@ -330,7 +338,7 @@ def save_service(service_name, service):
     service['groups'] = {}
     return monitor_key_set(service='admin',
                            key="cephx.services.{}".format(service_name),
-                           value=json.dumps(service))
+                           value=json.dumps(service, sort_keys=True))
 
 
 def save_group(group, group_name):
@@ -338,7 +346,7 @@ def save_group(group, group_name):
     group_key = get_group_key(group_name=group_name)
     return monitor_key_set(service='admin',
                            key=group_key,
-                           value=json.dumps(group))
+                           value=json.dumps(group, sort_keys=True))
 
 
 def get_group_key(group_name):
