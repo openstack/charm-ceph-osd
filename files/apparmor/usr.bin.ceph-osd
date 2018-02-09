@@ -24,7 +24,7 @@
   @{PROC}/loadavg r,
 
   /run/ceph/* rw,
-  /srv/ceph/** rwk,
+  /srv/ceph/** rwkl,
   /tmp/ r,
   /var/lib/ceph/** rwk,
   /var/lib/ceph/osd/** l,
