@@ -99,15 +99,17 @@ LinkSpeed = {
 NETWORK_ADAPTER_SYSCTLS = {
     # 10Gb
     LinkSpeed["GBASE_10"]: {
-        'net.core.rmem_default': 524287,
-        'net.core.wmem_default': 524287,
-        'net.core.rmem_max': 524287,
-        'net.core.wmem_max': 524287,
-        'net.core.optmem_max': 524287,
-        'net.core.netdev_max_backlog': 300000,
-        'net.ipv4.tcp_rmem': '10000000 10000000 10000000',
-        'net.ipv4.tcp_wmem': '10000000 10000000 10000000',
-        'net.ipv4.tcp_mem': '10000000 10000000 10000000'
+        # Don't set tcp_mem itself! Let the kernel scale it based on RAM.
+        'net.core.rmem_default': 56623104,
+        'net.core.wmem_default': 56623104,
+        'net.core.rmem_max': 56623104,
+        'net.core.wmem_max': 56623104,
+        'net.core.optmem_max': 40960,
+        'net.core.netdev_max_backlog': 50000,
+        'net.ipv4.tcp_max_syn_backlog': 30000,
+        'net.ipv4.tcp_rmem': '8388608 16777216 56623104',
+        'net.ipv4.tcp_wmem': '8388608 16777216 56623104',
+        'net.ipv4.tcp_slow_start_after_idle': 0
     },
     # Mellanox 10/40Gb
     LinkSpeed["GBASE_40"]: {
