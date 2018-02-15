@@ -1008,6 +1008,9 @@ def rescan_osd_devices():
 
     subprocess.call(cmd)
 
+    cmd = ['udevadm', 'settle']
+    subprocess.call(cmd)
+
 
 _bootstrap_keyring = "/var/lib/ceph/bootstrap-osd/ceph.keyring"
 _upgrade_keyring = "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring"
