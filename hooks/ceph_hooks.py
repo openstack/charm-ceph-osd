@@ -48,6 +48,7 @@ from charmhelpers.core.host import (
     service_reload,
     service_restart,
     add_to_updatedb_prunepath,
+    restart_on_change
 )
 from charmhelpers.fetch import (
     add_source,
@@ -134,6 +135,8 @@ def tune_network_adapters():
         ceph.tune_nic(interface)
 
 
+@restart_on_change({'/etc/apparmor.d/usr.bin.ceph-osd': ['apparmor']},
+                   restart_functions={'apparmor': service_reload})
 def copy_profile_into_place():
     """
     Copy the apparmor profiles included with the charm
