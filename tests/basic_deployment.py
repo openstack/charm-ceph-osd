@@ -152,10 +152,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
                                                       tenant='admin')
 
         # Authenticate admin with cinder endpoint
-        self.cinder = u.authenticate_cinder_admin(self.keystone_sentry,
-                                                  username='admin',
-                                                  password='openstack',
-                                                  tenant='admin')
+        self.cinder = u.authenticate_cinder_admin(self.keystone)
         # Authenticate admin with glance endpoint
         self.glance = u.authenticate_glance_admin(self.keystone)
 

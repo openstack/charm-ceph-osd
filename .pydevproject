@@ -3,7 +3,10 @@
 <pydev_property name="org.python.pydev.PYTHON_PROJECT_VERSION">python 2.7</pydev_property>
 <pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">Default</pydev_property>
 <pydev_pathproperty name="org.python.pydev.PROJECT_SOURCE_PATH">
-<path>/ceph-osd/hooks</path>
-<path>/ceph-osd/unit_tests</path>
+<path>/${PROJECT_DIR_NAME}/lib</path>
+<path>/${PROJECT_DIR_NAME}/unit_tests</path>
+<path>/${PROJECT_DIR_NAME}/tests</path>
+<path>/${PROJECT_DIR_NAME}/hooks</path>
+<path>/${PROJECT_DIR_NAME}/actions</path>
 </pydev_pathproperty>
 </pydev_project>

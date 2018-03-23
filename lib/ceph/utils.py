@@ -15,6 +15,7 @@
 import collections
 import ctypes
 import errno
+import glob
 import json
 import os
 import pyudev
@@ -25,6 +26,7 @@ import subprocess
 import sys
 import time
 import shutil
+import uuid
 
 from datetime import datetime
 
@@ -73,6 +75,7 @@ from charmhelpers.contrib.storage.linux.utils import (
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
 )
+from charmhelpers.contrib.storage.linux import lvm
 
 CEPH_BASE_DIR = os.path.join(os.sep, 'var', 'lib', 'ceph')
 OSD_BASE_DIR = os.path.join(CEPH_BASE_DIR, 'osd')
@@ -83,7 +86,8 @@ PEON = 'peon'
 QUORUM = [LEADER, PEON]
 
 PACKAGES = ['ceph', 'gdisk', 'ntp', 'btrfs-tools', 'python-ceph',
-            'radosgw', 'xfsprogs', 'python-pyudev']
+            'radosgw', 'xfsprogs', 'python-pyudev',
+            'lvm2', 'parted']
 
 LinkSpeed = {
     "BASE_10": 10,
@@ -1358,10 +1362,17 @@ def add_keyring_to_ceph(keyring, secret, hostname, path, done, init_marker):
         #                  admin keys for the cluster; this command
         #                  will wait for quorum in the cluster before
         #                  returning.
-        cmd = ['ceph-create-keys', '--id', hostname]
+        # NOTE(fnordahl): The default timeout in ceph-create-keys of 600
+        #                 seconds is not adequate for all situations.
+        #                 LP#1719436
+        cmd = ['ceph-create-keys', '--id', hostname, '--timeout', '1800']
         subprocess.check_call(cmd)
-    osstat = os.stat("/etc/ceph/ceph.client.admin.keyring")
+    _client_admin_keyring = '/etc/ceph/ceph.client.admin.keyring'
+    osstat = os.stat(_client_admin_keyring)
     if not osstat.st_size:
+        # NOTE(fnordahl): Retry will fail as long as this file exists.
+        #                 LP#1719436
+        os.remove(_client_admin_keyring)
         raise Exception
 
 
@@ -1399,17 +1410,36 @@ def get_partitions(dev):
         return []
 
 
-def find_least_used_utility_device(utility_devices):
+def get_lvs(dev):
+    """
+    List logical volumes for the provided block device
+
+    :param: dev: Full path to block device.
+    :raises subprocess.CalledProcessError: in the event that any supporting
+                                           operation failed.
+    :returns: list: List of logical volumes provided by the block device
+    """
+    pv_dev = _partition_name(dev)
+    if not lvm.is_lvm_physical_volume(pv_dev):
+        return []
+    vg_name = lvm.list_lvm_volume_group(pv_dev)
+    return lvm.list_logical_volumes('vg_name={}'.format(vg_name))
+
+
+def find_least_used_utility_device(utility_devices, lvs=False):
     """
     Find a utility device which has the smallest number of partitions
     among other devices in the supplied list.
 
     :utility_devices: A list of devices to be used for filestore journal
     or bluestore wal or db.
+    :lvs: flag to indicate whether inspection should be based on LVM LV's
     :return: string device name
     """
-
-    usages = map(lambda a: (len(get_partitions(a)), a), utility_devices)
+    if lvs:
+        usages = map(lambda a: (len(get_lvs(a)), a), utility_devices)
+    else:
+        usages = map(lambda a: (len(get_partitions(a)), a), utility_devices)
     least = min(usages, key=lambda t: t[0])
     return least[1]
 
@@ -1460,49 +1490,28 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         log('Looks like {} is in use, skipping.'.format(dev))
         return
 
-    status_set('maintenance', 'Initializing device {}'.format(dev))
-    cmd = ['ceph-disk', 'prepare']
-    # Later versions of ceph support more options
-    if cmp_pkgrevno('ceph', '0.60') >= 0:
-        if encrypt:
-            cmd.append('--dmcrypt')
-    if cmp_pkgrevno('ceph', '0.48.3') >= 0:
-        if osd_format and not bluestore:
-            cmd.append('--fs-type')
-            cmd.append(osd_format)
+    if is_active_bluestore_device(dev):
+        log('{} is in use as an active bluestore block device,'
+            ' skipping.'.format(dev))
+        return
 
-        if reformat_osd:
-            cmd.append('--zap-disk')
+    if reformat_osd:
+        zap_disk(dev)
 
-        # NOTE(jamespage): enable experimental bluestore support
-        if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
-            cmd.append('--bluestore')
-            wal = get_devices('bluestore-wal')
-            if wal:
-                cmd.append('--block.wal')
-                least_used_wal = find_least_used_utility_device(wal)
-                cmd.append(least_used_wal)
-            db = get_devices('bluestore-db')
-            if db:
-                cmd.append('--block.db')
-                least_used_db = find_least_used_utility_device(db)
-                cmd.append(least_used_db)
-        elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
-            cmd.append('--filestore')
-
-        cmd.append(dev)
-
-        if osd_journal:
-            least_used = find_least_used_utility_device(osd_journal)
-            cmd.append(least_used)
+    if cmp_pkgrevno('ceph', '12.2.4') >= 0:
+        cmd = _ceph_volume(dev,
+                           osd_journal,
+                           encrypt,
+                           bluestore)
     else:
-        # Just provide the device - no other options
-        # for older versions of ceph
-        cmd.append(dev)
-        if reformat_osd:
-            zap_disk(dev)
+        cmd = _ceph_disk(dev,
+                         osd_format,
+                         osd_journal,
+                         encrypt,
+                         bluestore)
 
     try:
+        status_set('maintenance', 'Initializing device {}'.format(dev))
         log("osdize cmd: {}".format(cmd))
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError:
@@ -1511,6 +1520,289 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         else:
             log('Unable to initialize device: {}'.format(dev), ERROR)
             raise
+
+
+def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
+    """
+    Prepare a device for usage as a Ceph OSD using ceph-disk
+
+    :param: dev: Full path to use for OSD block device setup
+    :param: osd_journal: List of block devices to use for OSD journals
+    :param: encrypt: Use block device encryption (unsupported)
+    :param: bluestore: Use bluestore storage for OSD
+    :returns: list. 'ceph-disk' command and required parameters for
+                    execution by check_call
+    """
+    cmd = ['ceph-disk', 'prepare']
+
+    if encrypt:
+        cmd.append('--dmcrypt')
+
+    if osd_format and not bluestore:
+        cmd.append('--fs-type')
+        cmd.append(osd_format)
+
+    # NOTE(jamespage): enable experimental bluestore support
+    if cmp_pkgrevno('ceph', '10.2.0') >= 0 and bluestore:
+        cmd.append('--bluestore')
+        wal = get_devices('bluestore-wal')
+        if wal:
+            cmd.append('--block.wal')
+            least_used_wal = find_least_used_utility_device(wal)
+            cmd.append(least_used_wal)
+        db = get_devices('bluestore-db')
+        if db:
+            cmd.append('--block.db')
+            least_used_db = find_least_used_utility_device(db)
+            cmd.append(least_used_db)
+    elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
+        cmd.append('--filestore')
+
+    cmd.append(dev)
+
+    if osd_journal:
+        least_used = find_least_used_utility_device(osd_journal)
+        cmd.append(least_used)
+
+    return cmd
+
+
+def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
+    """
+    Prepare and activate a device for usage as a Ceph OSD using ceph-volume.
+
+    This also includes creation of all PV's, VG's and LV's required to
+    support the initialization of the OSD.
+
+    :param: dev: Full path to use for OSD block device setup
+    :param: osd_journal: List of block devices to use for OSD journals
+    :param: encrypt: Use block device encryption
+    :param: bluestore: Use bluestore storage for OSD
+    :raises subprocess.CalledProcessError: in the event that any supporting
+                                           LVM operation failed.
+    :returns: list. 'ceph-volume' command and required parameters for
+                    execution by check_call
+    """
+    cmd = ['ceph-volume', 'lvm', 'create']
+
+    osd_fsid = str(uuid.uuid4())
+    cmd.append('--osd-fsid')
+    cmd.append(osd_fsid)
+
+    if bluestore:
+        cmd.append('--bluestore')
+        main_device_type = 'block'
+    else:
+        cmd.append('--filestore')
+        main_device_type = 'data'
+
+    if encrypt:
+        cmd.append('--dmcrypt')
+
+    # On-disk journal volume creation
+    if not osd_journal and not bluestore:
+        journal_lv_type = 'journal'
+        cmd.append('--journal')
+        cmd.append(_allocate_logical_volume(
+            dev,
+            journal_lv_type,
+            osd_fsid,
+            size='{}M'.format(calculate_volume_size('journal')))
+        )
+
+    cmd.append('--data')
+    cmd.append(_allocate_logical_volume(dev,
+                                        main_device_type,
+                                        osd_fsid))
+
+    if bluestore:
+        for extra_volume in ('wal', 'db'):
+            devices = get_devices('bluestore-{}'.format(extra_volume))
+            if devices:
+                cmd.append('--block.{}'.format(extra_volume))
+                least_used = find_least_used_utility_device(devices,
+                                                            lvs=True)
+                cmd.append(_allocate_logical_volume(
+                    least_used,
+                    extra_volume,
+                    osd_fsid,
+                    size='{}M'.format(calculate_volume_size(extra_volume)),
+                    shared=True)
+                )
+
+    elif osd_journal:
+        cmd.append('--journal')
+        least_used = find_least_used_utility_device(osd_journal,
+                                                    lvs=True)
+        cmd.append(_allocate_logical_volume(
+            least_used,
+            'journal',
+            osd_fsid,
+            size='{}M'.format(calculate_volume_size('journal')),
+            shared=True)
+        )
+
+    return cmd
+
+
+def _partition_name(dev):
+    """
+    Derive the first partition name for a block device
+
+    :param: dev: Full path to block device.
+    :returns: str: Full path to first partition on block device.
+    """
+    if dev[-1].isdigit():
+        return '{}p1'.format(dev)
+    else:
+        return '{}1'.format(dev)
+
+
+# TODO(jamespage): Deal with lockbox encrypted bluestore devices.
+def is_active_bluestore_device(dev):
+    """
+    Determine whether provided device is part of an active
+    bluestore based OSD (as its block component).
+
+    :param: dev: Full path to block device to check for Bluestore usage.
+    :returns: boolean: indicating whether device is in active use.
+    """
+    pv_dev = _partition_name(dev)
+    if not lvm.is_lvm_physical_volume(pv_dev):
+        return False
+
+    vg_name = lvm.list_lvm_volume_group(pv_dev)
+    lv_name = lvm.list_logical_volumes('vg_name={}'.format(vg_name))[0]
+
+    block_symlinks = glob.glob('/var/lib/ceph/osd/ceph-*/block')
+    for block_candidate in block_symlinks:
+        if os.path.islink(block_candidate):
+            target = os.readlink(block_candidate)
+            if target.endswith(lv_name):
+                return True
+
+    return False
+
+
+def get_conf(variable):
+    """
+    Get the value of the given configuration variable from the
+    cluster.
+
+    :param variable: ceph configuration variable
+    :returns: str. configured value for provided variable
+
+    """
+    return subprocess.check_output([
+        'ceph-osd',
+        '--show-config-value={}'.format(variable),
+    ]).strip()
+
+
+def calculate_volume_size(lv_type):
+    """
+    Determine the configured size for Bluestore DB/WAL or
+    Filestore Journal devices
+
+    :param lv_type: volume type (db, wal or journal)
+    :raises KeyError: if invalid lv_type is supplied
+    :returns: int. Configured size in megabytes for volume type
+    """
+    # lv_type -> ceph configuration option
+    _config_map = {
+        'db': 'bluestore_block_db_size',
+        'wal': 'bluestore_block_wal_size',
+        'journal': 'osd_journal_size',
+    }
+
+    # default sizes in MB
+    _default_size = {
+        'db': 1024,
+        'wal': 576,
+        'journal': 1024,
+    }
+
+    # conversion of ceph config units to MB
+    _units = {
+        'db': 1048576,  # Bytes -> MB
+        'wal': 1048576,  # Bytes -> MB
+        'journal': 1,  # Already in MB
+    }
+
+    configured_size = get_conf(_config_map[lv_type])
+
+    if configured_size is None or int(configured_size) == 0:
+        return _default_size[lv_type]
+    else:
+        return int(configured_size) / _units[lv_type]
+
+
+def _initialize_disk(dev):
+    """
+    Initialize a raw block device with a single paritition
+    consuming 100% of the avaliable disk space.
+
+    Function assumes that block device has already been wiped.
+
+    :param: dev: path to block device to initialize
+    :raises: subprocess.CalledProcessError: if any parted calls fail
+    :returns: str: Full path to new partition.
+    """
+    partition = _partition_name(dev)
+    if not os.path.exists(partition):
+        subprocess.check_call([
+            'parted', '--script',
+            dev,
+            'mklabel',
+            'gpt',
+        ])
+        subprocess.check_call([
+            'parted', '--script',
+            dev,
+            'mkpart',
+            'primary', '1', '100%',
+        ])
+    return partition
+
+
+def _allocate_logical_volume(dev, lv_type, osd_fsid,
+                             size=None, shared=False):
+    """
+    Allocate a logical volume from a block device, ensuring any
+    required initialization and setup of PV's and VG's to support
+    the LV.
+
+    :param: dev: path to block device to allocate from.
+    :param: lv_type: logical volume type to create
+                     (data, block, journal, wal, db)
+    :param: osd_fsid: UUID of the OSD associate with the LV
+    :param: size: Size in LVM format for the device;
+                  if unset 100% of VG
+    :param: shared: Shared volume group (journal, wal, db)
+    :raises subprocess.CalledProcessError: in the event that any supporting
+                                           LVM or parted operation fails.
+    :returns: str: String in the format 'vg_name/lv_name'.
+    """
+    lv_name = "osd-{}-{}".format(lv_type, osd_fsid)
+    current_volumes = lvm.list_logical_volumes()
+    pv_dev = _initialize_disk(dev)
+
+    vg_name = None
+    if not lvm.is_lvm_physical_volume(pv_dev):
+        lvm.create_lvm_physical_volume(pv_dev)
+        if shared:
+            vg_name = 'ceph-{}-{}'.format(lv_type,
+                                          str(uuid.uuid4()))
+        else:
+            vg_name = 'ceph-{}'.format(osd_fsid)
+        lvm.create_lvm_volume_group(vg_name, pv_dev)
+    else:
+        vg_name = lvm.list_lvm_volume_group(pv_dev)
+
+    if lv_name not in current_volumes:
+        lvm.create_logical_volume(lv_name, vg_name, size)
+
+    return "{}/{}".format(vg_name, lv_name)
 
 
 def osdize_dir(path, encrypt=False, bluestore=False):
