@@ -299,4 +299,5 @@ options:
       .
       NOTE: changing the value of this option is disruptive to a running Ceph
       cluster as all ceph-osd processes must be restarted as part of changing
-      the apparmor profile enforcement mode.
+      the apparmor profile enforcement mode.  Always test in pre-production
+      before enabling AppArmor on a live cluster.
