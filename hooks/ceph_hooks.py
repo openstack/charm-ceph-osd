@@ -135,8 +135,23 @@ def tune_network_adapters():
         ceph.tune_nic(interface)
 
 
-@restart_on_change({'/etc/apparmor.d/usr.bin.ceph-osd': ['apparmor']},
-                   restart_functions={'apparmor': service_reload})
+def aa_profile_changed(service_name='ceph-osd-all'):
+    """
+    Reload AA profie and restart OSD processes.
+    """
+    log("Loading new AppArmor profile")
+    service_reload('apparmor')
+    log("Restarting ceph-osd services with new AppArmor profile")
+    if ceph.systemd():
+        for osd_id in ceph.get_local_osd_ids():
+            service_restart('ceph-osd@{}'.format(osd_id))
+    else:
+        service_restart(service_name)
+
+
+@restart_on_change({
+    '/etc/apparmor.d/usr.bin.ceph-osd': ['ceph-osd-all']},
+    restart_functions={'ceph-osd-all': aa_profile_changed})
 def copy_profile_into_place():
     """
     Copy the apparmor profiles included with the charm
@@ -175,12 +190,7 @@ def install_apparmor_profile():
     if config().changed('aa-profile-mode'):
         aa_context = CephOsdAppArmorContext()
         aa_context.setup_aa_profile()
-        service_reload('apparmor')
-        if ceph.systemd():
-            for osd_id in ceph.get_local_osd_ids():
-                service_restart('ceph-osd@{}'.format(osd_id))
-        else:
-            service_restart('ceph-osd-all')
+        aa_profile_changed()
 
 
 @hooks.hook('install.real')
