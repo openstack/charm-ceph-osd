@@ -10,7 +10,7 @@ include:
         - cluster
     - contrib.python.packages
     - contrib.storage.linux
-    - contrib.openstack.alternatives
+    - contrib.openstack
     - contrib.network.ip
     - contrib.openstack:
         - alternatives

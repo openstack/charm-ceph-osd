@@ -148,6 +148,17 @@ options:
       .
       Specifying this option on a running Ceph OSD node will have no effect
       until new disks are added, at which point new disks will be encrypted.
+  osd-encrypt-keymanager:
+    type: string
+    default: ceph
+    description: |
+      Keymanager to use for storage of dm-crypt keys used for OSD devices;
+      by default 'ceph' itself will be used for storage of keys, making use
+      of the key/value storage provided by the ceph-mon cluster.
+      .
+      Alternatively 'vault' may be used for storage of dm-crypt keys.  Both
+      approaches ensure that keys are never written to the local filesystem.
+      This also requires a relation to the vault charm.
   crush-initial-weight:
     type: float
     default:
@@ -248,7 +259,7 @@ options:
       Availability Zone instead of specifically by host.
   availability_zone:
     type: string
-    default: 
+    default:
     description: |
       Custom availability zone to provide to Ceph for the OSD placement
   max-sectors-kb:
