@@ -128,15 +128,16 @@ options:
       Note that despite bluestore being the default for Ceph Luminous, if this
       option is False, OSDs will still use filestore.
   osd-reformat:
-    type: string
-    default:
+    type: boolean
+    default: False
     description: |
       By default, the charm will not re-format a device that already looks
       as if it might be an OSD device. This is a safeguard to try to
       prevent data loss.
       .
-      Specifying this option (any value) forces a reformat of any OSD devices
-      found which are not already mounted.
+      Enabling this option forces a reformat of any OSD devices found which
+      have not been processed by the unit previously or are not already
+      mounted.
   osd-encrypt:
     type: boolean
     default: False

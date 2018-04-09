@@ -76,6 +76,7 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
 )
 from charmhelpers.contrib.storage.linux import lvm
+from charmhelpers.core.unitdata import kv
 
 CEPH_BASE_DIR = os.path.join(os.sep, 'var', 'lib', 'ceph')
 OSD_BASE_DIR = os.path.join(CEPH_BASE_DIR, 'osd')
@@ -1473,6 +1474,13 @@ def osdize(dev, osd_format, osd_journal, reformat_osd=False,
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
                ignore_errors=False, encrypt=False, bluestore=False):
+    db = kv()
+    osd_devices = db.get('osd-devices', [])
+    if dev in osd_devices:
+        log('Device {} already processed by charm,'
+            ' skipping'.format(dev))
+        return
+
     if not os.path.exists(dev):
         log('Path {} does not exist - bailing'.format(dev))
         return
@@ -1515,11 +1523,27 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         log("osdize cmd: {}".format(cmd))
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError:
+        try:
+            lsblk_output = subprocess.check_output(
+                ['lsblk', '-P']).decode('UTF-8')
+        except subprocess.CalledProcessError as e:
+            log("Couldn't get lsblk output: {}".format(e), ERROR)
         if ignore_errors:
             log('Unable to initialize device: {}'.format(dev), WARNING)
+            if lsblk_output:
+                log('lsblk output: {}'.format(lsblk_output), DEBUG)
         else:
             log('Unable to initialize device: {}'.format(dev), ERROR)
+            if lsblk_output:
+                log('lsblk output: {}'.format(lsblk_output), WARNING)
             raise
+
+    # NOTE: Record processing of device only on success to ensure that
+    #       the charm only tries to initialize a device of OSD usage
+    #       once during its lifetime.
+    osd_devices.append(dev)
+    db.set('osd-devices', osd_devices)
+    db.flush()
 
 
 def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
