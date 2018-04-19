@@ -73,6 +73,7 @@ from charmhelpers.contrib.storage.linux.utils import (
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
 )
+from charmhelpers.core.unitdata import kv
 
 CEPH_BASE_DIR = os.path.join(os.sep, 'var', 'lib', 'ceph')
 OSD_BASE_DIR = os.path.join(CEPH_BASE_DIR, 'osd')
@@ -1358,10 +1359,17 @@ def add_keyring_to_ceph(keyring, secret, hostname, path, done, init_marker):
         #                  admin keys for the cluster; this command
         #                  will wait for quorum in the cluster before
         #                  returning.
-        cmd = ['ceph-create-keys', '--id', hostname]
+        # NOTE(fnordahl): The default timeout in ceph-create-keys of 600
+        #                 seconds is not adequate for all situations.
+        #                 LP#1719436
+        cmd = ['ceph-create-keys', '--id', hostname, '--timeout', '1800']
         subprocess.check_call(cmd)
-    osstat = os.stat("/etc/ceph/ceph.client.admin.keyring")
+    _client_admin_keyring = '/etc/ceph/ceph.client.admin.keyring'
+    osstat = os.stat(_client_admin_keyring)
     if not osstat.st_size:
+        # NOTE(fnordahl): Retry will fail as long as this file exists.
+        #                 LP#1719436
+        os.remove(_client_admin_keyring)
         raise Exception
 
 
@@ -1443,6 +1451,13 @@ def osdize(dev, osd_format, osd_journal, reformat_osd=False,
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
                ignore_errors=False, encrypt=False, bluestore=False):
+    db = kv()
+    osd_devices = db.get('osd-devices', [])
+    if dev in osd_devices:
+        log('Device {} already processed by charm,'
+            ' skipping'.format(dev))
+        return
+
     if not os.path.exists(dev):
         log('Path {} does not exist - bailing'.format(dev))
         return
@@ -1511,6 +1526,13 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         else:
             log('Unable to initialize device: {}'.format(dev), ERROR)
             raise
+
+    # NOTE: Record processing of device only on success to ensure that
+    #       the charm only tries to initialize a device of OSD usage
+    #       once during its lifetime.
+    osd_devices.append(dev)
+    db.set('osd-devices', osd_devices)
+    db.flush()
 
 
 def osdize_dir(path, encrypt=False, bluestore=False):
