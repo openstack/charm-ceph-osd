@@ -142,12 +142,17 @@ def copy_profile_into_place():
     Copy the apparmor profiles included with the charm
     into the /etc/apparmor.d directory.
     """
+    new_install = False
     apparmor_dir = os.path.join(os.sep,
                                 'etc',
                                 'apparmor.d')
 
     for x in glob.glob('files/apparmor/*'):
+        if not os.path.exists(os.path.join(apparmor_dir,
+                                           os.path.basename(x))):
+            new_install = True
         shutil.copy(x, apparmor_dir)
+    return new_install
 
 
 class CephOsdAppArmorContext(AppArmorContext):
@@ -171,8 +176,8 @@ def install_apparmor_profile():
     configuration option.
     """
     log('Installing apparmor profile for ceph-osd')
-    copy_profile_into_place()
-    if config().changed('aa-profile-mode'):
+    new_install = copy_profile_into_place()
+    if new_install or config().changed('aa-profile-mode'):
         aa_context = CephOsdAppArmorContext()
         aa_context.setup_aa_profile()
         service_reload('apparmor')
