@@ -90,6 +90,13 @@ PACKAGES = ['ceph', 'gdisk', 'ntp', 'btrfs-tools', 'python-ceph',
             'radosgw', 'xfsprogs', 'python-pyudev',
             'lvm2', 'parted']
 
+CEPH_KEY_MANAGER = 'ceph'
+VAULT_KEY_MANAGER = 'vault'
+KEY_MANAGERS = [
+    CEPH_KEY_MANAGER,
+    VAULT_KEY_MANAGER,
+]
+
 LinkSpeed = {
     "BASE_10": 10,
     "BASE_100": 100,
@@ -1420,10 +1427,9 @@ def get_lvs(dev):
                                            operation failed.
     :returns: list: List of logical volumes provided by the block device
     """
-    pv_dev = _partition_name(dev)
-    if not lvm.is_lvm_physical_volume(pv_dev):
+    if not lvm.is_lvm_physical_volume(dev):
         return []
-    vg_name = lvm.list_lvm_volume_group(pv_dev)
+    vg_name = lvm.list_lvm_volume_group(dev)
     return lvm.list_logical_volumes('vg_name={}'.format(vg_name))
 
 
@@ -1463,17 +1469,42 @@ def get_devices(name):
 
 
 def osdize(dev, osd_format, osd_journal, reformat_osd=False,
-           ignore_errors=False, encrypt=False, bluestore=False):
+           ignore_errors=False, encrypt=False, bluestore=False,
+           key_manager=CEPH_KEY_MANAGER):
     if dev.startswith('/dev'):
         osdize_dev(dev, osd_format, osd_journal,
                    reformat_osd, ignore_errors, encrypt,
-                   bluestore)
+                   bluestore, key_manager)
     else:
         osdize_dir(dev, encrypt, bluestore)
 
 
 def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
-               ignore_errors=False, encrypt=False, bluestore=False):
+               ignore_errors=False, encrypt=False, bluestore=False,
+               key_manager=CEPH_KEY_MANAGER):
+    """
+    Prepare a block device for use as a Ceph OSD
+
+    A block device will only be prepared once during the lifetime
+    of the calling charm unit; future executions will be skipped.
+
+    :param: dev: Full path to block device to use
+    :param: osd_format: Format for OSD filesystem
+    :param: osd_journal: List of block devices to use for OSD journals
+    :param: reformat_osd: Reformat devices that are not currently in use
+                          which have been used previously
+    :param: ignore_errors: Don't fail in the event of any errors during
+                           processing
+    :param: encrypt: Encrypt block devices using 'key_manager'
+    :param: bluestore: Use bluestore native ceph block device format
+    :param: key_manager: Key management approach for encryption keys
+    :raises subprocess.CalledProcessError: in the event that any supporting
+                                           subprocess operation failed
+    :raises ValueError: if an invalid key_manager is provided
+    """
+    if key_manager not in KEY_MANAGERS:
+        raise ValueError('Unsupported key manager: {}'.format(key_manager))
+
     db = kv()
     osd_devices = db.get('osd-devices', [])
     if dev in osd_devices:
@@ -1510,7 +1541,8 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         cmd = _ceph_volume(dev,
                            osd_journal,
                            encrypt,
-                           bluestore)
+                           bluestore,
+                           key_manager)
     else:
         cmd = _ceph_disk(dev,
                          osd_format,
@@ -1591,7 +1623,8 @@ def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
     return cmd
 
 
-def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
+def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
+                 key_manager=CEPH_KEY_MANAGER):
     """
     Prepare and activate a device for usage as a Ceph OSD using ceph-volume.
 
@@ -1602,6 +1635,7 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
     :param: osd_journal: List of block devices to use for OSD journals
     :param: encrypt: Use block device encryption
     :param: bluestore: Use bluestore storage for OSD
+    :param: key_manager: dm-crypt Key Manager to use
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            LVM operation failed.
     :returns: list. 'ceph-volume' command and required parameters for
@@ -1620,7 +1654,7 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
         cmd.append('--filestore')
         main_device_type = 'data'
 
-    if encrypt:
+    if encrypt and key_manager == CEPH_KEY_MANAGER:
         cmd.append('--dmcrypt')
 
     # On-disk journal volume creation
@@ -1628,16 +1662,20 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
         journal_lv_type = 'journal'
         cmd.append('--journal')
         cmd.append(_allocate_logical_volume(
-            dev,
-            journal_lv_type,
-            osd_fsid,
-            size='{}M'.format(calculate_volume_size('journal')))
+            dev=dev,
+            lv_type=journal_lv_type,
+            osd_fsid=osd_fsid,
+            size='{}M'.format(calculate_volume_size('journal')),
+            encrypt=encrypt,
+            key_manager=key_manager)
         )
 
     cmd.append('--data')
-    cmd.append(_allocate_logical_volume(dev,
-                                        main_device_type,
-                                        osd_fsid))
+    cmd.append(_allocate_logical_volume(dev=dev,
+                                        lv_type=main_device_type,
+                                        osd_fsid=osd_fsid,
+                                        encrypt=encrypt,
+                                        key_manager=key_manager))
 
     if bluestore:
         for extra_volume in ('wal', 'db'):
@@ -1647,11 +1685,13 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
                 least_used = find_least_used_utility_device(devices,
                                                             lvs=True)
                 cmd.append(_allocate_logical_volume(
-                    least_used,
-                    extra_volume,
-                    osd_fsid,
+                    dev=least_used,
+                    lv_type=extra_volume,
+                    osd_fsid=osd_fsid,
                     size='{}M'.format(calculate_volume_size(extra_volume)),
-                    shared=True)
+                    shared=True,
+                    encrypt=encrypt,
+                    key_manager=key_manager)
                 )
 
     elif osd_journal:
@@ -1659,11 +1699,13 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False):
         least_used = find_least_used_utility_device(osd_journal,
                                                     lvs=True)
         cmd.append(_allocate_logical_volume(
-            least_used,
-            'journal',
-            osd_fsid,
+            dev=least_used,
+            lv_type='journal',
+            osd_fsid=osd_fsid,
             size='{}M'.format(calculate_volume_size('journal')),
-            shared=True)
+            shared=True,
+            encrypt=encrypt,
+            key_manager=key_manager)
         )
 
     return cmd
@@ -1682,7 +1724,6 @@ def _partition_name(dev):
         return '{}1'.format(dev)
 
 
-# TODO(jamespage): Deal with lockbox encrypted bluestore devices.
 def is_active_bluestore_device(dev):
     """
     Determine whether provided device is part of an active
@@ -1691,11 +1732,10 @@ def is_active_bluestore_device(dev):
     :param: dev: Full path to block device to check for Bluestore usage.
     :returns: boolean: indicating whether device is in active use.
     """
-    pv_dev = _partition_name(dev)
-    if not lvm.is_lvm_physical_volume(pv_dev):
+    if not lvm.is_lvm_physical_volume(dev):
         return False
 
-    vg_name = lvm.list_lvm_volume_group(pv_dev)
+    vg_name = lvm.list_lvm_volume_group(dev)
     lv_name = lvm.list_logical_volumes('vg_name={}'.format(vg_name))[0]
 
     block_symlinks = glob.glob('/var/lib/ceph/osd/ceph-*/block')
@@ -1761,36 +1801,66 @@ def calculate_volume_size(lv_type):
         return int(configured_size) / _units[lv_type]
 
 
-def _initialize_disk(dev):
+def _luks_uuid(dev):
     """
-    Initialize a raw block device with a single paritition
-    consuming 100% of the avaliable disk space.
+    Check to see if dev is a LUKS encrypted volume, returning the UUID
+    of volume if it is.
+
+    :param: dev: path to block device to check.
+    :returns: str. UUID of LUKS device or None if not a LUKS device
+    """
+    try:
+        cmd = ['cryptsetup', 'luksUUID', dev]
+        return subprocess.check_output(cmd).decode('UTF-8').strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _initialize_disk(dev, dev_uuid, encrypt=False,
+                     key_manager=CEPH_KEY_MANAGER):
+    """
+    Initialize a raw block device consuming 100% of the avaliable
+    disk space.
 
     Function assumes that block device has already been wiped.
 
     :param: dev: path to block device to initialize
+    :param: dev_uuid: UUID to use for any dm-crypt operations
+    :param: encrypt: Encrypt OSD devices using dm-crypt
+    :param: key_manager: Key management approach for dm-crypt keys
     :raises: subprocess.CalledProcessError: if any parted calls fail
     :returns: str: Full path to new partition.
     """
-    partition = _partition_name(dev)
-    if not os.path.exists(partition):
+    use_vaultlocker = encrypt and key_manager == VAULT_KEY_MANAGER
+
+    if use_vaultlocker:
+        # NOTE(jamespage): Check to see if already initialized as a LUKS
+        #                  volume, which indicates this is a shared block
+        #                  device for journal, db or wal volumes.
+        luks_uuid = _luks_uuid(dev)
+        if luks_uuid:
+            return '/dev/mapper/crypt-{}'.format(luks_uuid)
+
+    dm_crypt = '/dev/mapper/crypt-{}'.format(dev_uuid)
+
+    if use_vaultlocker and not os.path.exists(dm_crypt):
         subprocess.check_call([
-            'parted', '--script',
+            'vaultlocker',
+            'encrypt',
+            '--uuid', dev_uuid,
             dev,
-            'mklabel',
-            'gpt',
         ])
-        subprocess.check_call([
-            'parted', '--script',
-            dev,
-            'mkpart',
-            'primary', '1', '100%',
-        ])
-    return partition
+
+    if use_vaultlocker:
+        return dm_crypt
+    else:
+        return dev
 
 
 def _allocate_logical_volume(dev, lv_type, osd_fsid,
-                             size=None, shared=False):
+                             size=None, shared=False,
+                             encrypt=False,
+                             key_manager=CEPH_KEY_MANAGER):
     """
     Allocate a logical volume from a block device, ensuring any
     required initialization and setup of PV's and VG's to support
@@ -1803,13 +1873,19 @@ def _allocate_logical_volume(dev, lv_type, osd_fsid,
     :param: size: Size in LVM format for the device;
                   if unset 100% of VG
     :param: shared: Shared volume group (journal, wal, db)
+    :param: encrypt: Encrypt OSD devices using dm-crypt
+    :param: key_manager: dm-crypt Key Manager to use
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            LVM or parted operation fails.
     :returns: str: String in the format 'vg_name/lv_name'.
     """
     lv_name = "osd-{}-{}".format(lv_type, osd_fsid)
     current_volumes = lvm.list_logical_volumes()
-    pv_dev = _initialize_disk(dev)
+    if shared:
+        dev_uuid = str(uuid.uuid4())
+    else:
+        dev_uuid = osd_fsid
+    pv_dev = _initialize_disk(dev, dev_uuid, encrypt, key_manager)
 
     vg_name = None
     if not lvm.is_lvm_physical_volume(pv_dev):

@@ -370,6 +370,8 @@ def handle_erasure_pool(request, service):
     if erasure_profile is None:
         erasure_profile = "default-canonical"
 
+    app_name = request.get('app-name')
+
     # Check for missing params
     if pool_name is None:
         msg = "Missing parameter. name is required for the pool"
@@ -393,7 +395,7 @@ def handle_erasure_pool(request, service):
 
     pool = ErasurePool(service=service, name=pool_name,
                        erasure_code_profile=erasure_profile,
-                       percent_data=weight)
+                       percent_data=weight, app_name=app_name)
     # Ok make the erasure pool
     if not pool_exists(service=service, name=pool_name):
         log("Creating pool '{}' (erasure_profile={})"
@@ -426,6 +428,7 @@ def handle_replicated_pool(request, service):
         if osds:
             pg_num = min(pg_num, (len(osds) * 100 // replicas))
 
+    app_name = request.get('app-name')
     # Check for missing params
     if pool_name is None or replicas is None:
         msg = "Missing parameter. name and replicas are required"
@@ -446,6 +449,8 @@ def handle_replicated_pool(request, service):
         kwargs['percent_data'] = weight
     if replicas:
         kwargs['replicas'] = replicas
+    if app_name:
+        kwargs['app_name'] = app_name
 
     pool = ReplicatedPool(service=service,
                           name=pool_name, **kwargs)
