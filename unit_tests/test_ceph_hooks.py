@@ -505,3 +505,15 @@ class CephHooksTestCase(unittest.TestCase):
 
         config.assert_called_with('availability_zone')
         environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')
+
+    @patch.object(ceph_hooks, 'subprocess')
+    @patch.object(ceph_hooks, 'shutil')
+    def test_install_udev_rules(self, shutil, subprocess):
+        ceph_hooks.install_udev_rules()
+        shutil.copy.assert_called_once_with(
+            'files/udev/95-charm-ceph-osd.rules',
+            '/lib/udev/rules.d'
+        )
+        subprocess.check_call.assert_called_once_with(
+            ['udevadm', 'control', '--reload-rules']
+        )

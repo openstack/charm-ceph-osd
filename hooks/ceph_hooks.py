@@ -19,6 +19,7 @@ import shutil
 import sys
 import tempfile
 import socket
+import subprocess
 import netifaces
 
 sys.path.append('lib')
@@ -188,6 +189,17 @@ def install_apparmor_profile():
             service_restart('ceph-osd-all')
 
 
+def install_udev_rules():
+    """
+    Install and reload udev rules for ceph-volume LV
+    permissions
+    """
+    for x in glob.glob('files/udev/*'):
+        shutil.copy(x, '/lib/udev/rules.d')
+    subprocess.check_call(['udevadm', 'control',
+                           '--reload-rules'])
+
+
 @hooks.hook('install.real')
 @harden()
 def install():
@@ -196,6 +208,7 @@ def install():
     apt_install(packages=ceph.determine_packages(), fatal=True)
     if config('autotune'):
         tune_network_adapters()
+    install_udev_rules()
 
 
 def az_info():
@@ -503,6 +516,7 @@ def upgrade_charm():
         emit_cephconf()
     apt_install(packages=filter_installed_packages(ceph.determine_packages()),
                 fatal=True)
+    install_udev_rules()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',
