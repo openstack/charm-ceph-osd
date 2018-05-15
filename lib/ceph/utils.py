@@ -1364,17 +1364,27 @@ def add_keyring_to_ceph(keyring, secret, hostname, path, done, init_marker):
     else:
         service_restart('ceph-mon-all')
 
+    # NOTE(jamespage): Later ceph releases require explicit
+    #                  call to ceph-create-keys to setup the
+    #                  admin keys for the cluster; this command
+    #                  will wait for quorum in the cluster before
+    #                  returning.
+    # NOTE(fnordahl): Explicitly run `ceph-crate-keys` for older
+    #                 ceph releases too.  This improves bootstrap
+    #                 resilience as the charm will wait for
+    #                 presence of peer units before attempting
+    #                 to bootstrap.  Note that charms deploying
+    #                 ceph-mon service should disable running of
+    #                 `ceph-create-keys` service in init system.
+    cmd = ['ceph-create-keys', '--id', hostname]
     if cmp_pkgrevno('ceph', '12.0.0') >= 0:
-        # NOTE(jamespage): Later ceph releases require explicit
-        #                  call to ceph-create-keys to setup the
-        #                  admin keys for the cluster; this command
-        #                  will wait for quorum in the cluster before
-        #                  returning.
         # NOTE(fnordahl): The default timeout in ceph-create-keys of 600
-        #                 seconds is not adequate for all situations.
+        #                 seconds is not adequate.  Increase timeout when
+        #                 timeout parameter available.  For older releases
+        #                 we rely on retry_on_exception decorator.
         #                 LP#1719436
-        cmd = ['ceph-create-keys', '--id', hostname, '--timeout', '1800']
-        subprocess.check_call(cmd)
+        cmd.extend(['--timeout', '1800'])
+    subprocess.check_call(cmd)
     _client_admin_keyring = '/etc/ceph/ceph.client.admin.keyring'
     osstat = os.stat(_client_admin_keyring)
     if not osstat.st_size:

@@ -27,6 +27,8 @@ extra-bindings:
 requires:
   mon:
     interface: ceph-osd
+  secrets-storage:
+    interface: vault-kv
 storage:
   osd-devices:
     type: block

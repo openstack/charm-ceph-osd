@@ -13,6 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import base64
+import json
 import glob
 import os
 import shutil
@@ -34,6 +37,7 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     related_units,
     relation_get,
+    relation_set,
     Hooks,
     UnregisteredHookError,
     service_name,
@@ -49,7 +53,8 @@ from charmhelpers.core.host import (
     service_reload,
     service_restart,
     add_to_updatedb_prunepath,
-    restart_on_change
+    restart_on_change,
+    write_file,
 )
 from charmhelpers.fetch import (
     add_source,
@@ -59,7 +64,9 @@ from charmhelpers.fetch import (
     get_upstream_version,
 )
 from charmhelpers.core.sysctl import create as create_sysctl
-from charmhelpers.contrib.openstack.context import AppArmorContext
+from charmhelpers.contrib.openstack.context import (
+    AppArmorContext,
+)
 from utils import (
     get_host_ip,
     get_networks,
@@ -74,11 +81,14 @@ from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.network.ip import (
     get_ipv6_addr,
     format_ipv6_addr,
+    get_relation_ip,
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     CephConfContext)
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
+
+import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
 
 hooks = Hooks()
 STORAGE_MOUNT_PATH = '/var/lib/ceph'
@@ -168,6 +178,23 @@ class CephOsdAppArmorContext(AppArmorContext):
             return self.ctxt
         self._ctxt.update({'aa_profile': self.aa_profile})
         return self.ctxt
+
+
+def use_vaultlocker():
+    """Determine whether vaultlocker should be used for OSD encryption
+
+    :returns: whether vaultlocker should be used for key management
+    :rtype: bool
+    :raises: ValueError if vaultlocker is enable but ceph < 12.2.4"""
+    if (config('osd-encrypt') and
+            config('osd-encrypt-keymanager') == ceph.VAULT_KEY_MANAGER):
+        if cmp_pkgrevno('ceph', '12.2.4') < 0:
+            msg = ('vault usage only supported with ceph >= 12.2.4')
+            status_set('blocked', msg)
+            raise ValueError(msg)
+        else:
+            return True
+    return False
 
 
 def install_apparmor_profile():
@@ -365,6 +392,14 @@ def check_overlap(journaldevs, datadevs):
 @hooks.hook('config-changed')
 @harden()
 def config_changed():
+    # Determine whether vaultlocker is required and install
+    if use_vaultlocker():
+        installed = len(filter_installed_packages(['vaultlocker'])) == 0
+        if not installed:
+            add_source('ppa:openstack-charmers/vaultlocker')
+            apt_update(fatal=True)
+            apt_install('vaultlocker', fatal=True)
+
     # Check if an upgrade was requested
     check_for_upgrade()
 
@@ -390,6 +425,18 @@ def config_changed():
 
 @hooks.hook('storage.real')
 def prepare_disks_and_activate():
+    # NOTE: vault/vaultlocker preflight check
+    vault_kv = vaultlocker.VaultKVContext(vaultlocker.VAULTLOCKER_BACKEND)
+    context = vault_kv()
+    if use_vaultlocker() and not vault_kv.complete:
+        log('Deferring OSD preparation as vault not ready',
+            level=DEBUG)
+        return
+    elif use_vaultlocker() and vault_kv.complete:
+        log('Vault ready, writing vaultlocker configuration',
+            level=DEBUG)
+        vaultlocker.write_vaultlocker_conf(context)
+
     osd_journal = get_journal_devices()
     check_overlap(osd_journal, set(get_devices()))
     log("got journal devs: {}".format(osd_journal), level=DEBUG)
@@ -407,7 +454,8 @@ def prepare_disks_and_activate():
                         osd_journal, config('osd-reformat'),
                         config('ignore-device-errors'),
                         config('osd-encrypt'),
-                        config('bluestore'))
+                        config('bluestore'),
+                        config('osd-encrypt-keymanager'))
             # Make it fast!
             if config('autotune'):
                 ceph.tune_dev(dev)
@@ -536,6 +584,26 @@ def update_nrpe_config():
     nrpe_setup.write()
 
 
+@hooks.hook('secrets-storage-relation-joined')
+def secrets_storage_joined(relation_id=None):
+    relation_set(relation_id=relation_id,
+                 secret_backend='charm-vaultlocker',
+                 isolated=True,
+                 access_address=get_relation_ip('secrets-storage'),
+                 hostname=socket.gethostname())
+
+
+@hooks.hook('secrets-storage-relation-changed')
+def secrets_storage_changed():
+    vault_ca = relation_get('vault_ca')
+    if vault_ca:
+        vault_ca = base64.decodestring(json.loads(vault_ca).encode())
+        write_file('/usr/local/share/ca-certificates/vault-ca.crt',
+                   vault_ca, perms=0o644)
+        subprocess.check_call(['update-ca-certificates', '--fresh'])
+    prepare_disks_and_activate()
+
+
 VERSION_PACKAGE = 'ceph-common'
 
 
@@ -558,6 +626,15 @@ def assess_status():
     if len(monitors) < 1 or not get_conf('osd_bootstrap_key'):
         status_set('waiting', 'Incomplete relation: monitor')
         return
+
+    # Check for vault
+    if use_vaultlocker():
+        if not relation_ids('secrets-storage'):
+            status_set('blocked', 'Missing relation: vault')
+            return
+        if not vaultlocker.vault_relation_complete():
+            status_set('waiting', 'Incomplete relation: vault')
+            return
 
     # Check for OSD device creation parity i.e. at least some devices
     # must have been presented and used for this charm to be operational

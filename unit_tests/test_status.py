@@ -32,6 +32,8 @@ TO_PATCH = [
     'get_conf',
     'application_version_set',
     'get_upstream_version',
+    'vaultlocker',
+    'use_vaultlocker',
 ]
 
 CEPH_MONS = [
@@ -47,6 +49,7 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         super(ServiceStatusTestCase, self).setUp(hooks, TO_PATCH)
         self.config.side_effect = self.test_config.get
         self.get_upstream_version.return_value = '10.2.2'
+        self.use_vaultlocker.return_value = False
 
     def test_assess_status_no_monitor_relation(self):
         self.relation_ids.return_value = []
@@ -77,6 +80,40 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         self.get_conf.return_value = 'monitor-bootstrap-key'
         self.ceph.get_running_osds.return_value = ['12345',
                                                    '67890']
+        self.get_upstream_version.return_value = '12.2.4'
         hooks.assess_status()
         self.status_set.assert_called_with('active', mock.ANY)
-        self.application_version_set.assert_called_with('10.2.2')
+        self.application_version_set.assert_called_with('12.2.4')
+
+    def test_assess_status_monitor_vault_missing(self):
+        _test_relations = {
+            'mon': ['mon:1'],
+        }
+        self.relation_ids.side_effect = lambda x: _test_relations.get(x, [])
+        self.related_units.return_value = CEPH_MONS
+        self.vaultlocker.vault_relation_complete.return_value = False
+        self.use_vaultlocker.return_value = True
+        self.get_conf.return_value = 'monitor-bootstrap-key'
+        self.ceph.get_running_osds.return_value = ['12345',
+                                                   '67890']
+        self.get_upstream_version.return_value = '12.2.4'
+        hooks.assess_status()
+        self.status_set.assert_called_with('blocked', mock.ANY)
+        self.application_version_set.assert_called_with('12.2.4')
+
+    def test_assess_status_monitor_vault_incomplete(self):
+        _test_relations = {
+            'mon': ['mon:1'],
+            'secrets-storage': ['secrets-storage:6']
+        }
+        self.relation_ids.side_effect = lambda x: _test_relations.get(x, [])
+        self.related_units.return_value = CEPH_MONS
+        self.vaultlocker.vault_relation_complete.return_value = False
+        self.use_vaultlocker.return_value = True
+        self.get_conf.return_value = 'monitor-bootstrap-key'
+        self.ceph.get_running_osds.return_value = ['12345',
+                                                   '67890']
+        self.get_upstream_version.return_value = '12.2.4'
+        hooks.assess_status()
+        self.status_set.assert_called_with('waiting', mock.ANY)
+        self.application_version_set.assert_called_with('12.2.4')

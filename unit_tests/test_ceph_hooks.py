@@ -517,3 +517,82 @@ class CephHooksTestCase(unittest.TestCase):
         subprocess.check_call.assert_called_once_with(
             ['udevadm', 'control', '--reload-rules']
         )
+
+
+@patch.object(ceph_hooks, 'relation_get')
+@patch.object(ceph_hooks, 'relation_set')
+@patch.object(ceph_hooks, 'prepare_disks_and_activate')
+@patch.object(ceph_hooks, 'get_relation_ip')
+@patch.object(ceph_hooks, 'socket')
+class SecretsStorageTestCase(unittest.TestCase):
+
+    def test_secrets_storage_relation_joined(self,
+                                             _socket,
+                                             _get_relation_ip,
+                                             _prepare_disks_and_activate,
+                                             _relation_set,
+                                             _relation_get):
+        _get_relation_ip.return_value = '10.23.1.2'
+        _socket.gethostname.return_value = 'testhost'
+        ceph_hooks.secrets_storage_joined()
+        _get_relation_ip.assert_called_with('secrets-storage')
+        _relation_set.assert_called_with(
+            relation_id=None,
+            secret_backend='charm-vaultlocker',
+            isolated=True,
+            access_address='10.23.1.2',
+            hostname='testhost'
+        )
+        _socket.gethostname.assert_called_once_with()
+
+    def test_secrets_storage_relation_changed(self,
+                                              _socket,
+                                              _get_relation_ip,
+                                              _prepare_disks_and_activate,
+                                              _relation_set,
+                                              _relation_get):
+        _relation_get.return_value = None
+        ceph_hooks.secrets_storage_changed()
+        _prepare_disks_and_activate.assert_called_once_with()
+
+
+@patch.object(ceph_hooks, 'cmp_pkgrevno')
+@patch.object(ceph_hooks, 'config')
+class VaultLockerTestCase(unittest.TestCase):
+
+    def test_use_vaultlocker(self, _config, _cmp_pkgrevno):
+        _test_data = {
+            'osd-encrypt': True,
+            'osd-encrypt-keymanager': 'vault',
+        }
+        _config.side_effect = lambda x: _test_data.get(x)
+        _cmp_pkgrevno.return_value = 1
+        self.assertTrue(ceph_hooks.use_vaultlocker())
+
+    def test_use_vaultlocker_no_encryption(self, _config, _cmp_pkgrevno):
+        _test_data = {
+            'osd-encrypt': False,
+            'osd-encrypt-keymanager': 'vault',
+        }
+        _config.side_effect = lambda x: _test_data.get(x)
+        _cmp_pkgrevno.return_value = 1
+        self.assertFalse(ceph_hooks.use_vaultlocker())
+
+    def test_use_vaultlocker_not_vault(self, _config, _cmp_pkgrevno):
+        _test_data = {
+            'osd-encrypt': True,
+            'osd-encrypt-keymanager': 'ceph',
+        }
+        _config.side_effect = lambda x: _test_data.get(x)
+        _cmp_pkgrevno.return_value = 1
+        self.assertFalse(ceph_hooks.use_vaultlocker())
+
+    def test_use_vaultlocker_old_version(self, _config, _cmp_pkgrevno):
+        _test_data = {
+            'osd-encrypt': True,
+            'osd-encrypt-keymanager': 'vault',
+        }
+        _config.side_effect = lambda x: _test_data.get(x)
+        _cmp_pkgrevno.return_value = -1
+        self.assertRaises(ValueError,
+                          ceph_hooks.use_vaultlocker)

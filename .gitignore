@@ -9,3 +9,5 @@ bin
 .unit-state.db
 .idea
 func-results.json
+*__pycache__
+.settings
