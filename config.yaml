@@ -232,8 +232,7 @@ options:
   sysctl:
     type: string
     default: '{ kernel.pid_max : 2097152, vm.max_map_count : 524288,
-                kernel.threads-max: 2097152, vm.vfs_cache_pressure: 1,
-                vm.swappiness: 1 }'
+                kernel.threads-max: 2097152 }'
     description: |
       YAML-formatted associative array of sysctl key/value pairs to be set
       persistently. By default we set pid_max, max_map_count and
