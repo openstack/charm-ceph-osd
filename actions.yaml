@@ -24,17 +24,6 @@ resume:
   description: |
     Set the local osd units in the charm to 'in'. Note that the pause option
     does NOT stop the osd processes.
-replace-osd:
-  description: Replace a failed osd with a fresh disk
-  params:
-    osd-number:
-      type: integer
-      description: The osd number to operate on.  Example 99.  Hint you can get this information from `ceph osd tree`.
-    replacement-device:
-      type: string
-      description: The replacement device to use. Example /dev/sdb.
-  required: [osd-number, replacement-device]
-  additionalProperties: false
 list-disks:
   description: List the unmounted disk on the specified unit
 add-disk:

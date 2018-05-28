@@ -13,8 +13,6 @@
 # limitations under the License.
 
 import collections
-import ctypes
-import errno
 import glob
 import json
 import os
@@ -25,7 +23,6 @@ import socket
 import subprocess
 import sys
 import time
-import shutil
 import uuid
 
 from datetime import datetime
@@ -38,7 +35,6 @@ from charmhelpers.core.host import (
     cmp_pkgrevno,
     lsb_release,
     mkdir,
-    mounts,
     owner,
     service_restart,
     service_start,
@@ -833,114 +829,6 @@ CEPH_PARTITIONS = [
     '45B0969E-9B03-4F30-B4C6-B4B80CEFF106',  # ceph osd journal
     '89C57F98-2FE5-4DC0-89C1-F3AD0CEFF2BE',  # ceph disk in creation
 ]
-
-
-def umount(mount_point):
-    """This function unmounts a mounted directory forcibly. This will
-    be used for unmounting broken hard drive mounts which may hang.
-
-    If umount returns EBUSY this will lazy unmount.
-
-    :param mount_point: str. A String representing the filesystem mount point
-    :returns: int. Returns 0 on success. errno otherwise.
-    """
-    libc_path = ctypes.util.find_library("c")
-    libc = ctypes.CDLL(libc_path, use_errno=True)
-
-    # First try to umount with MNT_FORCE
-    ret = libc.umount(mount_point, 1)
-    if ret < 0:
-        err = ctypes.get_errno()
-        if err == errno.EBUSY:
-            # Detach from try. IE lazy umount
-            ret = libc.umount(mount_point, 2)
-            if ret < 0:
-                err = ctypes.get_errno()
-                return err
-            return 0
-        else:
-            return err
-    return 0
-
-
-def replace_osd(dead_osd_number,
-                dead_osd_device,
-                new_osd_device,
-                osd_format,
-                osd_journal,
-                reformat_osd=False,
-                ignore_errors=False):
-    """This function will automate the replacement of a failed osd disk as much
-    as possible. It will revoke the keys for the old osd, remove it from the
-    crush map and then add a new osd into the cluster.
-
-    :param dead_osd_number: The osd number found in ceph osd tree. Example: 99
-    :param dead_osd_device: The physical device. Example: /dev/sda
-    :param osd_format:
-    :param osd_journal:
-    :param reformat_osd:
-    :param ignore_errors:
-    """
-    host_mounts = mounts()
-    mount_point = None
-    for mount in host_mounts:
-        if mount[1] == dead_osd_device:
-            mount_point = mount[0]
-    # need to convert dev to osd number
-    # also need to get the mounted drive so we can tell the admin to
-    # replace it
-    try:
-        # Drop this osd out of the cluster. This will begin a
-        # rebalance operation
-        status_set('maintenance', 'Removing osd {}'.format(dead_osd_number))
-        subprocess.check_output([
-            'ceph',
-            '--id',
-            'osd-upgrade',
-            'osd', 'out',
-            'osd.{}'.format(dead_osd_number)])
-
-        # Kill the osd process if it's not already dead
-        if systemd():
-            service_stop('ceph-osd@{}'.format(dead_osd_number))
-        else:
-            subprocess.check_output(['stop', 'ceph-osd', 'id={}'.format(
-                dead_osd_number)])
-        # umount if still mounted
-        ret = umount(mount_point)
-        if ret < 0:
-            raise RuntimeError('umount {} failed with error: {}'.format(
-                mount_point, os.strerror(ret)))
-        # Clean up the old mount point
-        shutil.rmtree(mount_point)
-        subprocess.check_output([
-            'ceph',
-            '--id',
-            'osd-upgrade',
-            'osd', 'crush', 'remove',
-            'osd.{}'.format(dead_osd_number)])
-        # Revoke the OSDs access keys
-        subprocess.check_output([
-            'ceph',
-            '--id',
-            'osd-upgrade',
-            'auth', 'del',
-            'osd.{}'.format(dead_osd_number)])
-        subprocess.check_output([
-            'ceph',
-            '--id',
-            'osd-upgrade',
-            'osd', 'rm',
-            'osd.{}'.format(dead_osd_number)])
-        status_set('maintenance', 'Setting up replacement osd {}'.format(
-            new_osd_device))
-        osdize(new_osd_device,
-               osd_format,
-               osd_journal,
-               reformat_osd,
-               ignore_errors)
-    except subprocess.CalledProcessError as e:
-        log('replace_osd failed with error: ' + e.output)
 
 
 def get_partition_list(dev):
@@ -2248,19 +2136,14 @@ def wait_on_previous_node(upgrade_key, service, previous_node, version):
 def get_upgrade_position(osd_sorted_list, match_name):
     """Return the upgrade position for the given osd.
 
-    :param osd_sorted_list: Osds sorted
-    :type osd_sorted_list: [str]
-    :param match_name: The osd name to match
-    :type match_name: str
-    :returns: The position of the name
-    :rtype: int
-    :raises: ValueError if name is not found
+    :param osd_sorted_list: list. Osds sorted
+    :param match_name: str. The osd name to match
+    :returns: int. The position or None if not found
     """
     for index, item in enumerate(osd_sorted_list):
         if item.name == match_name:
             return index
-    raise ValueError("osd name '{}' not found in get_upgrade_position list"
-                     .format(match_name))
+    return None
 
 
 # Edge cases:
