@@ -31,7 +31,6 @@ import ceph.utils
 def add_device(request, device_path, bucket=None):
     ceph.utils.osdize(dev, hookenv.config('osd-format'),
                       ceph_hooks.get_journal_devices(),
-                      hookenv.config('osd-reformat'),
                       hookenv.config('ignore-device-errors'),
                       hookenv.config('osd-encrypt'),
                       hookenv.config('bluestore'))

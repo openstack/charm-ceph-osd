@@ -451,7 +451,7 @@ def prepare_disks_and_activate():
         emit_cephconf()
         for dev in get_devices():
             ceph.osdize(dev, config('osd-format'),
-                        osd_journal, config('osd-reformat'),
+                        osd_journal,
                         config('ignore-device-errors'),
                         config('osd-encrypt'),
                         config('bluestore'),
@@ -497,13 +497,6 @@ def get_conf(name):
             if conf:
                 return conf
     return None
-
-
-def reformat_osd():
-    if config('osd-reformat'):
-        return True
-    else:
-        return False
 
 
 def get_devices():

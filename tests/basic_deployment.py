@@ -63,7 +63,10 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
            and the rest of the service are from lp branches that are
            compatible with the local charm (e.g. stable or next).
            """
-        this_service = {'name': 'ceph-osd', 'units': 3}
+        this_service = {
+            'name': 'ceph-osd',
+            'units': 3,
+            'storage': {'osd-devices': 'cinder,10G'}}
         other_services = [
             {'name': 'ceph-mon', 'units': 3},
             {'name': 'percona-cluster'},
@@ -118,9 +121,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         # Include a non-existent device as osd-devices is a whitelist,
         # and this will catch cases where proposals attempt to change that.
         ceph_osd_config = {
-            'osd-reformat': True,
-            'ephemeral-unmount': '/mnt',
-            'osd-devices': '/dev/vdb /srv/ceph /dev/test-non-existent'
+            'osd-devices': '/srv/ceph /dev/test-non-existent'
         }
 
         configs = {'keystone': keystone_config,
