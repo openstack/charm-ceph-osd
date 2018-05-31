@@ -73,3 +73,28 @@ blacklist-remove-disk:
         Example: '/dev/vdb /var/tmp/test-osd'
   required:
     - osd-devices
+zap-disk:
+  description: |
+    Purge disk of all data and signatures for use by Ceph
+    .
+    This action can be necessary in cases where a Ceph cluster is being
+    redeployed as the charm defaults to skipping disks that look like Ceph
+    devices in order to preserve data. In order to forcibly redeploy, the
+    admin is required to perform this action for each disk to be re-consumed.
+    .
+    In addition to triggering this action, it is required to pass an additional
+    parameter option of `i-really-mean-it` to ensure that the
+    administrator is aware that this *will* cause data loss on the specified
+    device(s)
+  params:
+    devices:
+      type: string
+      description: |
+        A space-separated list of devices to remove the partition table from.
+    i-really-mean-it:
+      type: boolean
+      description: |
+        This must be toggled to enable actually performing this action
+  required:
+    - devices
+    - i-really-mean-it
