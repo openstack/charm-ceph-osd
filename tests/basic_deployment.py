@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import amulet
+import re
 import time
 
 import keystoneclient
@@ -711,6 +712,69 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
                           '(%s < on %s) on %s' % (file_mtime,
                                                   mtime, unit_name))
             amulet.raise_status('Folder mtime is older than provided mtime')
+
+    def test_901_blocked_when_non_pristine_disk_appears(self):
+        """
+        Validate that charm goes into blocked state when it is presented with
+        new block devices that have foreign data on them.
+
+        Instances used in UOSCI has a flavour with ephemeral storage in
+        addition to the bootable instance storage.  The ephemeral storage
+        device is partitioned, formatted and mounted early in the boot process
+        by cloud-init.
+
+        As long as the device is mounted the charm will not attempt to use it.
+
+        If we unmount it and trigger the config-changed hook the block device
+        will appear as a new and previously untouched device for the charm.
+
+        One of the first steps of device eligibility checks should be to make
+        sure we are seeing a pristine and empty device before doing any
+        further processing.
+
+        As the ephemeral device will have data on it we can use it to validate
+        that these checks work as intended.
+        """
+        u.log.debug('Checking behaviour when non-pristine disks appear...')
+        u.log.debug('Configuring ephemeral-unmount...')
+        self.d.configure('ceph-osd', {'ephemeral-unmount': '/mnt',
+                                      'osd-devices': '/dev/vdb'})
+        self._auto_wait_for_status(message=re.compile('Non-pristine.*'),
+                                   include_only=['ceph-osd'])
+        u.log.debug('Units now in blocked state, running zap-disk action...')
+        action_ids = []
+        self.ceph_osd_sentry = self.d.sentry['ceph-osd'][0]
+        for unit in range(0, 3):
+            zap_disk_params = {
+                'devices': '/dev/vdb',
+                'i-really-mean-it': True,
+            }
+            action_id = u.run_action(self.d.sentry['ceph-osd'][unit],
+                                     'zap-disk', params=zap_disk_params)
+            action_ids.append(action_id)
+        for unit in range(0, 3):
+            assert u.wait_on_action(action_ids[unit]), (
+                'zap-disk action failed.')
+
+        u.log.debug('Running add-disk action...')
+        action_ids = []
+        for unit in range(0, 3):
+            add_disk_params = {
+                'osd-devices': '/dev/vdb',
+            }
+            action_id = u.run_action(self.d.sentry['ceph-osd'][unit],
+                                     'add-disk', params=add_disk_params)
+            action_ids.append(action_id)
+
+        # NOTE(fnordahl): LP: #1774694
+        # for unit in range(0, 3):
+        #     assert u.wait_on_action(action_ids[unit]), (
+        #         'add-disk action failed.')
+
+        u.log.debug('Wait for idle/ready status...')
+        self._auto_wait_for_status(include_only=['ceph-osd'])
+
+        u.log.debug('OK')
 
     def test_910_pause_and_resume(self):
         """The services can be paused and resumed. """

@@ -20,7 +20,6 @@ import glob
 import os
 import shutil
 import sys
-import tempfile
 import socket
 import subprocess
 import netifaces
@@ -41,6 +40,7 @@ from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
     service_name,
+    status_get,
     status_set,
     storage_get,
     storage_list,
@@ -76,6 +76,7 @@ from utils import (
     get_public_addr,
     get_cluster_addr,
     get_blacklist,
+    get_journal_devices,
 )
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.network.ip import (
@@ -85,6 +86,9 @@ from charmhelpers.contrib.network.ip import (
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     CephConfContext)
+from charmhelpers.contrib.storage.linux.utils import (
+    is_device_mounted,
+)
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
 
@@ -357,38 +361,6 @@ def emit_cephconf(upgrading=False):
                         charm_ceph_conf, 90)
 
 
-JOURNAL_ZAPPED = '/var/lib/ceph/journal_zapped'
-
-
-def read_zapped_journals():
-    if os.path.exists(JOURNAL_ZAPPED):
-        with open(JOURNAL_ZAPPED, 'rt', encoding='UTF-8') as zapfile:
-            zapped = set(
-                filter(None,
-                       [l.strip() for l in zapfile.readlines()]))
-            log("read zapped: {}".format(zapped), level=DEBUG)
-            return zapped
-    return set()
-
-
-def write_zapped_journals(journal_devs):
-    tmpfh, tmpfile = tempfile.mkstemp()
-    with os.fdopen(tmpfh, 'wb') as zapfile:
-        log("write zapped: {}".format(journal_devs),
-            level=DEBUG)
-        zapfile.write('\n'.join(sorted(list(journal_devs))).encode('UTF-8'))
-    shutil.move(tmpfile, JOURNAL_ZAPPED)
-
-
-def check_overlap(journaldevs, datadevs):
-    if not journaldevs.isdisjoint(datadevs):
-        msg = ("Journal/data devices mustn't"
-               " overlap; journal: {0}, data: {1}".format(journaldevs,
-                                                          datadevs))
-        log(msg, level=ERROR)
-        raise ValueError(msg)
-
-
 @hooks.hook('config-changed')
 @harden()
 def config_changed():
@@ -438,13 +410,28 @@ def prepare_disks_and_activate():
         vaultlocker.write_vaultlocker_conf(context)
 
     osd_journal = get_journal_devices()
-    check_overlap(osd_journal, set(get_devices()))
+    if not osd_journal.isdisjoint(set(get_devices())):
+        raise ValueError('`osd-journal` and `osd-devices` options must not'
+                         'overlap.')
     log("got journal devs: {}".format(osd_journal), level=DEBUG)
-    already_zapped = read_zapped_journals()
-    non_zapped = osd_journal - already_zapped
-    for journ in non_zapped:
-        ceph.maybe_zap_journal(journ)
-    write_zapped_journals(osd_journal)
+
+    # pre-flight check of eligible device pristinity
+    devices = get_devices()
+    # filter osd-devices that are file system paths
+    devices = [dev for dev in devices if dev.startswith('/dev')]
+    # filter osd-devices that does not exist on this unit
+    devices = [dev for dev in devices if os.path.exists(dev)]
+    # filter osd-devices that are already mounted
+    devices = [dev for dev in devices if not is_device_mounted(dev)]
+    # filter osd-devices that are active bluestore devices
+    devices = [dev for dev in devices
+               if not ceph.is_active_bluestore_device(dev)]
+    log('Checking for pristine devices: "{}"'.format(devices), level=DEBUG)
+    if not all(ceph.is_pristine_disk(dev) for dev in devices):
+        status_set('blocked',
+                   'Non-pristine devices detected, consult '
+                   '`list-disks`, `zap-disk` and `blacklist-*` actions.')
+        return
 
     if ceph.is_bootstrapped():
         log('ceph bootstrapped, rescanning disks')
@@ -519,20 +506,6 @@ def get_devices():
     # Filter out any devices in the action managed unit-local device blacklist
     _blacklist = get_blacklist()
     return [device for device in devices if device not in _blacklist]
-
-
-def get_journal_devices():
-    if config('osd-journal'):
-        devices = [l.strip() for l in config('osd-journal').split(' ')]
-    else:
-        devices = []
-    storage_ids = storage_list('osd-journals')
-    devices.extend((storage_get('location', s) for s in storage_ids))
-
-    # Filter out any devices in the action managed unit-local device blacklist
-    _blacklist = get_blacklist()
-    return set(device for device in devices
-               if device not in _blacklist and os.path.exists(device))
 
 
 @hooks.hook('mon-relation-changed',
@@ -631,13 +604,15 @@ def assess_status():
 
     # Check for OSD device creation parity i.e. at least some devices
     # must have been presented and used for this charm to be operational
+    (prev_status, prev_message) = status_get()
     running_osds = ceph.get_running_osds()
-    if not running_osds:
-        status_set('blocked',
-                   'No block devices detected using current configuration')
-    else:
-        status_set('active',
-                   'Unit is ready ({} OSD)'.format(len(running_osds)))
+    if prev_status != 'blocked':
+        if not running_osds:
+            status_set('blocked',
+                       'No block devices detected using current configuration')
+        else:
+            status_set('active',
+                       'Unit is ready ({} OSD)'.format(len(running_osds)))
 
 
 @hooks.hook('update-status')

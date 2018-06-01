@@ -405,21 +405,6 @@ class CephHooksTestCase(unittest.TestCase):
         devices = ceph_hooks.get_devices()
         self.assertEqual(devices, ['/dev/vda', '/dev/vdb'])
 
-    @patch('os.path.exists')
-    @patch.object(ceph_hooks, 'storage_list')
-    @patch.object(ceph_hooks, 'config')
-    def test_get_journal_devices(self, mock_config, mock_storage_list,
-                                 mock_os_path_exists):
-        '''Devices returned as expected'''
-        config = {'osd-journal': '/dev/vda /dev/vdb'}
-        mock_config.side_effect = lambda key: config[key]
-        mock_storage_list.return_value = []
-        mock_os_path_exists.return_value = True
-        devices = ceph_hooks.get_journal_devices()
-        mock_storage_list.assert_called()
-        mock_os_path_exists.assert_called()
-        self.assertEqual(devices, set(['/dev/vda', '/dev/vdb']))
-
     @patch.object(ceph_hooks, 'get_blacklist')
     @patch.object(ceph_hooks, 'storage_list')
     @patch.object(ceph_hooks, 'config')
@@ -434,26 +419,6 @@ class CephHooksTestCase(unittest.TestCase):
         mock_storage_list.assert_called()
         mock_get_blacklist.assert_called()
         self.assertEqual(devices, ['/dev/vdb'])
-
-    @patch('os.path.exists')
-    @patch.object(ceph_hooks, 'get_blacklist')
-    @patch.object(ceph_hooks, 'storage_list')
-    @patch.object(ceph_hooks, 'config')
-    def test_get_journal_devices_blacklist(self, mock_config,
-                                           mock_storage_list,
-                                           mock_get_blacklist,
-                                           mock_os_path_exists):
-        '''Devices returned as expected when blacklist in effect'''
-        config = {'osd-journal': '/dev/vda /dev/vdb'}
-        mock_config.side_effect = lambda key: config[key]
-        mock_storage_list.return_value = []
-        mock_get_blacklist.return_value = ['/dev/vda']
-        mock_os_path_exists.return_value = True
-        devices = ceph_hooks.get_journal_devices()
-        mock_storage_list.assert_called()
-        mock_os_path_exists.assert_called()
-        mock_get_blacklist.assert_called()
-        self.assertEqual(devices, set(['/dev/vdb']))
 
     @patch.object(ceph_hooks, 'log')
     @patch.object(ceph_hooks, 'config')

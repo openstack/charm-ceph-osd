@@ -15,10 +15,17 @@
 # limitations under the License.
 
 """
-List unmounted devices.
+List disks
 
-This script will get all block devices known by udev and check if they
-are mounted so that we can give unmounted devices to the administrator.
+The 'disks' key is populated with block devices that are known by udev,
+are not mounted and not mentioned in 'osd-journal' configuration option.
+
+The 'blacklist' key is populated with osd-devices in the blacklist stored
+in the local kv store of this specific unit.
+
+The 'non-pristine' key is populated with block devices that are known by
+udev, are not mounted, not mentioned in 'osd-journal' configuration option
+and are currently not eligible for use because of presence of foreign data.
 """
 
 import sys
@@ -32,7 +39,15 @@ import ceph.utils
 import utils
 
 if __name__ == '__main__':
+    non_pristine = []
+    osd_journal = utils.get_journal_devices()
+    for dev in list(set(ceph.utils.unmounted_disks()) - set(osd_journal)):
+        if (not ceph.utils.is_active_bluestore_device(dev) and
+                not ceph.utils.is_pristine_disk(dev)):
+            non_pristine.append(dev)
+
     hookenv.action_set({
-        'disks': ceph.utils.unmounted_disks(),
+        'disks': list(set(ceph.utils.unmounted_disks()) - set(osd_journal)),
         'blacklist': utils.get_blacklist(),
+        'non-pristine': non_pristine,
     })

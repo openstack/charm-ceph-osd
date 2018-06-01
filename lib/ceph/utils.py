@@ -66,7 +66,6 @@ from charmhelpers.contrib.storage.linux.ceph import (
 from charmhelpers.contrib.storage.linux.utils import (
     is_block_device,
     is_device_mounted,
-    zap_disk,
 )
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_install_source,
@@ -870,7 +869,42 @@ def get_partition_list(dev):
         raise
 
 
+def is_pristine_disk(dev):
+    """
+    Read first 2048 bytes (LBA 0 - 3) of block device to determine whether it
+    is actually all zeros and safe for us to use.
+
+    Existing partitioning tools does not discern between a failure to read from
+    block device, failure to understand a partition table and the fact that a
+    block device has no partition table.  Since we need to be positive about
+    which is which we need to read the device directly and confirm ourselves.
+
+    :param dev: Path to block device
+    :type dev: str
+    :returns: True all 2048 bytes == 0x0, False if not
+    :rtype: bool
+    """
+    want_bytes = 2048
+
+    f = open(dev, 'rb')
+    data = f.read(want_bytes)
+    read_bytes = len(data)
+    if read_bytes != want_bytes:
+        log('{}: short read, got {} bytes expected {}.'
+            .format(dev, read_bytes, want_bytes), level=WARNING)
+        return False
+
+    return all(byte == 0x0 for byte in data)
+
+
 def is_osd_disk(dev):
+    db = kv()
+    osd_devices = db.get('osd-devices', [])
+    if dev in osd_devices:
+        log('Device {} already processed by charm,'
+            ' skipping'.format(dev))
+        return True
+
     partitions = get_partition_list(dev)
     for partition in partitions:
         try:
@@ -1294,15 +1328,6 @@ def update_monfs():
         # it gets start correctly on reboots
         with open(init_marker, 'w'):
             pass
-
-
-def maybe_zap_journal(journal_dev):
-    if is_osd_disk(journal_dev):
-        log('Looks like {} is already an OSD data'
-            ' or journal, skipping.'.format(journal_dev))
-        return
-    zap_disk(journal_dev)
-    log("Zapped journal device {}".format(journal_dev))
 
 
 def get_partitions(dev):

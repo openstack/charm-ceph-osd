@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import socket
 import re
+import os
+import socket
+
 from charmhelpers.core.hookenv import (
     unit_get,
     cached,
@@ -22,6 +24,8 @@ from charmhelpers.core.hookenv import (
     log,
     DEBUG,
     status_set,
+    storage_get,
+    storage_list,
 )
 from charmhelpers.core import unitdata
 from charmhelpers.fetch import (
@@ -38,6 +42,7 @@ from charmhelpers.contrib.network.ip import (
     get_address_in_network,
     get_ipv6_addr
 )
+
 
 TEMPLATES_DIR = 'templates'
 
@@ -213,3 +218,17 @@ def get_blacklist():
     """Get blacklist stored in the local kv() store"""
     db = unitdata.kv()
     return db.get('osd-blacklist', [])
+
+
+def get_journal_devices():
+    if config('osd-journal'):
+        devices = [l.strip() for l in config('osd-journal').split(' ')]
+    else:
+        devices = []
+    storage_ids = storage_list('osd-journals')
+    devices.extend((storage_get('location', s) for s in storage_ids))
+
+    # Filter out any devices in the action managed unit-local device blacklist
+    _blacklist = get_blacklist()
+    return set(device for device in devices
+               if device not in _blacklist and os.path.exists(device))
