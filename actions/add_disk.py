@@ -39,8 +39,7 @@ def add_device(request, device_path, bucket=None):
         ceph.utils.tune_dev(dev)
     mounts = filter(lambda disk: device_path
                     in disk.device, psutil.disk_partitions())
-    if mounts:
-        osd = mounts[0]
+    for osd in mounts:
         osd_id = osd.mountpoint.split('/')[-1].split('-')[-1]
         request.ops.append({
             'op': 'move-osd-to-bucket',

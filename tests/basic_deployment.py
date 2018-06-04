@@ -766,10 +766,9 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
                                      'add-disk', params=add_disk_params)
             action_ids.append(action_id)
 
-        # NOTE(fnordahl): LP: #1774694
-        # for unit in range(0, 3):
-        #     assert u.wait_on_action(action_ids[unit]), (
-        #         'add-disk action failed.')
+        for unit in range(0, 3):
+            assert u.wait_on_action(action_ids[unit]), (
+                'add-disk action failed.')
 
         u.log.debug('Wait for idle/ready status...')
         self._auto_wait_for_status(include_only=['ceph-osd'])
