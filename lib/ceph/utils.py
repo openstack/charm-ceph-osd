@@ -1366,20 +1366,18 @@ def get_devices(name):
     return set(devices)
 
 
-def osdize(dev, osd_format, osd_journal, reformat_osd=False,
-           ignore_errors=False, encrypt=False, bluestore=False,
-           key_manager=CEPH_KEY_MANAGER):
+def osdize(dev, osd_format, osd_journal, ignore_errors=False, encrypt=False,
+           bluestore=False, key_manager=CEPH_KEY_MANAGER):
     if dev.startswith('/dev'):
         osdize_dev(dev, osd_format, osd_journal,
-                   reformat_osd, ignore_errors, encrypt,
+                   ignore_errors, encrypt,
                    bluestore, key_manager)
     else:
         osdize_dir(dev, encrypt, bluestore)
 
 
-def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
-               ignore_errors=False, encrypt=False, bluestore=False,
-               key_manager=CEPH_KEY_MANAGER):
+def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
+               encrypt=False, bluestore=False, key_manager=CEPH_KEY_MANAGER):
     """
     Prepare a block device for use as a Ceph OSD
 
@@ -1389,8 +1387,6 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
     :param: dev: Full path to block device to use
     :param: osd_format: Format for OSD filesystem
     :param: osd_journal: List of block devices to use for OSD journals
-    :param: reformat_osd: Reformat devices that are not currently in use
-                          which have been used previously
     :param: ignore_errors: Don't fail in the event of any errors during
                            processing
     :param: encrypt: Encrypt block devices using 'key_manager'
@@ -1418,7 +1414,7 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         log('Path {} is not a block device - bailing'.format(dev))
         return
 
-    if is_osd_disk(dev) and not reformat_osd:
+    if is_osd_disk(dev):
         log('Looks like {} is already an'
             ' OSD data or journal, skipping.'.format(dev))
         return
@@ -1431,9 +1427,6 @@ def osdize_dev(dev, osd_format, osd_journal, reformat_osd=False,
         log('{} is in use as an active bluestore block device,'
             ' skipping.'.format(dev))
         return
-
-    if reformat_osd:
-        zap_disk(dev)
 
     if cmp_pkgrevno('ceph', '12.2.4') >= 0:
         cmd = _ceph_volume(dev,
