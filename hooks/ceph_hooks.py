@@ -273,7 +273,11 @@ def use_short_objects():
     if cmp_pkgrevno('ceph', "10.2.0") >= 0:
         if config('osd-format') in ('ext4'):
             return True
-        for device in config('osd-devices'):
+        devices = config('osd-devices')
+        if not devices:
+            return False
+
+        for device in devices.split():
             if device and not device.startswith('/dev'):
                 # TODO: determine format of directory based
                 #       OSD location

@@ -483,6 +483,28 @@ class CephHooksTestCase(unittest.TestCase):
             ['udevadm', 'control', '--reload-rules']
         )
 
+    @patch.object(ceph_hooks, 'config')
+    @patch.object(ceph_hooks, 'cmp_pkgrevno')
+    def test_use_short_objects(self, mock_cmp_pkgrevno, mock_config):
+
+        def fake_config(key):
+            return config.get(key, None)
+
+        mock_config.side_effect = fake_config
+        mock_cmp_pkgrevno.return_value = True
+
+        config = {'osd-devices': '/dev/sdb /dev/sdc', 'osd-format': 'ext4'}
+        self.assertTrue(ceph_hooks.use_short_objects())
+
+        config = {'osd-devices': '/dev/sdb /dev/sdc', 'osd-format': 'xfs'}
+        self.assertFalse(ceph_hooks.use_short_objects())
+
+        config = {'osd-devices': '/srv/osd', 'osd-format': 'xfs'}
+        self.assertTrue(ceph_hooks.use_short_objects())
+
+        config = {'osd-devices': '/srv/osd', 'osd-format': 'ext4'}
+        self.assertTrue(ceph_hooks.use_short_objects())
+
 
 @patch.object(ceph_hooks, 'relation_get')
 @patch.object(ceph_hooks, 'relation_set')
