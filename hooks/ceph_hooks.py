@@ -610,7 +610,7 @@ def assess_status():
     # must have been presented and used for this charm to be operational
     (prev_status, prev_message) = status_get()
     running_osds = ceph.get_running_osds()
-    if prev_status != 'blocked':
+    if not prev_message.startswith('Non-pristine'):
         if not running_osds:
             status_set('blocked',
                        'No block devices detected using current configuration')
