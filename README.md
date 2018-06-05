@@ -122,6 +122,119 @@ options::
 new block devices added to the ceph-osd application; existing OSD devices will
 not be encrypted.
 
+Actions
+=======
+The charm offers [actions](https://docs.jujucharms.com/devel/en/actions) which
+may be used to perform operational tasks on individual units.
+
+pause
+-----
+**USE WITH CAUTION** - Set the local osd units in the charm to 'out' but
+does not stop the osds.  Unless the osd cluster is set to noout (see below),
+this removes them from the ceph cluster and forces ceph to migrate the PGs
+to other OSDs in the cluster.
+
+From [upstream documentation](http://docs.ceph.com/docs/master/rados/operations/add-or-rm-osds/#removing-the-osd)
+"Do not let your cluster reach its full ratio when removing an OSD.
+ Removing OSDs could cause the cluster to reach or exceed its full ratio."
+
+Also note that for small clusters you may encounter the corner case where
+some PGs remain stuck in the active+remapped state. Refer to the above link
+on how to resolve this.
+
+`pause-health` (on a ceph-mon) unit can be used before pausing a ceph-osd
+unit to stop the cluster rebalancing the data off this ceph-osd unit.
+`pause-health` sets 'noout' on the cluster such that it will not try to
+rebalance the data accross the remaining units.
+
+It is up to the user of the charm to determine whether pause-health should
+be used as it depends on whether the osd is being paused for maintenance or
+to remove it from the cluster completely.
+
+**NOTE** the `pause` action does NOT stop the ceph-osd processes.
+
+resume
+------
+Set the local osd units in the charm to 'in'.
+
+
+list-disks
+----------
+List disks
+
+The 'disks' key is populated with block devices that are known by udev,
+are not mounted and not mentioned in 'osd-journal' configuration option.
+
+The 'blacklist' key is populated with osd-devices in the blacklist stored
+in the local kv store of this specific unit.
+
+The 'non-pristine' key is populated with block devices that are known by
+udev, are not mounted, not mentioned in 'osd-journal' configuration option
+and are currently not eligible for use because of presence of foreign data.
+
+add-disk
+--------
+Add disk(s) to Ceph
+
+#### Parameters
+- `osd-devices` (required)
+  - The devices to format and set up as osd volumes.
+- `bucket`
+  - The name of the bucket in Ceph to add these devices into
+
+blacklist-add-disk
+------------------
+Add disk(s) to blacklist. Blacklisted disks will not be
+initialized for use with Ceph even if listed in the application
+level osd-devices configuration option.
+
+The current blacklist can be viewed with list-disks action.
+
+**NOTE** This action and blacklist will not have any effect on
+already initialized disks.
+
+#### Parameters
+- `osd-devices` (required)
+  - A space-separated list of devices to add to blacklist.
+
+    Each element should be a absolute path to a device node or filesystem
+    directory (the latter is supported for ceph >= 0.56.6).
+
+    Example: '/dev/vdb /var/tmp/test-osd'
+
+blacklist-remove-disk
+---------------------
+Remove disk(s) from blacklist.
+
+#### Parameters
+- `osd-devices` (required)
+  - A space-separated list of devices to remove from blacklist.
+
+    Each element should be a existing entry in the units blacklist.
+    Use list-disks action to list current blacklist entries.
+
+    Example: '/dev/vdb /var/tmp/test-osd'
+
+zap-disk
+--------
+Purge disk of all data and signatures for use by Ceph
+
+This action can be necessary in cases where a Ceph cluster is being
+redeployed as the charm defaults to skipping disks that look like Ceph
+devices in order to preserve data. In order to forcibly redeploy, the
+admin is required to perform this action for each disk to be re-consumed.
+
+In addition to triggering this action, it is required to pass an additional
+parameter option of `i-really-mean-it` to ensure that the
+administrator is aware that this *will* cause data loss on the specified
+device(s)
+
+#### Parameters
+- `devices` (required)
+  - A space-separated list of devices to remove the partition table from.
+- `i-really-mean-it` (required)
+  - This must be toggled to enable actually performing this action
+
 Contact Information
 ===================
 
