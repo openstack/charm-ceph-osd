@@ -5,8 +5,8 @@ Ceph is a distributed storage and network file system designed to provide
 excellent performance, reliability, and scalability.
 
 This charm deploys additional Ceph OSD storage service units and should be
-used in conjunction with the 'ceph' charm to scale out the amount of storage
-available in a Ceph cluster.
+used in conjunction with the 'ceph-mon' charm to scale out the amount of
+storage available in a Ceph cluster.
 
 Usage
 =====
@@ -18,6 +18,10 @@ cluster::
         A list of devices that the charm will attempt to detect, initialise and
         activate as ceph storage.
 
+        If the charm detects pre-existing data on a device it will go into a
+        blocked state and the operator must resolve the situation utilizing the
+        `list-disks`, `zap-disk` and/or `blacklist-*` actions.
+
         This this can be a superset of the actual storage devices presented to
         each service unit and can be changed post ceph-osd deployment using
         `juju set`.
@@ -25,20 +29,28 @@ cluster::
 For example::
 
     ceph-osd:
+      options:
         osd-devices: /dev/vdb /dev/vdc /dev/vdd /dev/vde
 
-Boot things up by using::
+Example utilizing Juju storage::
 
-    juju deploy -n 3 --config ceph.yaml ceph
+    ceph-osd:
+      storage:
+        osd-devices: cinder,20G
 
-You can then deploy this charm by simple doing::
+Please refer to [Juju Storage Documentation](https://docs.jujucharms.com/devel/en/charms-storage) for details on support for various storage providers and cloud substrates.
 
-    juju deploy -n 10 --config ceph.yaml ceph-osd
-    juju add-relation ceph-osd ceph
+How to deploy::
 
-Once the ceph charm has bootstrapped the cluster, it will notify the ceph-osd
-charm which will scan for the configured storage devices and add them to the
-pool of available storage.
+    juju deploy -n 3 ceph-osd
+    juju deploy ceph-mon --to lxd:0
+    juju add-unit ceph-mon --to lxd:1
+    juju add-unit ceph-mon --to lxd:2
+    juju add-relation ceph-osd ceph-mon
+
+Once the 'ceph-mon' charm has bootstrapped the cluster, it will notify the
+ceph-osd charm which will scan for the configured storage devices and add them
+to the pool of available storage.
 
 Network Space support
 =====================
