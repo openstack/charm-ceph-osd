@@ -115,8 +115,6 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         ceph_config = {
             'monitor-count': '3',
             'auth-supported': 'none',
-            'fsid': '6547bd3e-1397-11e2-82e5-53567c8d32dc',
-            'monitor-secret': 'AQCXrnZQwI7KGBAAiPofmKEXKxu5bUzoYLVkbQ==',
         }
 
         # Include a non-existent device as osd-devices is a whitelist,
@@ -322,13 +320,14 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         """Verify the ceph0 to ceph-osd relation data."""
         u.log.debug('Checking ceph0:ceph-osd mon relation data...')
         unit = self.ceph0_sentry
+        (fsid, _) = unit.run('leader-get fsid')
         relation = ['osd', 'ceph-osd:mon']
         expected = {
             'osd_bootstrap_key': u.not_null,
             'private-address': u.valid_ip,
             'auth': u'none',
             'ceph-public-address': u.valid_ip,
-            'fsid': u'6547bd3e-1397-11e2-82e5-53567c8d32dc'
+            'fsid': fsid,
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -340,13 +339,14 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         """Verify the ceph1 to ceph-osd relation data."""
         u.log.debug('Checking ceph1:ceph-osd mon relation data...')
         unit = self.ceph1_sentry
+        (fsid, _) = unit.run('leader-get fsid')
         relation = ['osd', 'ceph-osd:mon']
         expected = {
             'osd_bootstrap_key': u.not_null,
             'private-address': u.valid_ip,
             'auth': u'none',
             'ceph-public-address': u.valid_ip,
-            'fsid': u'6547bd3e-1397-11e2-82e5-53567c8d32dc'
+            'fsid': fsid,
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -358,13 +358,14 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
         """Verify the ceph2 to ceph-osd relation data."""
         u.log.debug('Checking ceph2:ceph-osd mon relation data...')
         unit = self.ceph2_sentry
+        (fsid, _) = unit.run('leader-get fsid')
         relation = ['osd', 'ceph-osd:mon']
         expected = {
             'osd_bootstrap_key': u.not_null,
             'private-address': u.valid_ip,
             'auth': u'none',
             'ceph-public-address': u.valid_ip,
-            'fsid': u'6547bd3e-1397-11e2-82e5-53567c8d32dc'
+            'fsid': fsid,
         }
 
         ret = u.validate_relation_data(unit, relation, expected)
@@ -375,6 +376,9 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
     def test_300_ceph_osd_config(self):
         """Verify the data in the ceph config file."""
         u.log.debug('Checking ceph config file data...')
+        mon_unit = self.ceph0_sentry
+        (fsid, _) = mon_unit.run('leader-get fsid')
+
         unit = self.ceph_osd_sentry
         conf = '/etc/ceph/ceph.conf'
         expected = {
@@ -382,7 +386,7 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
                 'auth cluster required': 'none',
                 'auth service required': 'none',
                 'auth client required': 'none',
-                'fsid': '6547bd3e-1397-11e2-82e5-53567c8d32dc',
+                'fsid': fsid,
                 'log to syslog': 'false',
                 'err to syslog': 'false',
                 'clog to syslog': 'false'
