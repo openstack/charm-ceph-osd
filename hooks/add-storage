@@ -9,7 +9,11 @@
 # Note: this doesn't wait to ensure that ceph is bootstrapped because
 # that logic is already existing in the charm's hook.
 
-if ! dpkg -s ceph > /dev/null 2>&1; then
+IFS='/' read -r -a array <<< "$JUJU_UNIT_NAME"
+LOCAL_UNIT="${array[0]}"
+charm_ceph_conf="/var/lib/charm/$LOCAL_UNIT/ceph.conf"
+
+if ! test -e $charm_ceph_conf; then
     juju-log "Ceph not yet installed."
     exit 0
 fi
