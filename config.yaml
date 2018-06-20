@@ -50,7 +50,7 @@ options:
       that the user consider opening a bug on this charm at
       http://bugs.launchpad.net/charms providing an explanation of why the
       config was needed so that we may consider it for inclusion as a
-      natively supported config in the the charm.
+      natively supported config in the charm.
   osd-devices:
     type: string
     default: /dev/vdb
