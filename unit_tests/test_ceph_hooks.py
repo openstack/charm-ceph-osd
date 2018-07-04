@@ -471,9 +471,11 @@ class CephHooksTestCase(unittest.TestCase):
         config.assert_called_with('availability_zone')
         environ.get.assert_called_with('JUJU_AVAILABILITY_ZONE')
 
+    @patch.object(ceph_hooks, 'is_container')
     @patch.object(ceph_hooks, 'subprocess')
     @patch.object(ceph_hooks, 'shutil')
-    def test_install_udev_rules(self, shutil, subprocess):
+    def test_install_udev_rules(self, shutil, subprocess, is_container):
+        is_container.return_value = False
         ceph_hooks.install_udev_rules()
         shutil.copy.assert_called_once_with(
             'files/udev/95-charm-ceph-osd.rules',
@@ -482,6 +484,16 @@ class CephHooksTestCase(unittest.TestCase):
         subprocess.check_call.assert_called_once_with(
             ['udevadm', 'control', '--reload-rules']
         )
+
+    @patch.object(ceph_hooks, 'is_container')
+    @patch.object(ceph_hooks, 'subprocess')
+    @patch.object(ceph_hooks, 'shutil')
+    def test_install_udev_rules_container(self, shutil, subprocess,
+                                          is_container):
+        is_container.return_value = True
+        ceph_hooks.install_udev_rules()
+        shutil.copy.assert_not_called()
+        subprocess.check_call.assert_not_called()
 
     @patch.object(ceph_hooks, 'config')
     @patch.object(ceph_hooks, 'cmp_pkgrevno')
