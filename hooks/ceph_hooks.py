@@ -227,7 +227,7 @@ def install_udev_rules():
     """
     for x in glob.glob('files/udev/*'):
         shutil.copy(x, '/lib/udev/rules.d')
-    subprocess.check_call(['udevadm', 'control',
+    subprocess.call(['udevadm', 'control',
                            '--reload-rules'])
 
 
