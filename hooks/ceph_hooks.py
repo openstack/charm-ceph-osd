@@ -55,6 +55,7 @@ from charmhelpers.core.host import (
     add_to_updatedb_prunepath,
     restart_on_change,
     write_file,
+    is_container,
 )
 from charmhelpers.fetch import (
     add_source,
@@ -225,6 +226,10 @@ def install_udev_rules():
     Install and reload udev rules for ceph-volume LV
     permissions
     """
+    if is_container():
+        log('Skipping udev rule installation '
+            'as unit is in a container', level=DEBUG)
+        return
     for x in glob.glob('files/udev/*'):
         shutil.copy(x, '/lib/udev/rules.d')
     subprocess.check_call(['udevadm', 'control',
