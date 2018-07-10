@@ -33,7 +33,8 @@ def add_device(request, device_path, bucket=None):
                       ceph_hooks.get_journal_devices(),
                       hookenv.config('ignore-device-errors'),
                       hookenv.config('osd-encrypt'),
-                      hookenv.config('bluestore'))
+                      hookenv.config('bluestore'),
+                      hookenv.config('osd-encrypt-keymanager'))
     # Make it fast!
     if hookenv.config('autotune'):
         ceph.utils.tune_dev(dev)
