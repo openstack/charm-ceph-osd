@@ -13,7 +13,7 @@ tags:
 series:
   - xenial
   - bionic
-  - artful
+  - cosmic
   - trusty
 description: |
  Ceph is a distributed storage and network file system designed to provide
