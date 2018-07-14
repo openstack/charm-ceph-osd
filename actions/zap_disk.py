@@ -28,6 +28,7 @@ from charmhelpers.contrib.storage.linux.utils import (
 )
 from charmhelpers.core.unitdata import kv
 from ceph.utils import is_active_bluestore_device
+from ceph.utils import is_mapped_luks_device
 
 
 def get_devices():
@@ -53,7 +54,9 @@ def zap():
     for device in devices:
         if not is_block_device(device):
             not_block_devices.append(device)
-        if is_device_mounted(device) or is_active_bluestore_device(device):
+        if (is_device_mounted(device) or
+                is_active_bluestore_device(device) or
+                is_mapped_luks_device(device)):
             failed_devices.append(device)
 
     if failed_devices or not_block_devices:
