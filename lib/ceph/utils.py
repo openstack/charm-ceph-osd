@@ -1096,7 +1096,8 @@ def get_mds_bootstrap_key():
 
 
 _default_caps = collections.OrderedDict([
-    ('mon', ['allow r']),
+    ('mon', ['allow r',
+             'allow command "osd blacklist"']),
     ('osd', ['allow rwx']),
 ])
 
@@ -1163,6 +1164,7 @@ def get_named_key(name, caps=None, pool_list=None):
     :param caps: dict of cephx capabilities
     :returns: Returns a cephx key
     """
+    key_name = 'client.{}'.format(name)
     try:
         # Does the key already exist?
         output = str(subprocess.check_output(
@@ -1177,8 +1179,14 @@ def get_named_key(name, caps=None, pool_list=None):
                 ),
                 'auth',
                 'get',
-                'client.{}'.format(name),
+                key_name,
             ]).decode('UTF-8')).strip()
+        # NOTE(jamespage);
+        # Apply any changes to key capabilities, dealing with
+        # upgrades which requires new caps for operation.
+        upgrade_key_caps(key_name,
+                         caps or _default_caps,
+                         pool_list)
         return parse_key(output)
     except subprocess.CalledProcessError:
         # Couldn't get the key, time to create it!
@@ -1194,7 +1202,7 @@ def get_named_key(name, caps=None, pool_list=None):
         '/var/lib/ceph/mon/ceph-{}/keyring'.format(
             socket.gethostname()
         ),
-        'auth', 'get-or-create', 'client.{}'.format(name),
+        'auth', 'get-or-create', key_name,
     ]
     # Add capabilities
     for subsystem, subcaps in caps.items():
@@ -1213,7 +1221,7 @@ def get_named_key(name, caps=None, pool_list=None):
                      .strip())  # IGNORE:E1103
 
 
-def upgrade_key_caps(key, caps):
+def upgrade_key_caps(key, caps, pool_list=None):
     """ Upgrade key to have capabilities caps """
     if not is_leader():
         # Not the MON leader OR not clustered
@@ -1222,6 +1230,12 @@ def upgrade_key_caps(key, caps):
         "sudo", "-u", ceph_user(), 'ceph', 'auth', 'caps', key
     ]
     for subsystem, subcaps in caps.items():
+        if subsystem == 'osd':
+            if pool_list:
+                # This will output a string similar to:
+                # "pool=rgw pool=rbd pool=something"
+                pools = " ".join(['pool={0}'.format(i) for i in pool_list])
+                subcaps[0] = subcaps[0] + " " + pools
         cmd.extend([subsystem, '; '.join(subcaps)])
     subprocess.check_call(cmd)
 
@@ -1453,6 +1467,11 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
             ' skipping.'.format(dev))
         return
 
+    if is_mapped_luks_device(dev):
+        log('{} is a mapped LUKS device,'
+            ' skipping.'.format(dev))
+        return
+
     if cmp_pkgrevno('ceph', '12.2.4') >= 0:
         cmd = _ceph_volume(dev,
                            osd_journal,
@@ -1662,6 +1681,29 @@ def is_active_bluestore_device(dev):
                 return True
 
     return False
+
+
+def is_luks_device(dev):
+    """
+    Determine if dev is a LUKS-formatted block device.
+
+    :param: dev: A full path to a block device to check for LUKS header
+    presence
+    :returns: boolean: indicates whether a device is used based on LUKS header.
+    """
+    return True if _luks_uuid(dev) else False
+
+
+def is_mapped_luks_device(dev):
+    """
+    Determine if dev is a mapped LUKS device
+    :param: dev: A full path to a block device to be checked
+    :returns: boolean: indicates whether a device is mapped
+    """
+    _, dirs, _ = next(os.walk('/sys/class/block/{}/holders/'
+                              .format(os.path.basename(dev))))
+    is_held = len(dirs) > 0
+    return is_held and is_luks_device(dev)
 
 
 def get_conf(variable):

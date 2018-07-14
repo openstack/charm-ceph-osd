@@ -92,6 +92,8 @@ from charmhelpers.contrib.storage.linux.utils import (
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
 
+from charmhelpers.core.unitdata import kv
+
 import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
 
 hooks = Hooks()
@@ -421,6 +423,15 @@ def prepare_disks_and_activate():
 
     # pre-flight check of eligible device pristinity
     devices = get_devices()
+
+    # if a device has been previously touched we need to consider it as
+    # non-pristine. If it needs to be re-processed it has to be zapped
+    # via the respective action which also clears the unitdata entry.
+    db = kv()
+    touched_devices = db.get('osd-devices', [])
+    devices = [dev for dev in devices if dev not in touched_devices]
+    log('Skipping osd devices previously processed by this unit: {}'
+        .format(touched_devices))
     # filter osd-devices that are file system paths
     devices = [dev for dev in devices if dev.startswith('/dev')]
     # filter osd-devices that does not exist on this unit
@@ -430,6 +441,7 @@ def prepare_disks_and_activate():
     # filter osd-devices that are active bluestore devices
     devices = [dev for dev in devices
                if not ceph.is_active_bluestore_device(dev)]
+
     log('Checking for pristine devices: "{}"'.format(devices), level=DEBUG)
     if not all(ceph.is_pristine_disk(dev) for dev in devices):
         status_set('blocked',
