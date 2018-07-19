@@ -40,7 +40,6 @@ from charmhelpers.core.host import (
     service_start,
     service_stop,
     CompareHostReleases,
-    is_container,
 )
 from charmhelpers.core.hookenv import (
     cached,
@@ -81,7 +80,7 @@ LEADER = 'leader'
 PEON = 'peon'
 QUORUM = [LEADER, PEON]
 
-PACKAGES = ['ceph', 'gdisk', 'ntp', 'btrfs-tools', 'python-ceph',
+PACKAGES = ['ceph', 'gdisk', 'btrfs-tools', 'python-ceph',
             'radosgw', 'xfsprogs', 'python-pyudev',
             'lvm2', 'parted']
 
@@ -2643,9 +2642,6 @@ def determine_packages():
 
     :returns: list of ceph packages
     """
-    if is_container():
-        PACKAGES.remove('ntp')
-
     return PACKAGES
 
 
