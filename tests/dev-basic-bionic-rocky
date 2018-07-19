@@ -14,12 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amulet tests on a basic ceph-osd deployment on xenial-queens."""
+"""Amulet tests on a basic ceph-osd deployment on bionic-rocky."""
 
 from basic_deployment import CephOsdBasicDeployment
 
 if __name__ == '__main__':
-    deployment = CephOsdBasicDeployment(series='xenial',
-                                     openstack='cloud:xenial-queens',
-                                     source='cloud:xenial-updates/queens')
+    deployment = CephOsdBasicDeployment(series='bionic',
+                                     openstack='cloud:bionic-rocky',
+                                     source='cloud:bionic-updates/rocky')
     deployment.run_tests()
