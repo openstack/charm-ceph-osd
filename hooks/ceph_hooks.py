@@ -394,9 +394,9 @@ def emit_cephconf(upgrading=False):
     charm_ceph_conf = "/var/lib/charm/{}/ceph.conf".format(service_name())
     mkdir(os.path.dirname(charm_ceph_conf), owner=ceph.ceph_user(),
           group=ceph.ceph_user())
-    with open(charm_ceph_conf, 'w') as cephconf:
-        context = get_ceph_context(upgrading)
-        cephconf.write(render_template('ceph.conf', context))
+    context = get_ceph_context(upgrading)
+    write_file(charm_ceph_conf, render_template('ceph.conf', context),
+               ceph.ceph_user(), ceph.ceph_user(), 0o644)
     install_alternative('ceph.conf', '/etc/ceph/ceph.conf',
                         charm_ceph_conf, 90)
 
