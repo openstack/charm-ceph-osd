@@ -1717,6 +1717,7 @@ def get_conf(variable):
     return subprocess.check_output([
         'ceph-osd',
         '--show-config-value={}'.format(variable),
+        '--no-mon-config',
     ]).strip()
 
 
