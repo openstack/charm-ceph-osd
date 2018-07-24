@@ -89,6 +89,7 @@ from charmhelpers.contrib.storage.linux.ceph import (
     CephConfContext)
 from charmhelpers.contrib.storage.linux.utils import (
     is_device_mounted,
+    is_block_device,
 )
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
@@ -522,10 +523,19 @@ def get_devices():
     if config('osd-devices'):
         for path in config('osd-devices').split(' '):
             path = path.strip()
+            # Ensure that only block devices
+            # are considered for evaluation as block devices.
+            # This avoids issues with relative directories
+            # being passed via configuration, and ensures that
+            # the path to a block device provided by the user
+            # is used, rather than its target which may change
+            # between reboots in the case of bcache devices.
+            if is_block_device(path):
+                devices.append(path)
             # Make sure its a device which is specified using an
             # absolute path so that the current working directory
             # or any relative path under this directory is not used
-            if os.path.isabs(path):
+            elif os.path.isabs(path):
                 devices.append(os.path.realpath(path))
 
     # List storage instances for the 'osd-devices'
@@ -562,6 +572,32 @@ def upgrade_charm():
     apt_install(packages=filter_installed_packages(ceph.determine_packages()),
                 fatal=True)
     install_udev_rules()
+    remap_resolved_targets()
+
+
+def remap_resolved_targets():
+    '''Remap any previous fully resolved target devices to provided names'''
+    # NOTE(jamespage): Deal with any prior provided dev to
+    # target device resolution which occurred in prior
+    # releases of the charm - the user provided value
+    # should be used in preference to the target path
+    # to the block device as in some instances this
+    # is not consistent between reboots (bcache).
+    db = kv()
+    touched_devices = db.get('osd-devices', [])
+    osd_devices = get_devices()
+    for dev in osd_devices:
+        real_path = os.path.realpath(dev)
+        if real_path != dev and real_path in touched_devices:
+            log('Device {} already processed by charm using '
+                'actual device path {}, updating block device '
+                'usage with provided device path '
+                'and skipping'.format(dev,
+                                      real_path))
+            touched_devices.remove(real_path)
+            touched_devices.append(dev)
+    db.set('osd-devices', touched_devices)
+    db.flush()
 
 
 @hooks.hook('nrpe-external-master-relation-joined',

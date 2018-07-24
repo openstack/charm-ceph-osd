@@ -1699,8 +1699,10 @@ def is_mapped_luks_device(dev):
     :param: dev: A full path to a block device to be checked
     :returns: boolean: indicates whether a device is mapped
     """
-    _, dirs, _ = next(os.walk('/sys/class/block/{}/holders/'
-                              .format(os.path.basename(dev))))
+    _, dirs, _ = next(os.walk(
+        '/sys/class/block/{}/holders/'
+        .format(os.path.basename(os.path.realpath(dev))))
+    )
     is_held = len(dirs) > 0
     return is_held and is_luks_device(dev)
 
