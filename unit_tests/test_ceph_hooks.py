@@ -395,26 +395,31 @@ class CephHooksTestCase(unittest.TestCase):
             call('ceph-osd@2'),
         ])
 
+    @patch.object(ceph_hooks, 'is_block_device')
     @patch.object(ceph_hooks, 'storage_list')
     @patch.object(ceph_hooks, 'config')
-    def test_get_devices(self, mock_config, mock_storage_list):
+    def test_get_devices(self, mock_config, mock_storage_list,
+                         mock_is_block_device):
         '''Devices returned as expected'''
         config = {'osd-devices': '/dev/vda /dev/vdb'}
         mock_config.side_effect = lambda key: config[key]
         mock_storage_list.return_value = []
+        mock_is_block_device.return_value = True
         devices = ceph_hooks.get_devices()
         self.assertEqual(devices, ['/dev/vda', '/dev/vdb'])
 
+    @patch.object(ceph_hooks, 'is_block_device')
     @patch.object(ceph_hooks, 'get_blacklist')
     @patch.object(ceph_hooks, 'storage_list')
     @patch.object(ceph_hooks, 'config')
     def test_get_devices_blacklist(self, mock_config, mock_storage_list,
-                                   mock_get_blacklist):
+                                   mock_get_blacklist, mock_is_block_device):
         '''Devices returned as expected when blacklist in effect'''
         config = {'osd-devices': '/dev/vda /dev/vdb'}
         mock_config.side_effect = lambda key: config[key]
         mock_storage_list.return_value = []
         mock_get_blacklist.return_value = ['/dev/vda']
+        mock_is_block_device.return_value = True
         devices = ceph_hooks.get_devices()
         mock_storage_list.assert_called()
         mock_get_blacklist.assert_called()
