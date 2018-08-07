@@ -9,8 +9,8 @@ test:
 	@tox -e py27
 
 functional_test:
-	@echo Starting Amulet tests...
-	@tox -e func27
+	@echo Starting Zaza functional tests...
+	@tox -e func
 
 bin/charm_helpers_sync.py:
 	@mkdir -p bin
@@ -23,7 +23,6 @@ bin/git_sync.py:
 
 ch-sync: bin/charm_helpers_sync.py
 	$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-hooks.yaml
-	$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-tests.yaml
 
 ceph-sync:  bin/git_sync.py
 	$(PYTHON) bin/git_sync.py -d lib -s https://github.com/openstack/charms.ceph.git
