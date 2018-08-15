@@ -120,13 +120,10 @@ options:
       Only supported with ceph >= 0.48.3.
   bluestore:
     type: boolean
-    default: false
+    default: True
     description: |
-      Use experimental bluestore storage format for OSD devices; only supported
-      in Ceph Jewel (10.2.0) or later.
-      .
-      Note that despite bluestore being the default for Ceph Luminous, if this
-      option is False, OSDs will still use filestore.
+      Enable bluestore storage format for OSD devices; Only applies for Ceph
+      Luminous or later.
   osd-encrypt:
     type: boolean
     default: False

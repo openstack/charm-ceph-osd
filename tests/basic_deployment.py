@@ -398,8 +398,6 @@ class CephOsdBasicDeployment(OpenStackAmuletDeployment):
             },
             'osd': {
                 'keyring': '/var/lib/ceph/osd/$cluster-$id/keyring',
-                'osd journal size': '1024',
-                'filestore xattr use omap': 'true'
             },
         }
 
