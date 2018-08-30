@@ -225,7 +225,7 @@ def use_bluestore():
 
     :returns: whether bluestore disk format should be used
     :rtype: bool"""
-    if cmp_pkgrevno('ceph', '10.2.0') < 0:
+    if cmp_pkgrevno('ceph', '12.2.0') < 0:
         return False
     return config('bluestore')
 
