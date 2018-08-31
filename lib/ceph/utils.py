@@ -1487,7 +1487,7 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
                            bluestore,
                            key_manager)
     else:
-        cmd = _ceph_disk(dev,
+        cmd = _ceph_disk(os.path.realpath(dev),
                          osd_format,
                          osd_journal,
                          encrypt,
