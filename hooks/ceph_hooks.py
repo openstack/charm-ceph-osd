@@ -73,7 +73,6 @@ from utils import (
     get_networks,
     assert_charm_supports_ipv6,
     render_template,
-    is_unit_paused_set,
     get_public_addr,
     get_cluster_addr,
     get_blacklist,
@@ -93,6 +92,15 @@ from charmhelpers.contrib.storage.linux.utils import (
 )
 from charmhelpers.contrib.charmsupport import nrpe
 from charmhelpers.contrib.hardening.harden import harden
+
+from charmhelpers.contrib.openstack.utils import (
+    clear_unit_paused,
+    clear_unit_upgrading,
+    is_unit_paused_set,
+    is_unit_upgrading_set,
+    set_unit_paused,
+    set_unit_upgrading,
+)
 
 from charmhelpers.core.unitdata import kv
 
@@ -655,6 +663,11 @@ def assess_status():
     """Assess status of current unit"""
     # check to see if the unit is paused.
     application_version_set(get_upstream_version(VERSION_PACKAGE))
+    if is_unit_upgrading_set():
+        status_set("blocked",
+                   "Ready for do-release-upgrade and reboot. "
+                   "Set complete when finished.")
+        return
     if is_unit_paused_set():
         status_set('maintenance',
                    "Paused. Use 'resume' action to resume normal service.")
@@ -697,6 +710,27 @@ def assess_status():
 @harden()
 def update_status():
     log('Updating status.')
+
+
+@hooks.hook('pre-series-upgrade')
+def pre_series_upgrade():
+    log("Running prepare series upgrade hook", "INFO")
+    # NOTE: The Ceph packages handle the series upgrade gracefully.
+    # In order to indicate the step of the series upgrade process for
+    # administrators and automated scripts, the charm sets the paused and
+    # upgrading states.
+    set_unit_paused()
+    set_unit_upgrading()
+
+
+@hooks.hook('post-series-upgrade')
+def post_series_upgrade():
+    log("Running complete series upgrade hook", "INFO")
+    # In order to indicate the step of the series upgrade process for
+    # administrators and automated scripts, the charm clears the paused and
+    # upgrading states.
+    clear_unit_paused()
+    clear_unit_upgrading()
 
 
 if __name__ == '__main__':

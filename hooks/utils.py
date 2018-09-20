@@ -176,44 +176,6 @@ def assert_charm_supports_ipv6():
                         "versions less than Trusty 14.04")
 
 
-# copied charmhelpers.contrib.openstack.utils so that the charm does need the
-# entire set of dependencies that that module actually also has to bring in
-# from charmhelpers.
-def set_unit_paused():
-    """Set the unit to a paused state in the local kv() store.
-    This does NOT actually pause the unit
-    """
-    with unitdata.HookData()() as t:
-        kv = t[0]
-        kv.set('unit-paused', True)
-
-
-def clear_unit_paused():
-    """Clear the unit from a paused state in the local kv() store
-    This does NOT actually restart any services - it only clears the
-    local state.
-    """
-    with unitdata.HookData()() as t:
-        kv = t[0]
-        kv.set('unit-paused', False)
-
-
-def is_unit_paused_set():
-    """Return the state of the kv().get('unit-paused').
-    This does NOT verify that the unit really is paused.
-
-    To help with units that don't have HookData() (testing)
-    if it excepts, return False
-    """
-    try:
-        with unitdata.HookData()() as t:
-            kv = t[0]
-            # transform something truth-y into a Boolean.
-            return not(not(kv.get('unit-paused')))
-    except:
-        return False
-
-
 def get_blacklist():
     """Get blacklist stored in the local kv() store"""
     db = unitdata.kv()

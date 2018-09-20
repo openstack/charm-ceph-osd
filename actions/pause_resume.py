@@ -30,7 +30,7 @@ from charmhelpers.core.hookenv import (
 from ceph.utils import get_local_osd_ids
 from ceph_hooks import assess_status
 
-from utils import (
+from charmhelpers.contrib.openstack.utils import (
     set_unit_paused,
     clear_unit_paused,
 )
