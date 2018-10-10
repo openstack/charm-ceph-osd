@@ -23,7 +23,6 @@ bin/git_sync.py:
 
 ch-sync: bin/charm_helpers_sync.py
 	$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-hooks.yaml
-	$(PYTHON) bin/charm_helpers_sync.py -c charm-helpers-tests.yaml
 
 ceph-sync:  bin/git_sync.py
 	$(PYTHON) bin/git_sync.py -d lib -s https://github.com/openstack/charms.ceph.git
