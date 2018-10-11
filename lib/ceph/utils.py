@@ -579,29 +579,23 @@ def get_osd_tree(service):
             # Make sure children are present in the json
             if not json_tree['nodes']:
                 return None
-            parent_nodes = [
-                node for node in json_tree['nodes'] if node['type'] == 'root']
-            child_ids = []
-            for node in parent_nodes:
-                try:
-                    child_ids = child_ids + node['children']
-                except KeyError:
-                    # skip if this parent has no children
-                    continue
-            for child in json_tree['nodes']:
-                if child['id'] in child_ids:
-                    crush_list.append(
-                        CrushLocation(
-                            name=child.get('name'),
-                            identifier=child['id'],
-                            host=child.get('host'),
-                            rack=child.get('rack'),
-                            row=child.get('row'),
-                            datacenter=child.get('datacenter'),
-                            chassis=child.get('chassis'),
-                            root=child.get('root')
-                        )
+            host_nodes = [
+                node for node in json_tree['nodes']
+                if node['type'] == 'host'
+            ]
+            for host in host_nodes:
+                crush_list.append(
+                    CrushLocation(
+                        name=host.get('name'),
+                        identifier=host['id'],
+                        host=host.get('host'),
+                        rack=host.get('rack'),
+                        row=host.get('row'),
+                        datacenter=host.get('datacenter'),
+                        chassis=host.get('chassis'),
+                        root=host.get('root')
                     )
+                )
             return crush_list
         except ValueError as v:
             log("Unable to parse ceph tree json: {}. Error: {}".format(
@@ -1525,7 +1519,8 @@ def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
     """
     Prepare a device for usage as a Ceph OSD using ceph-disk
 
-    :param: dev: Full path to use for OSD block device setup
+    :param: dev: Full path to use for OSD block device setup,
+                 The function looks up realpath of the device
     :param: osd_journal: List of block devices to use for OSD journals
     :param: encrypt: Use block device encryption (unsupported)
     :param: bluestore: Use bluestore storage for OSD
@@ -1557,7 +1552,7 @@ def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
     elif cmp_pkgrevno('ceph', '12.1.0') >= 0 and not bluestore:
         cmd.append('--filestore')
 
-    cmd.append(dev)
+    cmd.append(os.path.realpath(dev))
 
     if osd_journal:
         least_used = find_least_used_utility_device(osd_journal)
@@ -2539,6 +2534,7 @@ UPGRADE_PATHS = collections.OrderedDict([
     ('firefly', 'hammer'),
     ('hammer', 'jewel'),
     ('jewel', 'luminous'),
+    ('luminous', 'mimic'),
 ])
 
 # Map UCA codenames to ceph codenames
@@ -2552,6 +2548,7 @@ UCA_CODENAME_MAP = {
     'ocata': 'jewel',
     'pike': 'luminous',
     'queens': 'luminous',
+    'rocky': 'mimic',
 }
 
 
