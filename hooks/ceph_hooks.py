@@ -491,6 +491,16 @@ def prepare_disks_and_activate():
                 ceph.tune_dev(dev)
         ceph.start_osds(get_devices())
 
+    # Notify MON cluster as to how many OSD's this unit bootstrapped
+    # into the cluster
+    for r_id in relation_ids('mon'):
+        relation_set(
+            relation_id=r_id,
+            relation_settings={
+                'bootstrapped-osds': len(db.get('osd-devices', []))
+            }
+        )
+
 
 def get_mon_hosts():
     hosts = []
