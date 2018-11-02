@@ -659,7 +659,7 @@ def secrets_storage_joined(relation_id=None):
 def secrets_storage_changed():
     vault_ca = relation_get('vault_ca')
     if vault_ca:
-        vault_ca = base64.decodestring(json.loads(vault_ca).encode())
+        vault_ca = base64.decodebytes(json.loads(vault_ca).encode())
         write_file('/usr/local/share/ca-certificates/vault-ca.crt',
                    vault_ca, perms=0o644)
         subprocess.check_call(['update-ca-certificates', '--fresh'])
