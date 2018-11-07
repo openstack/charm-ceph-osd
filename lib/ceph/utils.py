@@ -1876,6 +1876,14 @@ def osdize_dir(path, encrypt=False, bluestore=False):
     :param encrypt: bool. Should the OSD directory be encrypted at rest
     :returns: None
     """
+
+    db = kv()
+    osd_devices = db.get('osd-devices', [])
+    if path in osd_devices:
+        log('Device {} already processed by charm,'
+            ' skipping'.format(path))
+        return
+
     if os.path.exists(os.path.join(path, 'upstart')):
         log('Path {} is already configured as an OSD - bailing'.format(path))
         return
@@ -1905,6 +1913,13 @@ def osdize_dir(path, encrypt=False, bluestore=False):
         cmd.append('--filestore')
     log("osdize dir cmd: {}".format(cmd))
     subprocess.check_call(cmd)
+
+    # NOTE: Record processing of device only on success to ensure that
+    #       the charm only tries to initialize a device of OSD usage
+    #       once during its lifetime.
+    osd_devices.append(path)
+    db.set('osd-devices', osd_devices)
+    db.flush()
 
 
 def filesystem_mounted(fs):
