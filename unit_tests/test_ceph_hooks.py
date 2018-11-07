@@ -522,6 +522,27 @@ class CephHooksTestCase(unittest.TestCase):
         config = {'osd-devices': '/srv/osd', 'osd-format': 'ext4'}
         self.assertTrue(ceph_hooks.use_short_objects())
 
+    @patch.object(ceph_hooks, 'write_file')
+    @patch.object(ceph_hooks.ceph, 'ceph_user')
+    @patch.object(ceph_hooks, 'install_alternative')
+    @patch.object(ceph_hooks, 'render_template')
+    @patch.object(ceph_hooks, 'get_ceph_context')
+    @patch.object(ceph_hooks, 'service_name')
+    @patch.object(ceph_hooks, 'mkdir')
+    def test_emit_ceph_conf(self, mock_mkdir, mock_service_name,
+                            mock_get_ceph_context, mock_render_template,
+                            mock_install_alternative, mock_ceph_user,
+                            mock_write_file):
+        mock_service_name.return_value = 'testsvc'
+        mock_ceph_user.return_value = 'ceph'
+        mock_get_ceph_context.return_value = {}
+        mock_render_template.return_value = "awesome ceph config"
+
+        ceph_hooks.emit_cephconf()
+
+        self.assertTrue(mock_write_file.called)
+        self.assertTrue(mock_install_alternative.called)
+
 
 @patch.object(ceph_hooks, 'relation_get')
 @patch.object(ceph_hooks, 'relation_set')
