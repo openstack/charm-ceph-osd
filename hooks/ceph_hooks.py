@@ -408,8 +408,6 @@ def config_changed():
     if use_vaultlocker():
         installed = len(filter_installed_packages(['vaultlocker'])) == 0
         if not installed:
-            add_source('ppa:openstack-charmers/vaultlocker')
-            apt_update(fatal=True)
             apt_install('vaultlocker', fatal=True)
 
     # Check if an upgrade was requested
