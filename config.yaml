@@ -97,16 +97,28 @@ options:
     type: int
     default: 0
     description: |
-      Size of a partition or file to use for BlueStore WAL (RocksDB WAL)
-      A default value is not set as it is calculated by ceph-disk if
-      not specified.
+      Size (in bytes) of a partition, file or LV to use for
+      BlueStore WAL (RocksDB WAL), provided on a per backend device basis.
+      .
+      Example: 128 GB device, 8 data devices provided in "osd-devices"
+      gives 128 / 8 GB = 16 GB = 16000000000 bytes per device.
+      .
+      A default value is not set as it is calculated by ceph-disk (before Luminous)
+      or the charm itself, when ceph-volume is used (Luminous and above).
+
   bluestore-block-db-size:
     type: int
     default: 0
     description: |
-      Size of a partition or file to use for BlueStore metadata
-      or RocksDB SSTs. A default value is not set as it is calculated
-      by ceph-disk if not specified.
+      Size (in bytes) of a partition, file or LV to use for BlueStore
+      metadata or RocksDB SSTs, provided on a per backend device basis.
+      .
+      Example: 128 GB device, 8 data devices provided in "osd-devices"
+      gives 128 / 8 GB = 16 GB = 16000000000 bytes per device.
+      .
+      A default value is not set as it is calculated by ceph-disk (before Luminous)
+      or the charm itself, when ceph-volume is used (Luminous and above).
+
   osd-format:
     type: string
     default: xfs
