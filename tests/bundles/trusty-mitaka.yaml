@@ -14,7 +14,7 @@ applications:
     constraints:
       virt-type=kvm
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: cs:ceph-mon
     num_units: 3
     options:
       monitor-count: '3'
@@ -25,7 +25,7 @@ applications:
     constraints:
       virt-type=kvm
   percona-cluster:
-    charm: cs:~openstack-charmers-next/percona-cluster
+    charm: cs:percona-cluster
     num_units: 1
     options:
       dataset-size: 25%
@@ -36,7 +36,7 @@ applications:
     constraints:
       virt-type=kvm
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:rabbitmq-server
     num_units: 1
     options:
       source: cloud:trusty-mitaka
@@ -45,7 +45,7 @@ applications:
     constraints:
       virt-type=kvm
   keystone:
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:keystone
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -54,7 +54,7 @@ applications:
     constraints:
       virt-type=kvm
   nova-compute:
-    charm: cs:~openstack-charmers-next/nova-compute
+    charm: cs:nova-compute
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -63,7 +63,7 @@ applications:
     constraints:
       virt-type=kvm
   glance:
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:glance
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -72,7 +72,7 @@ applications:
     constraints:
       virt-type=kvm
   cinder:
-    charm: cs:~openstack-charmers-next/cinder
+    charm: cs:cinder
     num_units: 1
     options:
       block-device: 'None'
@@ -83,9 +83,9 @@ applications:
     constraints:
       virt-type=kvm
   cinder-ceph:
-    charm: cs:~openstack-charmers-next/cinder-ceph
+    charm: cs:cinder-ceph
   nova-cloud-controller:
-    charm: cs:~openstack-charmers-next/nova-cloud-controller
+    charm: cs:nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
