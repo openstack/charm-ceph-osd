@@ -4,12 +4,12 @@
 #
 #                 Verify with `juju list-action` before proposing/committing
 #                 changes.
-pause:
+osd-out:
   description: |
     \
         USE WITH CAUTION - Mark unit OSDs as 'out'.
         Documentation: https://jujucharms.com/ceph-osd/
-resume:
+osd-in:
   description: |
     \ 
         Set the local osd units in the charm to 'in'.

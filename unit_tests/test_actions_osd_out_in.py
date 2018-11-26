@@ -20,42 +20,38 @@ from test_utils import CharmTestCase
 
 sys.path.append('hooks')
 
-import pause_resume as actions
+import osd_in_out as actions
 
 
-class PauseTestCase(CharmTestCase):
+class OSDOutTestCase(CharmTestCase):
     def setUp(self):
-        super(PauseTestCase, self).setUp(
+        super(OSDOutTestCase, self).setUp(
             actions, ["check_call",
                       "get_local_osd_ids",
-                      "set_unit_paused",
                       "assess_status"])
 
-    def test_pauses_services(self):
+    def test_osd_out(self):
         self.get_local_osd_ids.return_value = [5]
-        actions.pause([])
+        actions.osd_out([])
         cmd = ['ceph', '--id',
                'osd-upgrade', 'osd', 'out', '5']
         self.check_call.assert_called_once_with(cmd)
-        self.set_unit_paused.assert_called_once_with()
         self.assess_status.assert_called_once_with()
 
 
-class ResumeTestCase(CharmTestCase):
+class OSDInTestCase(CharmTestCase):
     def setUp(self):
-        super(ResumeTestCase, self).setUp(
+        super(OSDInTestCase, self).setUp(
             actions, ["check_call",
                       "get_local_osd_ids",
-                      "clear_unit_paused",
                       "assess_status"])
 
-    def test_pauses_services(self):
+    def test_osd_in(self):
         self.get_local_osd_ids.return_value = [5]
-        actions.resume([])
+        actions.osd_in([])
         cmd = ['ceph', '--id',
                'osd-upgrade', 'osd', 'in', '5']
         self.check_call.assert_called_once_with(cmd)
-        self.clear_unit_paused.assert_called_once_with()
         self.assess_status.assert_called_once_with()
 
 

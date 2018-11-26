@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# pause/resume actions file.
+# osd_out/osd_in actions file.
 
 import os
 import sys
@@ -30,18 +30,12 @@ from charmhelpers.core.hookenv import (
 from ceph.utils import get_local_osd_ids
 from ceph_hooks import assess_status
 
-from charmhelpers.contrib.openstack.utils import (
-    set_unit_paused,
-    clear_unit_paused,
-)
 
-
-def pause(args):
+def osd_out(args):
     """Pause the ceph-osd units on the local machine only.
 
-    Optionally uses the 'osd-number' from juju action param to only pause a
-    specific osd.  If all the osds are not stopped then the paused status is
-    not set.
+    Optionally uses the 'osd-number' from juju action param to only osd_out a
+    specific osd.
 
     @raises CalledProcessError if the ceph commands fails.
     @raises OSError if it can't get the local osd ids.
@@ -52,14 +46,13 @@ def pause(args):
             '--id', 'osd-upgrade',
             'osd', 'out', str(local_id)]
         check_call(cmd)
-    set_unit_paused()
     assess_status()
 
 
-def resume(args):
+def osd_in(args):
     """Resume the ceph-osd units on this local machine only
 
-    @raises subprocess.CalledProcessError should the osd units fails to resume.
+    @raises subprocess.CalledProcessError should the osd units fails to osd_in.
     @raises OSError if the unit can't get the local osd ids
     """
     for local_id in get_local_osd_ids():
@@ -68,12 +61,11 @@ def resume(args):
             '--id', 'osd-upgrade',
             'osd', 'in', str(local_id)]
         check_call(cmd)
-    clear_unit_paused()
     assess_status()
 
 # A dictionary of all the defined actions to callables (which take
 # parsed arguments).
-ACTIONS = {"pause": pause, "resume": resume}
+ACTIONS = {"osd-out": osd_out, "osd-in": osd_in}
 
 
 def main(args):
