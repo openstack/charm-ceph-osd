@@ -1894,7 +1894,6 @@ def osdize_dir(path, encrypt=False, bluestore=False):
         return
 
     mkdir(path, owner=ceph_user(), group=ceph_user(), perms=0o755)
-    chownr('/var/lib/ceph', ceph_user(), ceph_user())
     cmd = [
         'sudo', '-u', ceph_user(),
         'ceph-disk',
