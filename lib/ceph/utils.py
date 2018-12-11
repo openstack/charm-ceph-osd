@@ -80,8 +80,8 @@ LEADER = 'leader'
 PEON = 'peon'
 QUORUM = [LEADER, PEON]
 
-PACKAGES = ['ceph', 'gdisk', 'btrfs-tools', 'python-ceph',
-            'radosgw', 'xfsprogs', 'python-pyudev',
+PACKAGES = ['ceph', 'gdisk', 'btrfs-tools',
+            'radosgw', 'xfsprogs',
             'lvm2', 'parted']
 
 CEPH_KEY_MANAGER = 'ceph'
