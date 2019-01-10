@@ -40,7 +40,8 @@ def check_ceph_status(args):
         msg += '"'
         raise nagios_plugin.CriticalError(msg)
 
-    osds = re.search("^.*: (\d+) osds: (\d+) up, (\d+) in", status_data['osdmap'])
+    osds = re.search("^.*: (\d+) osds: (\d+) up, (\d+) in",
+                     status_data['osdmap'])
     if osds.group(1) > osds.group(2):  # not all OSDs are "up"
         msg = 'CRITICAL: Some OSDs are not up. Total: {}, up: {}'.format(
             osds.group(1), osds.group(2))
@@ -50,7 +51,10 @@ def check_ceph_status(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Check ceph status')
-    parser.add_argument('-f', '--file', dest='status_file',
-                        default=False, help='Optional file with "ceph status" output')
+    parser.add_argument('-f',
+                        '--file',
+                        dest='status_file',
+                        default=False,
+                        help='Optional file with "ceph status" output')
     args = parser.parse_args()
     nagios_plugin.try_check(check_ceph_status, args)

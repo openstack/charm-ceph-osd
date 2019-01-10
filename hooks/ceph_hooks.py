@@ -15,14 +15,14 @@
 # limitations under the License.
 
 import base64
-import json
 import glob
+import json
+import netifaces
 import os
 import shutil
-import sys
 import socket
 import subprocess
-import netifaces
+import sys
 
 sys.path.append('lib')
 import ceph.utils as ceph
@@ -37,6 +37,7 @@ from charmhelpers.core.hookenv import (
     related_units,
     relation_get,
     relation_set,
+    relations_of_type,
     Hooks,
     UnregisteredHookError,
     service_name,
@@ -47,16 +48,17 @@ from charmhelpers.core.hookenv import (
     application_version_set,
 )
 from charmhelpers.core.host import (
-    umount,
-    mkdir,
+    add_to_updatedb_prunepath,
     cmp_pkgrevno,
+    is_container,
+    lsb_release,
+    mkdir,
+    restart_on_change,
     service_reload,
     service_restart,
-    add_to_updatedb_prunepath,
-    restart_on_change,
+    umount,
     write_file,
-    is_container,
-    init_is_systemd,
+    CompareHostReleases,
 )
 from charmhelpers.fetch import (
     add_source,
@@ -109,6 +111,9 @@ import charmhelpers.contrib.openstack.vaultlocker as vaultlocker
 
 hooks = Hooks()
 STORAGE_MOUNT_PATH = '/var/lib/ceph'
+
+# cron.d related files
+CRON_CEPH_CHECK_FILE = '/etc/cron.d/check-osd-services'
 
 
 def check_for_upgrade():
@@ -601,6 +606,7 @@ def upgrade_charm():
                 fatal=True)
     install_udev_rules()
     remap_resolved_targets()
+    maybe_refresh_nrpe_files()
 
 
 def remap_resolved_targets():
@@ -632,26 +638,60 @@ def remap_resolved_targets():
             'nrpe-external-master-relation-changed')
 def update_nrpe_config():
     # python-dbus is used by check_upstart_job
-    apt_install('python3-dbus')
+    # fasteners is used by apt_install collect_ceph_osd_services.py
+    pkgs = ['python3-dbus']
+    if CompareHostReleases(lsb_release()['DISTRIB_CODENAME']) >= 'bionic':
+        pkgs.append('python3-fasteners')
+    apt_install(pkgs)
+
+    # copy the check and collect files over to the plugins directory
+    charm_dir = os.environ.get('CHARM_DIR', '')
+    nagios_plugins = '/usr/local/lib/nagios/plugins'
+    # Grab nagios user/group ID's from original source
+    _dir = os.stat(nagios_plugins)
+    uid = _dir.st_uid
+    gid = _dir.st_gid
+    for name in ('collect_ceph_osd_services.py', 'check_ceph_osd_services.py'):
+        target = os.path.join(nagios_plugins, name)
+        shutil.copy(os.path.join(charm_dir, 'files', 'nagios', name), target)
+        os.chown(target, uid, gid)
+
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
 
-    # create systemd or upstart check
-    cmd = '/bin/cat /var/lib/ceph/osd/ceph-*/whoami |'
-    if init_is_systemd():
-        cmd += 'xargs -I_@ /usr/local/lib/nagios/plugins/check_systemd.py'
-        cmd += ' ceph-osd@_@'
-    else:
-        cmd += 'xargs -I@ status ceph-osd id=@'
-    cmd += ' && exit 0 || exit 2'
+    # BUG#1810749 - the nagios user can't access /var/lib/ceph/.. and that's a
+    # GOOD THING, as it keeps ceph secure from Nagios.  However, to check
+    # whether ceph is okay, the check_systemd.py or 'status ceph-osd' still
+    # needs to be called with the contents of ../osd/ceph-*/whoami files.  To
+    # get around this conundrum, instead a cron.d job that runs as root will
+    # perform the checks every minute, and write to a tempory file the results,
+    # and the nrpe check will grep this file and error out (return 2) if the
+    # first 3 characters of a line are not 'OK:'.
+
+    cmd = ('MAILTO=""\n'
+           '* * * * * root '
+           '/usr/local/lib/nagios/plugins/collect_ceph_osd_services.py'
+           ' 2>&1 | logger -t check-osd\n')
+    with open(CRON_CEPH_CHECK_FILE, "wt") as f:
+        f.write(cmd)
+
+    nrpe_cmd = '/usr/local/lib/nagios/plugins/check_ceph_osd_services.py'
 
     nrpe_setup = nrpe.NRPE(hostname=hostname)
     nrpe_setup.add_check(
         shortname='ceph-osd',
         description='process check {%s}' % current_unit,
-        check_cmd=cmd
+        check_cmd=nrpe_cmd
     )
     nrpe_setup.write()
+
+
+def maybe_refresh_nrpe_files():
+    """if the nrpe-external-master relation exists then refresh the nrpe
+    configuration -- this is called during a charm upgrade
+    """
+    if relations_of_type('nrpe-external-master'):
+        update_nrpe_config()
 
 
 @hooks.hook('secrets-storage-relation-joined')
