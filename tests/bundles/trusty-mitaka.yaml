@@ -45,6 +45,7 @@ applications:
     constraints:
       virt-type=kvm
   keystone:
+    expose: True
     charm: cs:~openstack-charmers-next/keystone
     num_units: 1
     options:
@@ -63,6 +64,7 @@ applications:
     constraints:
       virt-type=kvm
   glance:
+    expose: True
     charm: cs:~openstack-charmers-next/glance
     num_units: 1
     options:
@@ -72,6 +74,7 @@ applications:
     constraints:
       virt-type=kvm
   cinder:
+    expose: True
     charm: cs:~openstack-charmers-next/cinder
     num_units: 1
     options:
@@ -85,6 +88,7 @@ applications:
   cinder-ceph:
     charm: cs:~openstack-charmers-next/cinder-ceph
   nova-cloud-controller:
+    expose: True
     charm: cs:~openstack-charmers-next/nova-cloud-controller
     num_units: 1
     options:
