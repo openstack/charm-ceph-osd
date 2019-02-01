@@ -96,6 +96,7 @@ from charmhelpers.contrib.hardening.harden import harden
 from charmhelpers.contrib.openstack.utils import (
     clear_unit_paused,
     clear_unit_upgrading,
+    get_os_codename_install_source,
     is_unit_paused_set,
     is_unit_upgrading_set,
     set_unit_paused,
@@ -111,6 +112,7 @@ STORAGE_MOUNT_PATH = '/var/lib/ceph'
 
 
 def check_for_upgrade():
+
     if not os.path.exists(ceph._upgrade_keyring):
         log("Ceph upgrade keyring not detected, skipping upgrade checks.")
         return
@@ -123,13 +125,13 @@ def check_for_upgrade():
                                             'distro')
     log('new_version: {}'.format(new_version))
 
+    old_version_os = get_os_codename_install_source(c.previous('source') or
+                                                    'distro')
+    new_version_os = get_os_codename_install_source(hookenv.config('source'))
+
     # May be in a previous upgrade that was failed if the directories
     # still need an ownership update. Check this condition.
     resuming_upgrade = ceph.dirs_need_ownership_update('osd')
-
-    if old_version == new_version and not resuming_upgrade:
-        log("No new ceph version detected, skipping upgrade.", DEBUG)
-        return
 
     if (ceph.UPGRADE_PATHS.get(old_version) == new_version) or\
        resuming_upgrade:
@@ -144,12 +146,21 @@ def check_for_upgrade():
         ceph.roll_osd_cluster(new_version=new_version,
                               upgrade_key='osd-upgrade')
         emit_cephconf(upgrading=False)
+    elif (old_version == new_version and
+          old_version_os < new_version_os):
+        # See LP: #1778823
+        add_source(hookenv.config('source'), hookenv.config('key'))
+        log(("The installation source has changed yet there is no new major "
+             "version of Ceph in this new source. As a result no package "
+             "upgrade will take effect. Please upgrade manually if you need "
+             "to."), level=INFO)
     else:
         # Log a helpful error message
         log("Invalid upgrade path from {} to {}.  "
             "Valid paths are: {}".format(old_version,
                                          new_version,
-                                         ceph.pretty_print_upgrade_paths()))
+                                         ceph.pretty_print_upgrade_paths()),
+            level=ERROR)
 
 
 def tune_network_adapters():
