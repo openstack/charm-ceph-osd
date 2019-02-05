@@ -1442,77 +1442,82 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
 
     db = kv()
     osd_devices = db.get('osd-devices', [])
-    if dev in osd_devices:
-        log('Device {} already processed by charm,'
-            ' skipping'.format(dev))
-        return
-
-    if not os.path.exists(dev):
-        log('Path {} does not exist - bailing'.format(dev))
-        return
-
-    if not is_block_device(dev):
-        log('Path {} is not a block device - bailing'.format(dev))
-        return
-
-    if is_osd_disk(dev):
-        log('Looks like {} is already an'
-            ' OSD data or journal, skipping.'.format(dev))
-        return
-
-    if is_device_mounted(dev):
-        log('Looks like {} is in use, skipping.'.format(dev))
-        return
-
-    if is_active_bluestore_device(dev):
-        log('{} is in use as an active bluestore block device,'
-            ' skipping.'.format(dev))
-        return
-
-    if is_mapped_luks_device(dev):
-        log('{} is a mapped LUKS device,'
-            ' skipping.'.format(dev))
-        return
-
-    if cmp_pkgrevno('ceph', '12.2.4') >= 0:
-        cmd = _ceph_volume(dev,
-                           osd_journal,
-                           encrypt,
-                           bluestore,
-                           key_manager)
-    else:
-        cmd = _ceph_disk(dev,
-                         osd_format,
-                         osd_journal,
-                         encrypt,
-                         bluestore)
-
     try:
-        status_set('maintenance', 'Initializing device {}'.format(dev))
-        log("osdize cmd: {}".format(cmd))
-        subprocess.check_call(cmd)
-    except subprocess.CalledProcessError:
-        try:
-            lsblk_output = subprocess.check_output(
-                ['lsblk', '-P']).decode('UTF-8')
-        except subprocess.CalledProcessError as e:
-            log("Couldn't get lsblk output: {}".format(e), ERROR)
-        if ignore_errors:
-            log('Unable to initialize device: {}'.format(dev), WARNING)
-            if lsblk_output:
-                log('lsblk output: {}'.format(lsblk_output), DEBUG)
-        else:
-            log('Unable to initialize device: {}'.format(dev), ERROR)
-            if lsblk_output:
-                log('lsblk output: {}'.format(lsblk_output), WARNING)
-            raise
+        if dev in osd_devices:
+            log('Device {} already processed by charm,'
+                ' skipping'.format(dev))
+            return
 
-    # NOTE: Record processing of device only on success to ensure that
-    #       the charm only tries to initialize a device of OSD usage
-    #       once during its lifetime.
-    osd_devices.append(dev)
-    db.set('osd-devices', osd_devices)
-    db.flush()
+        if not os.path.exists(dev):
+            log('Path {} does not exist - bailing'.format(dev))
+            return
+
+        if not is_block_device(dev):
+            log('Path {} is not a block device - bailing'.format(dev))
+            return
+
+        if is_osd_disk(dev):
+            log('Looks like {} is already an'
+                ' OSD data or journal, skipping.'.format(dev))
+            if is_device_mounted(dev):
+                osd_devices.append(dev)
+            return
+
+        if is_device_mounted(dev):
+            log('Looks like {} is in use, skipping.'.format(dev))
+            return
+
+        if is_active_bluestore_device(dev):
+            log('{} is in use as an active bluestore block device,'
+                ' skipping.'.format(dev))
+            osd_devices.append(dev)
+            return
+
+        if is_mapped_luks_device(dev):
+            log('{} is a mapped LUKS device,'
+                ' skipping.'.format(dev))
+            return
+
+        if cmp_pkgrevno('ceph', '12.2.4') >= 0:
+            cmd = _ceph_volume(dev,
+                               osd_journal,
+                               encrypt,
+                               bluestore,
+                               key_manager)
+        else:
+            cmd = _ceph_disk(dev,
+                             osd_format,
+                             osd_journal,
+                             encrypt,
+                             bluestore)
+
+        try:
+            status_set('maintenance', 'Initializing device {}'.format(dev))
+            log("osdize cmd: {}".format(cmd))
+            subprocess.check_call(cmd)
+        except subprocess.CalledProcessError:
+            try:
+                lsblk_output = subprocess.check_output(
+                    ['lsblk', '-P']).decode('UTF-8')
+            except subprocess.CalledProcessError as e:
+                log("Couldn't get lsblk output: {}".format(e), ERROR)
+            if ignore_errors:
+                log('Unable to initialize device: {}'.format(dev), WARNING)
+                if lsblk_output:
+                    log('lsblk output: {}'.format(lsblk_output), DEBUG)
+            else:
+                log('Unable to initialize device: {}'.format(dev), ERROR)
+                if lsblk_output:
+                    log('lsblk output: {}'.format(lsblk_output), WARNING)
+                raise
+
+        # NOTE: Record processing of device only on success to ensure that
+        #       the charm only tries to initialize a device of OSD usage
+        #       once during its lifetime.
+        osd_devices.append(dev)
+    finally:
+        db.set('osd-devices', osd_devices)
+        db.flush()
 
 
 def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
