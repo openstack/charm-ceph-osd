@@ -1,6 +1,5 @@
 charm_name: ceph-osd
 gate_bundles:
-  - trusty-icehouse
   - trusty-mitaka
   - xenial-mitaka
   - xenial-ocata
