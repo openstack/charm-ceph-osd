@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # Wrapper to ensure that python dependencies are installed before we get into
 # the python part of the hook execution
 
