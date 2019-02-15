@@ -323,8 +323,8 @@ class CephHooksTestCase(unittest.TestCase):
 
         m_aa_context.setup_aa_profile.assert_called()
         mock_copy_profile_into_place.assert_called()
-        m_config.changed.assert_called_with('aa-profile-mode')
         mock_service_restart.assert_called_with('ceph-osd-all')
+        m_config.changed.assert_called_with('aa-profile-mode')
         mock_service_reload.assert_called_with('apparmor')
 
     @patch.object(ceph_hooks, 'ceph')

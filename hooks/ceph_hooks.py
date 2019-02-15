@@ -53,12 +53,12 @@ from charmhelpers.core.host import (
     is_container,
     lsb_release,
     mkdir,
-    restart_on_change,
     service_reload,
     service_restart,
     umount,
     write_file,
     CompareHostReleases,
+    file_hash,
 )
 from charmhelpers.fetch import (
     add_source,
@@ -193,25 +193,33 @@ def aa_profile_changed(service_name='ceph-osd-all'):
         service_restart(service_name)
 
 
-@restart_on_change({
-    '/etc/apparmor.d/usr.bin.ceph-osd': ['ceph-osd-all']},
-    restart_functions={'ceph-osd-all': aa_profile_changed})
 def copy_profile_into_place():
     """
     Copy the apparmor profiles included with the charm
     into the /etc/apparmor.d directory.
-    """
-    new_install = False
-    apparmor_dir = os.path.join(os.sep,
-                                'etc',
-                                'apparmor.d')
 
+    File are only copied if they have changed at source
+    to avoid overwriting any aa-complain mode flags set
+
+    :returns: flag indicating if any profiles where newly
+              installed or changed
+    :rtype: boolean
+    """
+    db = kv()
+    changes = False
+    apparmor_dir = os.path.join(os.sep, 'etc', 'apparmor.d')
     for x in glob.glob('files/apparmor/*'):
-        if not os.path.exists(os.path.join(apparmor_dir,
-                                           os.path.basename(x))):
-            new_install = True
-        shutil.copy(x, apparmor_dir)
-    return new_install
+        db_key = 'hash:{}'.format(x)
+        new_hash = file_hash(x)
+        previous_hash = db.get(db_key)
+        if new_hash != previous_hash:
+            log('Installing apparmor profile for {}'
+                .format(os.path.basename(x)))
+            shutil.copy(x, apparmor_dir)
+            db.set(db_key, new_hash)
+            db.flush()
+            changes = True
+    return changes
 
 
 class CephOsdAppArmorContext(AppArmorContext):
@@ -261,9 +269,12 @@ def install_apparmor_profile():
     based on current setting of 'aa-profile-mode'
     configuration option.
     """
-    log('Installing apparmor profile for ceph-osd')
-    new_install = copy_profile_into_place()
-    if new_install or config().changed('aa-profile-mode'):
+    changes = copy_profile_into_place()
+    # NOTE(jamespage): If any profiles where changed or
+    #                  freshly installed then force
+    #                  re-assertion of the current profile mode
+    #                  to avoid complain->enforce side effects
+    if changes or config().changed('aa-profile-mode'):
         aa_context = CephOsdAppArmorContext()
         aa_context.setup_aa_profile()
         aa_profile_changed()
