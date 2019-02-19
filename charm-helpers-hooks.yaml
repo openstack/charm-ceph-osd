@@ -8,7 +8,7 @@ include:
     - contrib.hahelpers:
         - apache
         - cluster
-    - contrib.python.packages
+    - contrib.python
     - contrib.storage.linux
     - contrib.openstack
     - contrib.network.ip
