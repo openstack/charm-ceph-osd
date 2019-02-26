@@ -80,6 +80,7 @@ from utils import (
     get_cluster_addr,
     get_blacklist,
     get_journal_devices,
+    should_enable_discard,
 )
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.network.ip import (
@@ -387,6 +388,13 @@ def get_ceph_context(upgrading=False):
         'bluestore_block_wal_size': config('bluestore-block-wal-size'),
         'bluestore_block_db_size': config('bluestore-block-db-size'),
     }
+
+    if config('bdev-enable-discard').lower() == 'enabled':
+        cephcontext['bdev_discard'] = True
+    elif config('bdev-enable-discard').lower() == 'auto':
+        cephcontext['bdev_discard'] = should_enable_discard(get_devices())
+    else:
+        cephcontext['bdev_discard'] = False
 
     if config('prefer-ipv6'):
         dynamic_ipv6_address = get_ipv6_addr()[0]
