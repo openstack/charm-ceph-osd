@@ -82,7 +82,7 @@ QUORUM = [LEADER, PEON]
 
 PACKAGES = ['ceph', 'gdisk', 'btrfs-tools',
             'radosgw', 'xfsprogs',
-            'lvm2', 'parted']
+            'lvm2', 'parted', 'smartmontools']
 
 CEPH_KEY_MANAGER = 'ceph'
 VAULT_KEY_MANAGER = 'vault'

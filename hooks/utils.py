@@ -15,6 +15,7 @@
 import re
 import os
 import socket
+import subprocess
 
 from charmhelpers.core.hookenv import (
     unit_get,
@@ -23,6 +24,7 @@ from charmhelpers.core.hookenv import (
     network_get_primary_address,
     log,
     DEBUG,
+    WARNING,
     status_set,
     storage_get,
     storage_list,
@@ -194,3 +196,34 @@ def get_journal_devices():
     _blacklist = get_blacklist()
     return set(device for device in devices
                if device not in _blacklist and os.path.exists(device))
+
+
+def should_enable_discard(devices):
+    """
+    Tries to autodetect if we can enable discard on devices and if that
+    discard can be asynchronous. We want to enable both options if there's
+    any SSDs unless any of them are using SATA <= 3.0, in which case
+    discard is supported but is a blocking operation.
+    """
+    discard_enable = True
+    for device in devices:
+        # whitelist some devices that do not need checking
+        if (device.startswith("/dev/nvme") or
+                device.startswith("/dev/vd")):
+            continue
+        if (device.startswith("/dev/") and
+                os.path.exists(device) and
+                is_sata30orless(device)):
+            discard_enable = False
+            log("SSD Discard autodetection: {} is forcing discard off"
+                "(sata <= 3.0)".format(device), level=WARNING)
+    return discard_enable
+
+
+def is_sata30orless(device):
+    result = subprocess.check_output(["/usr/sbin/smartctl", "-i", device])
+    print(result)
+    for line in str(result).split("\\n"):
+        if re.match("SATA Version is: *SATA (1\.|2\.|3\.0)", str(line)):
+            return True
+    return False

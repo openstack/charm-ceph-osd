@@ -63,6 +63,15 @@ options:
       .
       For ceph >= 0.56.6 these can also be directories instead of devices - the
       charm assumes anything not starting with /dev is a directory instead.
+  bdev-enable-discard:
+    type: string
+    default: auto
+    description: |
+      Enables async discard on devices. This option will enable/disable both
+      bdev-enable-discard and bdev-async-discard options in ceph configuration
+      at the same time. The default value "auto" will try to autodetect and
+      should work in most cases. If you need to force a behaviour you can
+      set it to "enable" or "disable". Only applies for Ceph Mimic or later.
   osd-journal:
     type: string
     default:
