@@ -630,10 +630,10 @@ def mon_relation():
 @hooks.hook('upgrade-charm.real')
 @harden()
 def upgrade_charm():
-    if get_fsid() and get_auth():
-        emit_cephconf()
     apt_install(packages=filter_installed_packages(ceph.determine_packages()),
                 fatal=True)
+    if get_fsid() and get_auth():
+        emit_cephconf()
     install_udev_rules()
     remap_resolved_targets()
     maybe_refresh_nrpe_files()
