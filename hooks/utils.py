@@ -211,9 +211,13 @@ def should_enable_discard(devices):
         if (device.startswith("/dev/nvme") or
                 device.startswith("/dev/vd")):
             continue
+        try:
+            sata_3_or_less = is_sata30orless(device)
+        except subprocess.CalledProcessError:
+            sata_3_or_less = True
         if (device.startswith("/dev/") and
                 os.path.exists(device) and
-                is_sata30orless(device)):
+                sata_3_or_less):
             discard_enable = False
             log("SSD Discard autodetection: {} is forcing discard off"
                 "(sata <= 3.0)".format(device), level=WARNING)
