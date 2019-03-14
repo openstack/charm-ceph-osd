@@ -17,3 +17,4 @@ tests:
   - zaza.charm_tests.ceph.tests.CephLowLevelTest
   - zaza.charm_tests.ceph.tests.CephRelationTest
   - zaza.charm_tests.ceph.tests.CephTest
+  - zaza.charm_tests.ceph.osd.tests.SecurityTest

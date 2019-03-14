@@ -11,7 +11,7 @@ osd-out:
         Documentation: https://jujucharms.com/ceph-osd/
 osd-in:
   description: |
-    \ 
+    \
         Set the local osd units in the charm to 'in'.
         Documentation: https://jujucharms.com/ceph-osd/
 list-disks:
@@ -84,3 +84,5 @@ zap-disk:
   required:
     - devices
     - i-really-mean-it
+security-checklist:
+  description: Validate the running configuration against the OpenStack security guides checklist
