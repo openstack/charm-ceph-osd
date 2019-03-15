@@ -271,16 +271,6 @@ def use_vaultlocker():
     return False
 
 
-def use_bluestore():
-    """Determine whether bluestore should be used for OSD's
-
-    :returns: whether bluestore disk format should be used
-    :rtype: bool"""
-    if cmp_pkgrevno('ceph', '12.2.0') < 0:
-        return False
-    return config('bluestore')
-
-
 def install_apparmor_profile():
     """
     Install ceph apparmor profiles and configure
@@ -402,7 +392,7 @@ def get_ceph_context(upgrading=False):
         'dio': str(config('use-direct-io')).lower(),
         'short_object_len': use_short_objects(),
         'upgrade_in_progress': upgrading,
-        'bluestore': use_bluestore(),
+        'bluestore': ceph.use_bluestore(),
         'bluestore_experimental': cmp_pkgrevno('ceph', '12.1.0') < 0,
         'bluestore_block_wal_size': config('bluestore-block-wal-size'),
         'bluestore_block_db_size': config('bluestore-block-db-size'),
@@ -547,8 +537,8 @@ def prepare_disks_and_activate():
     if is_osd_bootstrap_ready():
         log('ceph bootstrapped, rescanning disks')
         emit_cephconf()
-        bluestore = use_bluestore()
         ceph.udevadm_settle()
+        bluestore = ceph.use_bluestore()
         for dev in get_devices():
             ceph.osdize(dev, config('osd-format'),
                         osd_journal,

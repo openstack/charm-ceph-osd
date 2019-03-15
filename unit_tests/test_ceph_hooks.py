@@ -26,6 +26,8 @@ with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
                             lambda *args, **kwargs: f(*args, **kwargs))
     import ceph_hooks
 
+import charms_ceph.utils as ceph_utils
+
 CHARM_CONFIG = {'config-flags': '',
                 'loglevel': 1,
                 'use-syslog': True,
@@ -63,6 +65,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -110,6 +113,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph, 'config')
     @patch.object(ceph_hooks, 'config')
     def test_get_ceph_context_invalid_bdev_enable_discard(self, mock_config,
@@ -154,6 +158,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno',
                   lambda pkg, ver: -1 if ver == '12.1.0' else 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -198,6 +203,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: True)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -250,6 +256,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno',
                   lambda pkg, ver: -1 if ver == '12.1.0' else 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: True)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -298,6 +305,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -344,6 +352,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -384,6 +393,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_utils, 'cmp_pkgrevno', lambda *args: 1)
     @patch.object(ceph_hooks.ch_context, 'CephBlueStoreCompressionContext')
     @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
@@ -394,13 +404,16 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph_utils, 'config')
     @patch.object(ceph, 'config')
     @patch.object(ceph_hooks, 'config')
     def test_get_ceph_context_bluestore_compression(
-            self, mock_config, mock_config2, mock_bluestore_compression):
+            self, mock_config, mock_config2, mock_config3,
+            mock_bluestore_compression):
         config = copy.deepcopy(CHARM_CONFIG)
         mock_config.side_effect = lambda key: config[key]
         mock_config2.side_effect = lambda key: config[key]
+        mock_config3.side_effect = lambda key: config[key]
         mock_bluestore_compression().return_value = {
             'fake-bluestore-compression-key': 'fake-value'}
         ctxt = ceph_hooks.get_ceph_context()

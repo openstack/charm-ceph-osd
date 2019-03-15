@@ -25,9 +25,11 @@ class AddDiskActionTests(CharmTestCase):
             add_disk, ['hookenv', 'kv'])
         self.kv.return_value = self.kv
 
+    @mock.patch.object(add_disk.charms_ceph.utils, 'use_bluestore')
     @mock.patch.object(add_disk.ceph_hooks, 'get_journal_devices')
     @mock.patch.object(add_disk.charms_ceph.utils, 'osdize')
-    def test_add_device(self, mock_osdize, mock_get_journal_devices):
+    def test_add_device(self, mock_osdize, mock_get_journal_devices,
+                        mock_use_bluestore):
 
         def fake_config(key):
             return {
@@ -41,6 +43,7 @@ class AddDiskActionTests(CharmTestCase):
         self.hookenv.config.side_effect = fake_config
         mock_get_journal_devices.return_value = ''
         self.hookenv.relation_ids.return_value = ['ceph:0']
+        mock_use_bluestore.return_value = True
 
         db = mock.MagicMock()
         self.kv.return_value = db
