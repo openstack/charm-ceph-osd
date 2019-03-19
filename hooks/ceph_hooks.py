@@ -521,6 +521,7 @@ def prepare_disks_and_activate():
         log('ceph bootstrapped, rescanning disks')
         emit_cephconf()
         bluestore = use_bluestore()
+        ceph.udevadm_settle()
         for dev in get_devices():
             ceph.osdize(dev, config('osd-format'),
                         osd_journal,
