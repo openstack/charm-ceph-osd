@@ -793,6 +793,17 @@ def assess_status():
         else:
             status_set('active',
                        'Unit is ready ({} OSD)'.format(len(running_osds)))
+    else:
+        pristine = True
+        osd_journals = get_journal_devices()
+        for dev in list(set(ceph.unmounted_disks()) - set(osd_journals)):
+            if (not ceph.is_active_bluestore_device(dev) and
+                    not ceph.is_pristine_disk(dev)):
+                pristine = False
+                break
+        if pristine:
+            status_set('active',
+                       'Unit is ready ({} OSD)'.format(len(running_osds)))
 
 
 @hooks.hook('update-status')
