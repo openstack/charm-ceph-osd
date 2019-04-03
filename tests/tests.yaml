@@ -1,16 +1,18 @@
 charm_name: ceph-osd
 gate_bundles:
-  - trusty-mitaka
-  - xenial-mitaka
-  - xenial-ocata
-  - xenial-pike
-  - xenial-queens
+  - bionic-stein
+  - bionic-rocky
   - bionic-queens
+  - xenial-queens
+  - xenial-pike
+  - xenial-ocata
+  - xenial-mitaka
+  - trusty-mitaka
 smoke_bundles:
   - bionic-queens
 dev_bundles:
-  - bionic-rocky
   - cosmic-rocky
+  - disco-stein
 configure:
   - zaza.charm_tests.glance.setup.add_lts_image
 tests:

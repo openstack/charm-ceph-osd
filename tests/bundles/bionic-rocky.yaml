@@ -8,43 +8,43 @@ applications:
       osd-devices: 'cinder,10G'
     options:
       osd-devices: '/srv/ceph /dev/test-non-existent'
-      source: cloud:bionic-updates/rocky
+      source: cloud:bionic-rocky
   ceph-mon:
     charm: cs:~openstack-charmers-next/ceph-mon
     num_units: 3
     options:
       monitor-count: '3'
       auth-supported: 'none'
-      source: cloud:bionic-updates/rocky
+      source: cloud:bionic-rocky
   percona-cluster:
     charm: cs:~openstack-charmers-next/percona-cluster
     num_units: 1
     options:
       dataset-size: 25%
       max-connections: 1000
-      source: cloud:bionic-updates/rocky
+      source: cloud:bionic-rocky
   rabbitmq-server:
     charm: cs:~openstack-charmers-next/rabbitmq-server
     num_units: 1
     options:
-      source: cloud:bionic-updates/rocky
+      source: cloud:bionic-rocky
   keystone:
     expose: True
     charm: cs:~openstack-charmers-next/keystone
     num_units: 1
     options:
-      openstack-origin: cloud:bionic-rocky/proposed
+      openstack-origin: cloud:bionic-rocky
   nova-compute:
     charm: cs:~openstack-charmers-next/nova-compute
     num_units: 1
     options:
-      openstack-origin: cloud:bionic-rocky/proposed
+      openstack-origin: cloud:bionic-rocky
   glance:
     expose: True
     charm: cs:~openstack-charmers-next/glance
     num_units: 1
     options:
-      openstack-origin: cloud:bionic-rocky/proposed
+      openstack-origin: cloud:bionic-rocky
   cinder:
     expose: True
     charm: cs:~openstack-charmers-next/cinder
@@ -52,7 +52,7 @@ applications:
     options:
       block-device: 'None'
       glance-api-version: '2'
-      openstack-origin: cloud:bionic-rocky/proposed
+      openstack-origin: cloud:bionic-rocky
   cinder-ceph:
     charm: cs:~openstack-charmers-next/cinder-ceph
   nova-cloud-controller:
@@ -60,7 +60,7 @@ applications:
     charm: cs:~openstack-charmers-next/nova-cloud-controller
     num_units: 1
     options:
-      openstack-origin: cloud:bionic-rocky/proposed
+      openstack-origin: cloud:bionic-rocky
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp

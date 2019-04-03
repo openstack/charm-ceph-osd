@@ -1,7 +1,7 @@
-series: cosmic
+series: disco
 applications:
   ceph-osd:
-    series: cosmic
+    series: disco
     charm: ceph-osd
     num_units: 3
     storage:
