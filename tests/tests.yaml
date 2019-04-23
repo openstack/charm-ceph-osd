@@ -14,9 +14,9 @@ dev_bundles:
   - cosmic-rocky
   - disco-stein
 configure:
-  - zaza.charm_tests.glance.setup.add_lts_image
+  - zaza.openstack.charm_tests.glance.setup.add_lts_image
 tests:
-  - zaza.charm_tests.ceph.tests.CephLowLevelTest
-  - zaza.charm_tests.ceph.tests.CephRelationTest
-  - zaza.charm_tests.ceph.tests.CephTest
-  - zaza.charm_tests.ceph.osd.tests.SecurityTest
+  - zaza.openstack.charm_tests.ceph.tests.CephLowLevelTest
+  - zaza.openstack.charm_tests.ceph.tests.CephRelationTest
+  - zaza.openstack.charm_tests.ceph.tests.CephTest
+  - zaza.openstack.charm_tests.ceph.osd.tests.SecurityTest
