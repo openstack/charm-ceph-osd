@@ -6,7 +6,6 @@
 
 import os
 import subprocess
-import tempfile
 
 # fasteners only exists in Bionic, so this will fail on xenial and trusty
 try:
@@ -17,6 +16,7 @@ except ImportError:
 SYSTEMD_SYSTEM = '/run/systemd/system'
 LOCKFILE = '/var/lock/check-osds.lock'
 CRON_CHECK_TMPFILE = 'ceph-osd-checks'
+NAGIOS_HOME = '/var/lib/nagios'
 
 
 def init_is_systemd():
@@ -67,7 +67,7 @@ def do_status():
                       .format(e.output.decode('utf-8')))
         lines.append(output)
 
-    _tmp_file = os.path.join(tempfile.gettempdir(), CRON_CHECK_TMPFILE)
+    _tmp_file = os.path.join(NAGIOS_HOME, CRON_CHECK_TMPFILE)
     with open(_tmp_file, 'wt') as f:
         f.writelines(lines)
 
