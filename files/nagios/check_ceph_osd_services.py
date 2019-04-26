@@ -6,9 +6,9 @@
 
 import os
 import sys
-import tempfile
 
 CRON_CHECK_TMPFILE = 'ceph-osd-checks'
+NAGIOS_HOME = '/var/lib/nagios'
 
 STATE_OK = 0
 STATE_WARNING = 1
@@ -25,7 +25,7 @@ def run_main():
 
     :returns: nagios state 0,2 or 3
     """
-    _tmp_file = os.path.join(tempfile.gettempdir(), CRON_CHECK_TMPFILE)
+    _tmp_file = os.path.join(NAGIOS_HOME, CRON_CHECK_TMPFILE)
 
     if not os.path.isfile(_tmp_file):
         print("File '{}' doesn't exist".format(_tmp_file))
