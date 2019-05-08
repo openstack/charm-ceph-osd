@@ -18,7 +18,6 @@ python-openstackclient>=1.7.0
 python-swiftclient>=2.6.0
 pika>=0.10.0,<1.0
 distro-info
-git+https://github.com/juju/charm-helpers.git#egg=charmhelpers
 pytz
 pyudev  # for ceph-* charm unit tests (not mocked?)
 git+https://github.com/openstack-charmers/zaza.git@namespace-tests#egg=zaza;python_version>='3.0'
