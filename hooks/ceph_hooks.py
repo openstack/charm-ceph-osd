@@ -153,6 +153,7 @@ def check_for_upgrade():
         ceph.roll_osd_cluster(new_version=new_version,
                               upgrade_key='osd-upgrade')
         emit_cephconf(upgrading=False)
+        notify_mon_of_upgrade(new_version)
     elif (old_version == new_version and
           old_version_os < new_version_os):
         # See LP: #1778823
@@ -168,6 +169,14 @@ def check_for_upgrade():
                                          new_version,
                                          ceph.pretty_print_upgrade_paths()),
             level=ERROR)
+
+
+def notify_mon_of_upgrade(release):
+    for relation_id in relation_ids('mon'):
+        log('Notifying relation {} of upgrade to {}'.format(
+            relation_id, release))
+        relation_set(relation_id=relation_id,
+                     relation_settings=dict(ceph_release=release))
 
 
 def tune_network_adapters():
@@ -540,7 +549,10 @@ def prepare_disks_and_activate():
         relation_set(
             relation_id=r_id,
             relation_settings={
-                'bootstrapped-osds': len(db.get('osd-devices', []))
+                'bootstrapped-osds': len(db.get('osd-devices', [])),
+                'ceph_release': ceph.resolve_ceph_version(
+                    hookenv.config('source') or 'distro'
+                )
             }
         )
 
