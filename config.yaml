@@ -85,12 +85,24 @@ options:
     type: string
     default:
     description: |
-      Path to a BlueStore WAL block device or file.
+      Path to a BlueStore WAL block device or file. Should only be set if using
+      a separate physical device that is faster than the DB device (such as an
+      NVDIMM or faster SSD). Otherwise BlueStore automatically maintains the
+      WAL inside of the DB device. This block device is used as an LVM PV and
+      then space is allocated for each block device as needed based on the
+      bluestore-block-wal-size setting.
   bluestore-db:
     type: string
     default:
     description: |
-      Path to a BlueStore WAL db block device or file
+      Path to a BlueStore WAL db block device or file. If you have a separate
+      physical device faster than the block device this will store all of the
+      filesystem metadata (RocksDB) there and also integrates the Write Ahead
+      Log (WAL) unless a further separate bluestore-wal device is configured
+      which is not needed unless it is faster again than the bluestore-db
+      device. This block device is used as an LVM PV and then space is
+      allocated for each block device as needed based on the
+      bluestore-block-db-size setting.
   osd-journal-size:
     type: int
     default: 1024
