@@ -32,6 +32,7 @@ from charmhelpers.core.hookenv import (
     DEBUG,
     ERROR,
     INFO,
+    WARNING,
     config,
     relation_ids,
     related_units,
@@ -398,11 +399,12 @@ def get_ceph_context(upgrading=False):
         'bluestore_block_db_size': config('bluestore-block-db-size'),
     }
 
-    if config('bdev-enable-discard').lower() == 'enabled':
-        cephcontext['bdev_discard'] = True
-    elif config('bdev-enable-discard').lower() == 'auto':
-        cephcontext['bdev_discard'] = should_enable_discard(get_devices())
-    else:
+    try:
+        cephcontext['bdev_discard'] = get_bdev_enable_discard()
+    except ValueError as ex:
+        # the user set bdev-enable-discard to a non valid value, so logging the
+        # issue as a warning and falling back to False/disable
+        log(str(ex), level=WARNING)
         cephcontext['bdev_discard'] = False
 
     if config('prefer-ipv6'):
@@ -625,6 +627,19 @@ def get_devices():
     return [device for device in devices if device not in _blacklist]
 
 
+def get_bdev_enable_discard():
+    bdev_enable_discard = config('bdev-enable-discard').lower()
+    if bdev_enable_discard in ['enable', 'enabled']:
+        return True
+    elif bdev_enable_discard == 'auto':
+        return should_enable_discard(get_devices())
+    elif bdev_enable_discard in ['disable', 'disabled']:
+        return False
+    else:
+        raise ValueError(("Invalid value for configuration "
+                          "bdev-enable-discard: %s") % bdev_enable_discard)
+
+
 @hooks.hook('mon-relation-changed',
             'mon-relation-departed')
 def mon_relation():
@@ -816,6 +831,11 @@ def assess_status():
         if pristine:
             status_set('active',
                        'Unit is ready ({} OSD)'.format(len(running_osds)))
+
+    try:
+        get_bdev_enable_discard()
+    except ValueError as ex:
+        status_set('blocked', str(ex))
 
 
 @hooks.hook('update-status')

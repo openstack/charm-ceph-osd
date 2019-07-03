@@ -37,7 +37,7 @@ CHARM_CONFIG = {'config-flags': '',
                 'customize-failure-domain': False,
                 'bluestore': False,
                 'crush-initial-weight': '0',
-                'bdev-enable-discard': 'enabled',
+                'bdev-enable-discard': 'enable',
                 'osd-devices': '/dev/vdb',
                 'bluestore': False,
                 'bluestore-block-wal-size': 0,
@@ -87,6 +87,47 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
+                    'bluestore': False,
+                    'bluestore_experimental': False,
+                    'bluestore_block_wal_size': 0,
+                    'bluestore_block_db_size': 0}
+        self.assertEqual(ctxt, expected)
+
+    @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
+    @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
+    @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
+    @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
+    @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
+                                                              '10.0.0.2'])
+    @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph, 'config')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_ceph_context_invalid_bdev_enable_discard(self, mock_config,
+                                                          mock_config2):
+        config = copy.deepcopy(CHARM_CONFIG)
+        config['bdev-enable-discard'] = 'some-invalid-value'
+        mock_config.side_effect = lambda key: config[key]
+        mock_config2.side_effect = lambda key: config[key]
+        ctxt = ceph_hooks.get_ceph_context()
+        expected = {'auth_supported': False,
+                    'ceph_cluster_network': '',
+                    'ceph_public_network': '',
+                    'cluster_addr': '10.1.0.1',
+                    'dio': 'true',
+                    'fsid': '1234',
+                    'loglevel': 1,
+                    'mon_hosts': '10.0.0.1 10.0.0.2',
+                    'old_auth': False,
+                    'crush_initial_weight': '0',
+                    'osd_journal_size': 1024,
+                    'osd_max_backfills': 1,
+                    'osd_recovery_max_active': 2,
+                    'public_addr': '10.0.0.1',
+                    'short_object_len': True,
+                    'upgrade_in_progress': False,
+                    'use_syslog': 'true',
+                    'bdev_discard': False,
                     'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
@@ -550,6 +591,24 @@ class CephHooksTestCase(unittest.TestCase):
 
         self.assertTrue(mock_write_file.called)
         self.assertTrue(mock_install_alternative.called)
+
+    @patch.object(ceph_hooks, 'should_enable_discard')
+    @patch.object(ceph_hooks, 'config')
+    def test_get_bdev_enable_discard(self, mock_config,
+                                     mock_should_enable_discard):
+        mock_should_enable_discard.return_value = True
+        config = {'bdev-enable-discard': 'xxx',
+                  'osd-devices': '/dev/vdb'}
+        mock_config.side_effect = lambda key: config[key]
+        self.assertRaises(ValueError, ceph_hooks.get_bdev_enable_discard)
+
+        for value, expected in [('enable', True),
+                                ('enabled', True),
+                                ('disable', False),
+                                ('disabled', False),
+                                ('auto', True)]:
+            config['bdev-enable-discard'] = value
+            self.assertEqual(ceph_hooks.get_bdev_enable_discard(), expected)
 
 
 @patch.object(ceph_hooks, 'relation_get')
