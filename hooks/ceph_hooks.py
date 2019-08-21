@@ -73,6 +73,9 @@ from charmhelpers.contrib.openstack.context import (
     AppArmorContext,
 )
 from utils import (
+    is_osd_bootstrap_ready,
+    import_osd_bootstrap_key,
+    import_osd_upgrade_key,
     get_host_ip,
     get_networks,
     assert_charm_supports_ipv6,
@@ -528,7 +531,7 @@ def prepare_disks_and_activate():
                    '`list-disks`, `zap-disk` and `blacklist-*` actions.')
         return
 
-    if ceph.is_bootstrapped():
+    if is_osd_bootstrap_ready():
         log('ceph bootstrapped, rescanning disks')
         emit_cephconf()
         bluestore = use_bluestore()
@@ -648,8 +651,8 @@ def mon_relation():
     if get_fsid() and get_auth() and bootstrap_key:
         log('mon has provided conf- scanning disks')
         emit_cephconf()
-        ceph.import_osd_bootstrap_key(bootstrap_key)
-        ceph.import_osd_upgrade_key(upgrade_key)
+        import_osd_bootstrap_key(bootstrap_key)
+        import_osd_upgrade_key(upgrade_key)
         prepare_disks_and_activate()
     else:
         log('mon cluster has not yet provided conf')

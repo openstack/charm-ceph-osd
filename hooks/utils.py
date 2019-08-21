@@ -16,6 +16,10 @@ import re
 import os
 import socket
 import subprocess
+import sys
+
+sys.path.append('lib')
+import ceph.utils as ceph
 
 from charmhelpers.core.hookenv import (
     unit_get,
@@ -61,6 +65,61 @@ except ImportError:
     apt_install(filter_installed_packages(['python3-dnspython']),
                 fatal=True)
     import dns.resolver
+
+
+_bootstrap_keyring = "/var/lib/ceph/bootstrap-osd/ceph.keyring"
+_upgrade_keyring = "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring"
+
+
+def is_osd_bootstrap_ready():
+    """
+    Is this machine ready to add OSDs.
+
+    :returns: boolean: Is the OSD bootstrap key present
+    """
+    return os.path.exists(_bootstrap_keyring)
+
+
+def import_osd_bootstrap_key(key):
+    """
+    Ensure that the osd-bootstrap keyring is setup.
+
+    :param key: The cephx key to add to the bootstrap keyring
+    :type key: str
+    :raises: subprocess.CalledProcessError"""
+    if not os.path.exists(_bootstrap_keyring):
+        cmd = [
+            "sudo",
+            "-u",
+            ceph.ceph_user(),
+            'ceph-authtool',
+            _bootstrap_keyring,
+            '--create-keyring',
+            '--name=client.bootstrap-osd',
+            '--add-key={}'.format(key)
+        ]
+        subprocess.check_call(cmd)
+
+
+def import_osd_upgrade_key(key):
+    """
+    Ensure that the osd-upgrade keyring is setup.
+
+    :param key: The cephx key to add to the upgrade keyring
+    :type key: str
+    :raises: subprocess.CalledProcessError"""
+    if not os.path.exists(_upgrade_keyring):
+        cmd = [
+            "sudo",
+            "-u",
+            ceph.ceph_user(),
+            'ceph-authtool',
+            _upgrade_keyring,
+            '--create-keyring',
+            '--name=client.osd-upgrade',
+            '--add-key={}'.format(key)
+        ]
+        subprocess.check_call(cmd)
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
