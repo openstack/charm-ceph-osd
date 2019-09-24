@@ -1912,9 +1912,10 @@ def osdize_dir(path, encrypt=False, bluestore=False):
             ' skipping'.format(path))
         return
 
-    if os.path.exists(os.path.join(path, 'upstart')):
-        log('Path {} is already configured as an OSD - bailing'.format(path))
-        return
+    for t in ['upstart', 'systemd']:
+        if os.path.exists(os.path.join(path, t)):
+            log('Path {} is already used as an OSD dir - bailing'.format(path))
+            return
 
     if cmp_pkgrevno('ceph', "0.56.6") < 0:
         log('Unable to use directories for OSDs with ceph < 0.56.6',
