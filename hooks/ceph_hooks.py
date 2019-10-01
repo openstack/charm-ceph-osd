@@ -85,6 +85,7 @@ from utils import (
     get_blacklist,
     get_journal_devices,
     should_enable_discard,
+    _upgrade_keyring,
 )
 from charmhelpers.contrib.openstack.alternatives import install_alternative
 from charmhelpers.contrib.network.ip import (
@@ -124,7 +125,7 @@ CRON_CEPH_CHECK_FILE = '/etc/cron.d/check-osd-services'
 
 def check_for_upgrade():
 
-    if not os.path.exists(ceph._upgrade_keyring):
+    if not os.path.exists(_upgrade_keyring):
         log("Ceph upgrade keyring not detected, skipping upgrade checks.")
         return
 

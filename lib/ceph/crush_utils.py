@@ -24,7 +24,7 @@ from charmhelpers.core.hookenv import (
 CRUSH_BUCKET = """root {name} {{
     id {id}    # do not change unnecessarily
     # weight 0.000
-    alg straw
+    alg straw2
     hash 0  # rjenkins1
 }}
 
