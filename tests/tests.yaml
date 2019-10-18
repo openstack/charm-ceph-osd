@@ -1,5 +1,6 @@
 charm_name: ceph-osd
 gate_bundles:
+  - bionic-train
   - bionic-stein
   - bionic-rocky
   - bionic-queens
@@ -9,7 +10,7 @@ gate_bundles:
   - xenial-mitaka
   - trusty-mitaka
 smoke_bundles:
-  - bionic-stein
+  - bionic-train
 dev_bundles:
   - disco-stein
 configure:
