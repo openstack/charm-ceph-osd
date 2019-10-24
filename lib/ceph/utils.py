@@ -29,7 +29,6 @@ from datetime import datetime
 
 from charmhelpers.core import hookenv
 from charmhelpers.core import templating
-from charmhelpers.core.decorators import retry_on_exception
 from charmhelpers.core.host import (
     chownr,
     cmp_pkgrevno,
@@ -793,10 +792,31 @@ def is_leader():
         return False
 
 
+def manager_available():
+    # if manager daemon isn't on this release, just say it is Fine
+    if cmp_pkgrevno('ceph', '11.0.0') < 0:
+        return True
+    cmd = ["sudo", "-u", "ceph", "ceph", "mgr", "dump", "-f", "json"]
+    try:
+        result = json.loads(subprocess.check_output(cmd).decode('UTF-8'))
+        return result['available']
+    except subprocess.CalledProcessError as e:
+        log("'{}' failed: {}".format(" ".join(cmd), str(e)))
+        return False
+    except Exception:
+        return False
+
+
 def wait_for_quorum():
     while not is_quorum():
         log("Waiting for quorum to be reached")
         time.sleep(3)
+
+
+def wait_for_manager():
+    while not manager_available():
+        log("Waiting for manager to be available")
+        time.sleep(5)
 
 
 def add_bootstrap_hint(peer):
@@ -1274,7 +1294,6 @@ def bootstrap_monitor_cluster(secret):
                             path,
                             done,
                             init_marker)
-            _create_keyrings()
         except:
             raise
         finally:
@@ -1322,9 +1341,10 @@ def _create_monitor(keyring, secret, hostname, path, done, init_marker):
         service_restart('ceph-mon-all')
 
 
-@retry_on_exception(3, base_delay=5)
-def _create_keyrings():
+def create_keyrings():
     """Create keyrings for operation of ceph-mon units
+
+    NOTE: The quorum should be done before to execute this function.
 
     :raises: Exception if keyrings cannot be created
     """
