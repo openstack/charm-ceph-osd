@@ -14,7 +14,7 @@ applications:
     constraints:
       virt-type=kvm
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: cs:ceph-mon
     num_units: 3
     options:
       monitor-count: '3'
@@ -36,7 +36,7 @@ applications:
     constraints:
       virt-type=kvm
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:rabbitmq-server
     num_units: 1
     options:
       source: cloud:trusty-mitaka
@@ -46,7 +46,7 @@ applications:
       virt-type=kvm
   keystone:
     expose: True
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:keystone
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -55,7 +55,7 @@ applications:
     constraints:
       virt-type=kvm
   nova-compute:
-    charm: cs:~openstack-charmers-next/nova-compute
+    charm: cs:nova-compute
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -65,7 +65,7 @@ applications:
       virt-type=kvm
   glance:
     expose: True
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:glance
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -75,7 +75,7 @@ applications:
       virt-type=kvm
   cinder:
     expose: True
-    charm: cs:~openstack-charmers-next/cinder
+    charm: cs:cinder
     num_units: 1
     options:
       block-device: 'None'
@@ -86,10 +86,10 @@ applications:
     constraints:
       virt-type=kvm
   cinder-ceph:
-    charm: cs:~openstack-charmers-next/cinder-ceph
+    charm: cs:cinder-ceph
   nova-cloud-controller:
     expose: True
-    charm: cs:~openstack-charmers-next/nova-cloud-controller
+    charm: cs:nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
