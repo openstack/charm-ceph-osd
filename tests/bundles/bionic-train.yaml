@@ -60,6 +60,11 @@ applications:
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
+  placement:
+    charm: cs:~openstack-charmers-next/placement
+    num_units: 1
+    options:
+      openstack-origin: cloud:bionic-train
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp
@@ -101,3 +106,9 @@ relations:
   - nova-compute:cloud-compute
 - - nova-cloud-controller:image-service
   - glance:image-service
+- - placement
+  - percona-cluster
+- - placement
+  - keystone
+- - placement
+  - nova-cloud-controller

@@ -80,7 +80,12 @@ LEADER = 'leader'
 PEON = 'peon'
 QUORUM = [LEADER, PEON]
 
-PACKAGES = ['ceph', 'gdisk', 'btrfs-tools',
+if CompareHostReleases(lsb_release()['DISTRIB_CODENAME']) >= 'eoan':
+    btrfs_package = 'btrfs-progs'
+else:
+    btrfs_package = 'btrfs-tools'
+
+PACKAGES = ['ceph', 'gdisk', btrfs_package,
             'radosgw', 'xfsprogs',
             'lvm2', 'parted', 'smartmontools']
 
