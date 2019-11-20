@@ -2310,14 +2310,19 @@ def wait_on_previous_node(upgrade_key, service, previous_node, version):
 def get_upgrade_position(osd_sorted_list, match_name):
     """Return the upgrade position for the given osd.
 
-    :param osd_sorted_list: list. Osds sorted
-    :param match_name: str. The osd name to match
-    :returns: int. The position or None if not found
+    :param osd_sorted_list: Osds sorted
+    :type osd_sorted_list: [str]
+    :param match_name: The osd name to match
+    :type match_name: str
+    :returns: The position of the name
+    :rtype: int
+    :raises: ValueError if name is not found
     """
     for index, item in enumerate(osd_sorted_list):
         if item.name == match_name:
             return index
-    return None
+    raise ValueError("osd name '{}' not found in get_upgrade_position list"
+                     .format(match_name))
 
 
 # Edge cases:
