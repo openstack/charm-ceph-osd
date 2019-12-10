@@ -486,17 +486,18 @@ def config_changed():
 
 @hooks.hook('storage.real')
 def prepare_disks_and_activate():
-    # NOTE: vault/vaultlocker preflight check
-    vault_kv = vaultlocker.VaultKVContext(vaultlocker.VAULTLOCKER_BACKEND)
-    context = vault_kv()
-    if use_vaultlocker() and not vault_kv.complete:
-        log('Deferring OSD preparation as vault not ready',
-            level=DEBUG)
-        return
-    elif use_vaultlocker() and vault_kv.complete:
-        log('Vault ready, writing vaultlocker configuration',
-            level=DEBUG)
-        vaultlocker.write_vaultlocker_conf(context)
+    if use_vaultlocker():
+        # NOTE: vault/vaultlocker preflight check
+        vault_kv = vaultlocker.VaultKVContext(vaultlocker.VAULTLOCKER_BACKEND)
+        context = vault_kv()
+        if not vault_kv.complete:
+            log('Deferring OSD preparation as vault not ready',
+                level=DEBUG)
+            return
+        else:
+            log('Vault ready, writing vaultlocker configuration',
+                level=DEBUG)
+            vaultlocker.write_vaultlocker_conf(context)
 
     osd_journal = get_journal_devices()
     if not osd_journal.isdisjoint(set(get_devices())):
