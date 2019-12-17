@@ -913,7 +913,12 @@ def is_pristine_disk(dev):
     """
     want_bytes = 2048
 
-    f = open(dev, 'rb')
+    try:
+        f = open(dev, 'rb')
+    except OSError as e:
+        log(e)
+        return False
+
     data = f.read(want_bytes)
     read_bytes = len(data)
     if read_bytes != want_bytes:
