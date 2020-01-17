@@ -212,6 +212,18 @@ def handle_add_permissions_to_key(request, service):
     return resp
 
 
+def handle_set_key_permissions(request, service):
+    """Ensure the key has the requested permissions."""
+    permissions = request.get('permissions')
+    client = request.get('client')
+    call = ['ceph', '--id', service, 'auth', 'caps',
+            'client.{}'.format(client)] + permissions
+    try:
+        check_call(call)
+    except CalledProcessError as e:
+        log("Error updating key capabilities: {}".format(e), level=ERROR)
+
+
 def update_service_permissions(service, service_obj=None, namespace=None):
     """Update the key permissions for the named client in Ceph"""
     if not service_obj:
@@ -866,6 +878,8 @@ def process_requests_v1(reqs):
             ret = handle_put_osd_in_bucket(request=req, service=svc)
         elif op == "add-permissions-to-key":
             ret = handle_add_permissions_to_key(request=req, service=svc)
+        elif op == 'set-key-permissions':
+            ret = handle_set_key_permissions(request=req, service=svc)
         else:
             msg = "Unknown operation '{}'".format(op)
             log(msg, level=ERROR)

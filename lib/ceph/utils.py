@@ -181,7 +181,7 @@ def unmounted_disks():
     for device in context.list_devices(DEVTYPE='disk'):
         if device['SUBSYSTEM'] == 'block':
             matched = False
-            for block_type in [u'dm', u'loop', u'ram', u'nbd']:
+            for block_type in [u'dm-', u'loop', u'ram', u'nbd']:
                 if block_type in device.device_node:
                     matched = True
             if matched:
