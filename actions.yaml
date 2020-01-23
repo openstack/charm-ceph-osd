@@ -8,22 +8,22 @@ osd-out:
   description: |
     \
         USE WITH CAUTION - Mark unit OSDs as 'out'.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
 osd-in:
   description: |
     \
         Set the local osd units in the charm to 'in'.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
 list-disks:
   description: |
     \
         List disks.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
 add-disk:
   description: |
     \
         Add disk(s) to Ceph.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
   params:
     osd-devices:
       type: string
@@ -37,7 +37,7 @@ blacklist-add-disk:
   description: |
     \
         Add disk(s) to blacklist.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
   params:
     osd-devices:
       type: string
@@ -54,7 +54,7 @@ blacklist-remove-disk:
   description: |
     \
         Remove disk(s) from blacklist.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
   params:
     osd-devices:
       type: string
@@ -71,7 +71,7 @@ zap-disk:
   description: |
     \
         USE WITH CAUTION - Purge disk of all data and signatures for use by Ceph.
-        Documentation: https://jujucharms.com/ceph-osd/
+        Documentation: https://jaas.ai/ceph-osd/
   params:
     devices:
       type: string
