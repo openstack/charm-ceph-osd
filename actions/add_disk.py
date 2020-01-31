@@ -24,12 +24,14 @@ sys.path.append('hooks')
 import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 import charmhelpers.core.hookenv as hookenv
 
+from charmhelpers.core.unitdata import kv
+
 import ceph_hooks
 import ceph.utils
 
 
 def add_device(request, device_path, bucket=None):
-    ceph.utils.osdize(dev, hookenv.config('osd-format'),
+    ceph.utils.osdize(device_path, hookenv.config('osd-format'),
                       ceph_hooks.get_journal_devices(),
                       hookenv.config('ignore-device-errors'),
                       hookenv.config('osd-encrypt'),
@@ -37,7 +39,7 @@ def add_device(request, device_path, bucket=None):
                       hookenv.config('osd-encrypt-keymanager'))
     # Make it fast!
     if hookenv.config('autotune'):
-        ceph.utils.tune_dev(dev)
+        ceph.utils.tune_dev(device_path)
     mounts = filter(lambda disk: device_path
                     in disk.device, psutil.disk_partitions())
     for osd in mounts:
@@ -46,6 +48,18 @@ def add_device(request, device_path, bucket=None):
             'op': 'move-osd-to-bucket',
             'osd': "osd.{}".format(osd_id),
             'bucket': bucket})
+
+    # Ensure mon's count of osds is accurate
+    db = kv()
+    bootstrapped_osds = len(db.get('osd-devices', []))
+    for r_id in hookenv.relation_ids('mon'):
+        hookenv.relation_set(
+            relation_id=r_id,
+            relation_settings={
+                'bootstrapped-osds': bootstrapped_osds,
+            }
+        )
+
     return request
 
 
