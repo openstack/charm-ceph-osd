@@ -80,12 +80,7 @@ LEADER = 'leader'
 PEON = 'peon'
 QUORUM = [LEADER, PEON]
 
-if CompareHostReleases(lsb_release()['DISTRIB_CODENAME']) >= 'eoan':
-    btrfs_package = 'btrfs-progs'
-else:
-    btrfs_package = 'btrfs-tools'
-
-PACKAGES = ['ceph', 'gdisk', btrfs_package,
+PACKAGES = ['ceph', 'gdisk',
             'radosgw', 'xfsprogs',
             'lvm2', 'parted', 'smartmontools']
 
@@ -2917,7 +2912,13 @@ def determine_packages():
 
     :returns: list of ceph packages
     """
-    return PACKAGES
+    packages = PACKAGES.copy()
+    if CompareHostReleases(lsb_release()['DISTRIB_CODENAME']) >= 'eoan':
+        btrfs_package = 'btrfs-progs'
+    else:
+        btrfs_package = 'btrfs-tools'
+    packages.append(btrfs_package)
+    return packages
 
 
 def bootstrap_manager():
