@@ -1,243 +1,362 @@
-Overview
-========
+# Overview
 
-Ceph is a distributed storage and network file system designed to provide
+[Ceph][ceph-upstream] is a unified, distributed storage system designed for
 excellent performance, reliability, and scalability.
 
-This charm deploys additional Ceph OSD storage service units and should be
-used in conjunction with the 'ceph-mon' charm to scale out the amount of
-storage available in a Ceph cluster.
+The ceph-osd charm deploys the Ceph object storage daemon (OSD) and manages its
+volumes. It is used in conjunction with the [ceph-mon][ceph-mon-charm] charm.
+Together, these charms can scale out the amount of storage available in a Ceph
+cluster.
 
-Usage
-=====
+# Usage
 
-The charm also supports specification of the storage devices to use in the ceph
-cluster::
+## Storage devices
 
-    osd-devices:
-        A list of devices that the charm will attempt to detect, initialise and
-        activate as ceph storage.
+The list of all possible storage devices for the cluster is defined by the
+`osd-devices` option (default value is `/dev/vdb`). Configuration is typically
+provided via a YAML file, like `ceph-osd.yaml`.  See the following examples:
 
-        If the charm detects pre-existing data on a device it will go into a
-        blocked state and the operator must resolve the situation utilizing the
-        `list-disks`, `zap-disk` and/or `blacklist-*` actions.
+1. Block devices (regular)
 
-        This this can be a superset of the actual storage devices presented to
-        each service unit and can be changed post ceph-osd deployment using
-        `juju set`.
-
-For example::
-
+```yaml
     ceph-osd:
       options:
-        osd-devices: /dev/vdb /dev/vdc /dev/vdd /dev/vde
+        osd-devices: /dev/vdb /dev/vdc /dev/vdd
+```
 
-Example utilizing Juju storage::
+Each regular block device must be an absolute path to a device node.
 
+2. Block devices (Juju storage)
+
+```yaml
     ceph-osd:
       storage:
         osd-devices: cinder,20G
+```
 
-Please refer to [Juju Storage Documentation](https://docs.jujucharms.com/devel/en/charms-storage) for details on support for various storage providers and cloud substrates.
+See the [Juju documentation][juju-docs-storage] for guidance on implementing
+Juju storage.
 
-How to deploy::
+3. Directory-backed OSDs
 
-    juju deploy -n 3 ceph-osd
-    juju deploy ceph-mon --to lxd:0
-    juju add-unit ceph-mon --to lxd:1
-    juju add-unit ceph-mon --to lxd:2
+```yaml
+    ceph-osd:
+      storage:
+        osd-devices: /var/tmp/osd-1
+```
+
+> **Note**: OSD directories can no longer be created starting with Ceph
+  Nautilus. Existing OSD directories will continue to function after an upgrade
+  to Nautilus.
+
+The list defined by option `osd-devices` may affect newly added ceph-osd units
+as well as existing units (the option may be modified after units have been
+added). The charm will attempt to activate as Ceph storage any listed device
+that is visible by the unit's underlying machine. To prevent the activation of
+volumes on existing units the `blacklist-add-disk` action may be used.
+
+The configuration option is modified in the usual way. For instance, to have it
+consist solely of devices '/dev/sdb' and '/dev/sdc':
+
+    juju config ceph-osd osd-devices='/dev/sdb /dev/sdc'
+
+The charm will go into a blocked state (visible in `juju status` output) if it
+detects pre-existing data on a device. In this case the operator can either
+instruct the charm to ignore the disk (action `blacklist-add-disk`) or to have
+it purge all data on the disk (action `zap-disk`).
+
+## Deployment
+
+A cloud with three MON nodes is a typical design whereas three OSD nodes are
+considered the minimum. For example, to deploy a Ceph cluster consisting of
+three OSDs and three MONs:
+
+    juju deploy --config ceph-osd.yaml -n 3 ceph-osd
+    juju deploy --to lxd:0 ceph-mon
+    juju add-unit --to lxd:1 ceph-mon
+    juju add-unit --to lxd:2 ceph-mon
     juju add-relation ceph-osd ceph-mon
 
-Once the 'ceph-mon' charm has bootstrapped the cluster, it will notify the
-ceph-osd charm which will scan for the configured storage devices and add them
-to the pool of available storage.
+Here, a containerised MON is running alongside each OSD.
 
-Network Space support
-=====================
+> **Note**: Refer to the [Install OpenStack][cdg-install-openstack] page in the
+  OpenStack Charms Deployment Guide for instructions on installing the ceph-osd
+  application for use with OpenStack.
 
-This charm supports the use of Juju Network Spaces, allowing the charm to be bound to network space configurations managed directly by Juju.  This is only supported with Juju 2.0 and above.
+For each ceph-osd unit, the ceph-osd charm will scan for all the devices
+configured via the `osd-devices` option and attempt to assign to it all the
+ones it finds. The cluster's initial pool of available storage is the "sum" of
+all these assigned devices.
 
-Network traffic can be bound to specific network spaces using the public (front-side) and cluster (back-side) bindings:
+## Network spaces
 
-    juju deploy ceph-osd --bind "public=data-space cluster=cluster-space"
+This charm supports the use of Juju [network spaces][juju-docs-spaces] (Juju
+`v.2.0`). This feature optionally allows specific types of the application's
+network traffic to be bound to subnets that the underlying hardware is
+connected to.
 
-alternatively these can also be provided as part of a Juju native bundle configuration:
+> **Note**: Spaces must be configured in the backing cloud prior to deployment.
 
+The ceph-osd charm exposes the following Ceph traffic types (bindings):
+
+- 'public' (front-side)
+- 'cluster' (back-side)
+
+For example, providing that spaces 'data-space' and 'cluster-space' exist, the
+deploy command above could look like this:
+
+    juju deploy --config ceph-osd.yaml -n 3 ceph-osd \
+       --bind "public=data-space cluster=cluster-space"
+
+Alternatively, configuration can be provided as part of a bundle:
+
+```yaml
     ceph-osd:
-      charm: cs:xenial/ceph-osd
+      charm: cs:ceph-osd
       num_units: 1
       bindings:
         public: data-space
         cluster: cluster-space
+```
 
-Please refer to the [Ceph Network Reference](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref) for details on how using these options effects network traffic within a Ceph deployment.
+Refer to the [Ceph Network Reference][ceph-docs-network-ref] to learn about the
+implications of segregating Ceph network traffic.
 
-**NOTE:** Spaces must be configured in the underlying provider prior to attempting to use them.
+> **Note**: Existing ceph-osd units configured with the `ceph-public-network`
+  or `ceph-cluster-network` options will continue to honour them. Furthermore,
+  these options override any space bindings, if set.
 
-**NOTE**: Existing deployments using ceph-*-network configuration options will continue to function; these options are preferred over any network space binding provided if set.
+## AppArmor profiles
 
-AppArmor Profiles
-=================
+Although AppArmor is not enabled for Ceph by default, an AppArmor profile can
+be generated by the charm by assigning a value of 'complain', 'enforce', or
+'disable' (the default) to option `aa-profile-mode`.
 
-AppArmor is not enforced for Ceph by default.  An AppArmor profile can be generated by the charm.  However, great care must be taken.
+> **Caution**: Enabling an AppArmor profile is disruptive to a running Ceph
+  cluster as all ceph-osd processes must be restarted.
 
-Changing the value of the ```aa-profile-mode``` option is disruptive to a running Ceph cluster as all ceph-osd processes must be restarted as part of changing the AppArmor profile enforcement mode.
+The new profile has a narrow supported use case, and it should always be
+verified in pre-production against the specific configurations and topologies
+intended for production.
 
-The generated AppArmor profile currently has a narrow supported use case, and it should always be verified in pre-production against the specific configurations and topologies intended for production.
+The profiles generated by the charm should **not** be used in the following
+scenarios:
 
-The AppArmor profile(s) which are generated by the charm should NOT yet be used in the following scenarios:
-  - When there are separate journal devices.
-  - On any version of Ceph prior to Luminous.
-  - On any version of Ubuntu other than 16.04.
-  - With Bluestore enabled.
+- On any version of Ubuntu older than 16.04
+- On any version of Ceph older than Luminous
+- When OSD journal devices are in use
+- When Ceph BlueStore is enabled
 
+## Block device encryption
 
-Block Device Encryption
-=======================
+The ceph-osd charm supports encryption for OSD volumes that are backed by block
+devices. To use Ceph's native key management framework, available since Ceph
+Jewel, set option `osd-encrypt` for the ceph-osd charm:
 
-The ceph-osd charm supports encryption of underlying block devices supporting OSD's.
-
-To use the 'native' key management approach (where dm-crypt keys are stored in the
-ceph-mon cluster), simply set the 'osd-encrypt' configuration option::
-
+```yaml
     ceph-osd:
       options:
         osd-encrypt: True
+```
 
-**NOTE:** This is supported for Ceph Jewel or later.
+Here, dm-crypt keys are stored in the MON sub-cluster.
 
-Alternatively, encryption keys can be stored in Vault; this requires deployment of
-the vault charm (and associated initialization of vault - see the Vault charm for
-details) and configuration of the 'osd-encrypt' and 'osd-encrypt-keymanager'
-options::
+Alternatively, since Ceph Luminous, encryption keys can be stored in Vault,
+which is deployed and initialised via the [vault][vault-charm] charm. Set
+options `osd-encrypt` and `osd-encrypt-keymanager` for the ceph-osd charm:
 
+```yaml
     ceph-osd:
       options:
         osd-encrypt: True
         osd-encrypt-keymanager: vault
+```
 
-**NOTE:** This option is only supported with Ceph Luminous or later.
+> **Important**: Post deployment configuration will only affect block devices
+  associated with **new** ceph-osd units.
 
-**NOTE:** Changing these options post deployment will only take effect for any
-new block devices added to the ceph-osd application; existing OSD devices will
-not be encrypted.
+## Actions
 
-Actions
-=======
-The charm offers [actions](https://docs.jujucharms.com/devel/en/actions) which
-may be used to perform operational tasks on individual units.
+This section covers Juju [actions][juju-docs-actions] supported by the charm.
+Actions allow specific operations to be performed on a per-unit basis.
 
-pause
------
-**USE WITH CAUTION** - Set the local osd units in the charm to 'out' but
-does not stop the osds.  Unless the osd cluster is set to noout (see below),
-this removes them from the ceph cluster and forces ceph to migrate the PGs
-to other OSDs in the cluster.
+### osd-out
 
-From [upstream documentation](http://docs.ceph.com/docs/master/rados/operations/add-or-rm-osds/#removing-the-osd)
-"Do not let your cluster reach its full ratio when removing an OSD.
- Removing OSDs could cause the cluster to reach or exceed its full ratio."
+Set as 'out' all OSD volumes on a unit.
 
-Also note that for small clusters you may encounter the corner case where
-some PGs remain stuck in the active+remapped state. Refer to the above link
-on how to resolve this.
+> **Warning**: This action has the potential of impacting your cluster
+  significantly. The [Ceph documentation][ceph-docs-removing-osds] on this
+  topic is considered essential reading.
 
-`pause-health` (on a ceph-mon) unit can be used before pausing a ceph-osd
-unit to stop the cluster rebalancing the data off this ceph-osd unit.
-`pause-health` sets 'noout' on the cluster such that it will not try to
-rebalance the data accross the remaining units.
+The `osd-out` action sets **all** OSDs on the unit as 'out'. Unless the cluster
+itself is set to 'noout' this action will cause Ceph to rebalance data by
+migrating PGs out of the unit's OSDs and onto OSDs available on other units.
+The impact is twofold:
 
-It is up to the user of the charm to determine whether pause-health should
-be used as it depends on whether the osd is being paused for maintenance or
-to remove it from the cluster completely.
+1. The available space on the remaining OSDs is reduced. Not only is there less
+   space for future workloads but there is a danger of exceeding the cluster's
+   storage capacity.
+1. The traffic and CPU load on the cluster is increased.
 
-**NOTE** the `pause` action does NOT stop the ceph-osd processes.
+> **Note**: It has been reported that setting OSDs as 'out' may cause some PGs
+  to get stuck in the 'active+remapped' state. This is an upstream issue.
 
-resume
-------
-Set the local osd units in the charm to 'in'.
+The [ceph-mon][ceph-mon-charm] charm has an action called `set-noout` that sets
+'noout' for the cluster.
 
+It may be perfectly fine to have data rebalanced. The decisive factor is
+whether the OSDs are being paused temporarily (e.g. the underlying machine is
+scheduled for maintenance) or whether they are being removed from the cluster
+completely (e.g. the storage hardware is reaching EOL).
 
-list-disks
-----------
-List disks
+Example:
 
-The 'disks' key is populated with block devices that are known by udev,
-are not mounted and not mentioned in 'osd-journal' configuration option.
+    juju run-action --wait ceph-osd/4 osd-out
 
-The 'blacklist' key is populated with osd-devices in the blacklist stored
-in the local kv store of this specific unit.
+### osd-in
 
-The 'non-pristine' key is populated with block devices that are known by
-udev, are not mounted, not mentioned in 'osd-journal' configuration option
-and are currently not eligible for use because of presence of foreign data.
+Set as 'in' all OSD volumes on a unit.
 
-add-disk
---------
-Add disk(s) to Ceph
+The `osd-in` action is reciprocal to the `osd-out` action. The OSDs are set to
+'in'. It is typically used when the `osd-out` action was used in conjunction
+with the cluster 'noout' flag.
 
-#### Parameters
-- `osd-devices` (required)
-  - The devices to format and set up as osd volumes.
-- `bucket`
-  - The name of the bucket in Ceph to add these devices into
+Example:
 
-blacklist-add-disk
-------------------
-Add disk(s) to blacklist. Blacklisted disks will not be
-initialized for use with Ceph even if listed in the application
-level osd-devices configuration option.
+    juju run-action --wait ceph-osd/4 osd-in
 
-The current blacklist can be viewed with list-disks action.
+### list-disks
 
-**NOTE** This action and blacklist will not have any effect on
-already initialized disks.
+List disks known to a unit.
 
-#### Parameters
-- `osd-devices` (required)
-  - A space-separated list of devices to add to blacklist.
+The `list-disks` action lists the unit's block devices by categorising them in
+three ways:
 
-    Each element should be a absolute path to a device node or filesystem
-    directory (the latter is supported for ceph >= 0.56.6).
+- `disks`: visible (known by udev), unused (not mounted), and not designated as
+  an OSD journal (via the `osd-journal` configuration option)
 
-    Example: '/dev/vdb /var/tmp/test-osd'
+- `blacklist`: like `disks` but blacklisted (see action `blacklist-add-disk`)
 
-blacklist-remove-disk
----------------------
-Remove disk(s) from blacklist.
+- `non-pristine`: like `disks` but not eligible for use due to the presence of
+  existing data
 
-#### Parameters
-- `osd-devices` (required)
-  - A space-separated list of devices to remove from blacklist.
+Example:
 
-    Each element should be a existing entry in the units blacklist.
-    Use list-disks action to list current blacklist entries.
+    juju run-action --wait ceph-osd/4 list-disks
 
-    Example: '/dev/vdb /var/tmp/test-osd'
+### add-disk
 
-zap-disk
---------
-Purge disk of all data and signatures for use by Ceph
+Add a disk to a unit.
 
-This action can be necessary in cases where a Ceph cluster is being
-redeployed as the charm defaults to skipping disks that look like Ceph
-devices in order to preserve data. In order to forcibly redeploy, the
-admin is required to perform this action for each disk to be re-consumed.
+A ceph-osd unit is automatically assigned OSD volumes based on the current
+value of the `osd-devices` application option. The `add-disk` action allows the
+operator to manually add OSD volumes (for disks that are not listed by
+`osd-devices`) to an existing unit.
 
-In addition to triggering this action, it is required to pass an additional
-parameter option of `i-really-mean-it` to ensure that the
-administrator is aware that this *will* cause data loss on the specified
-device(s)
+**Parameters**
 
-#### Parameters
-- `devices` (required)
-  - A space-separated list of devices to remove the partition table from.
-- `i-really-mean-it` (required)
-  - This must be toggled to enable actually performing this action
+<!-- The next line has two trailing spaces. -->
 
-Contact Information
-===================
+- `osd-devices` (required)  
+  A space-separated list of devices to format and initialise as OSD volumes.
 
-Author: James Page <james.page@ubuntu.com>
-Report bugs at: http://bugs.launchpad.net/charm-ceph-osd/+filebug
-Location: http://jujucharms.com/ceph-osd
+<!-- The next line has two trailing spaces. -->
+
+- `bucket`  
+  The name of a Ceph bucket to add these devices to.
+
+Example:
+
+    juju run-action --wait ceph-osd/4 add-disk osd-devices=/dev/vde
+
+### blacklist-add-disk
+
+Add a disk to a unit's blacklist.
+
+The `blacklist-add-disk` action allows the operator to add disks (that are
+visible to the unit's underlying machine) to the unit's blacklist. A
+blacklisted device will not be initialised as an OSD volume when the value of
+the `osd-devices` application option changes. This action does not prevent a
+device from being activated via the `add-disk` action.
+
+Use the `list-disks` action to list the unit's blacklist entries.
+
+> **Important**: This action and blacklist do not have any effect on current
+  OSD volumes.
+
+**Parameters**
+
+<!-- The next line has two trailing spaces. -->
+
+- `osd-devices` (required)  
+  A space-separated list of devices to add to a unit's blacklist.
+
+Example:
+
+    juju run-action --wait ceph-osd/0 \
+       blacklist-add-disk osd-devices='/dev/vda /dev/vdf'
+
+### blacklist-remove-disk
+
+Remove a disk from a unit's blacklist.
+
+**Parameters**
+
+<!-- The next line has two trailing spaces. -->
+
+- `osd-devices` (required)  
+  A space-separated list of devices to remove from a unit's blacklist.
+
+Each device should have an existing entry in the unit's blacklist. Use the
+`list-disks` action to list the unit's blacklist entries.
+
+Example:
+
+    juju run-action --wait ceph-osd/1 \
+       blacklist-remove-disk osd-devices=/dev/vdb
+
+### zap-disk
+
+Purge a unit's disk of all data.
+
+In order to prevent unintentional data loss, the charm will not use a disk that
+has existing data already on it. To forcibly make a disk available, the
+`zap-disk` action can be used. Due to the destructive nature of this action the
+`i-really-mean-it` option must be passed. This action is normally followed by
+the `add-disk` action.
+
+**Parameters**
+
+<!-- The next line has two trailing spaces. -->
+
+- `devices` (required)  
+  A space-separated list of devices to be recycled.
+
+<!-- The next line has two trailing spaces. -->
+
+- `i-really-mean-it` (required)  
+  An option that acts as a confirmation for performing the action.
+
+Example:
+
+    juju run-action --wait ceph-osd/3 zap-disk i-really-mean-it devices=/dev/vdc
+
+# Bugs
+
+Please report bugs on [Launchpad][lp-bugs-charm-ceph-osd].
+
+For general charm questions refer to the OpenStack [Charm Guide][cg].
+
+<!-- LINKS -->
+
+[ceph-upstream]: https://ceph.io
+[cg]: https://docs.openstack.org/charm-guide
+[ceph-mon-charm]: https://jaas.ai/ceph-mon
+[vault-charm]: https://jaas.ai/vault
+[juju-docs-storage]: https://jaas.ai/docs/storage
+[juju-docs-actions]: https://jaas.ai/docs/actions
+[juju-docs-spaces]: https://jaas.ai/docs/spaces
+[ceph-docs-removing-osds]: https://docs.ceph.com/docs/master/rados/operations/add-or-rm-osds/
+[ceph-docs-network-ref]: http://docs.ceph.com/docs/master/rados/configuration/network-config-ref
+[lp-bugs-charm-ceph-osd]: https://bugs.launchpad.net/charm-ceph-osd/+filebug
+[cdg-install-openstack]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/install-openstack.html
