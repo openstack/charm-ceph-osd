@@ -35,6 +35,7 @@ with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
 TO_PATCH = [
     'config',
     'is_block_device',
+    'get_blacklist',
 ]
 
 
@@ -51,6 +52,7 @@ class GetDevicesTestCase(test_utils.CharmTestCase):
             os.path.join(self.tmp_dir, "device"): True,
         }
         self.is_block_device.side_effect = lambda x: self.bd.get(x, False)
+        self.get_blacklist.return_value = []
         self.addCleanup(shutil.rmtree, self.tmp_dir)
 
     def test_get_devices_empty(self):
