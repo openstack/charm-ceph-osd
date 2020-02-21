@@ -27,7 +27,7 @@ from charmhelpers.core.hookenv import (
     action_fail,
 )
 
-from ceph.utils import get_local_osd_ids
+from charms_ceph.utils import get_local_osd_ids
 from ceph_hooks import assess_status
 
 

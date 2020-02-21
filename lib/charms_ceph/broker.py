@@ -18,11 +18,11 @@ import os
 
 from tempfile import NamedTemporaryFile
 
-from ceph.utils import (
+from charms_ceph.utils import (
     get_cephfs,
     get_osd_weight
 )
-from ceph.crush_utils import Crushmap
+from charms_ceph.crush_utils import Crushmap
 
 from charmhelpers.core.hookenv import (
     log,

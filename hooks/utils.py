@@ -19,7 +19,7 @@ import subprocess
 import sys
 
 sys.path.append('lib')
-import ceph.utils as ceph
+import charms_ceph.utils as ceph
 
 from charmhelpers.core.hookenv import (
     unit_get,

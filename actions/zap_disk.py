@@ -27,8 +27,8 @@ from charmhelpers.contrib.storage.linux.utils import (
     zap_disk,
 )
 from charmhelpers.core.unitdata import kv
-from ceph.utils import is_active_bluestore_device
-from ceph.utils import is_mapped_luks_device
+from charms_ceph.utils import is_active_bluestore_device
+from charms_ceph.utils import is_mapped_luks_device
 
 
 def get_devices():

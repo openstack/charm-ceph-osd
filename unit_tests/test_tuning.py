@@ -1,7 +1,7 @@
 __author__ = 'Chris Holcombe <chris.holcombe@canonical.com>'
 from mock import patch, call
 import test_utils
-import ceph.utils as ceph
+import charms_ceph.utils as ceph
 
 TO_PATCH = [
     'hookenv',

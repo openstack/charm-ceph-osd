@@ -27,19 +27,19 @@ import charmhelpers.core.hookenv as hookenv
 from charmhelpers.core.unitdata import kv
 
 import ceph_hooks
-import ceph.utils
+import charms_ceph.utils
 
 
 def add_device(request, device_path, bucket=None):
-    ceph.utils.osdize(device_path, hookenv.config('osd-format'),
-                      ceph_hooks.get_journal_devices(),
-                      hookenv.config('ignore-device-errors'),
-                      hookenv.config('osd-encrypt'),
-                      hookenv.config('bluestore'),
-                      hookenv.config('osd-encrypt-keymanager'))
+    charms_ceph.utils.osdize(device_path, hookenv.config('osd-format'),
+                             ceph_hooks.get_journal_devices(),
+                             hookenv.config('ignore-device-errors'),
+                             hookenv.config('osd-encrypt'),
+                             hookenv.config('bluestore'),
+                             hookenv.config('osd-encrypt-keymanager'))
     # Make it fast!
     if hookenv.config('autotune'):
-        ceph.utils.tune_dev(device_path)
+        charms_ceph.utils.tune_dev(device_path)
     mounts = filter(lambda disk: device_path
                     in disk.device, psutil.disk_partitions())
     for osd in mounts:

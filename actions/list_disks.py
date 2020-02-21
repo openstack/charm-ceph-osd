@@ -36,7 +36,7 @@ sys.path.append('lib/')
 
 import charmhelpers.core.hookenv as hookenv
 
-import ceph.utils
+import charms_ceph.utils
 import utils
 
 
@@ -46,13 +46,15 @@ def list_disk():
     for journal in utils.get_journal_devices():
         osd_journal.append(os.path.realpath(journal))
 
-    for dev in list(set(ceph.utils.unmounted_disks()) - set(osd_journal)):
-        if (not ceph.utils.is_active_bluestore_device(dev) and
-                not ceph.utils.is_pristine_disk(dev)):
+    for dev in list(set(charms_ceph.utils.unmounted_disks()) -
+                    set(osd_journal)):
+        if (not charms_ceph.utils.is_active_bluestore_device(dev) and
+                not charms_ceph.utils.is_pristine_disk(dev)):
             non_pristine.append(dev)
 
     hookenv.action_set({
-        'disks': list(set(ceph.utils.unmounted_disks()) - set(osd_journal)),
+        'disks': list(set(charms_ceph.utils.unmounted_disks()) -
+                      set(osd_journal)),
         'blacklist': utils.get_blacklist(),
         'non-pristine': non_pristine,
     })

@@ -26,7 +26,7 @@ class AddDiskActionTests(CharmTestCase):
         self.kv.return_value = self.kv
 
     @mock.patch.object(add_disk.ceph_hooks, 'get_journal_devices')
-    @mock.patch.object(add_disk.ceph.utils, 'osdize')
+    @mock.patch.object(add_disk.charms_ceph.utils, 'osdize')
     def test_add_device(self, mock_osdize, mock_get_journal_devices):
 
         def fake_config(key):
