@@ -1372,6 +1372,8 @@ def create_keyrings():
         if not output:
             # NOTE: key not yet created, raise exception and retry
             raise Exception
+        # NOTE: octopus wants newline at end of file LP: #1864706
+        output += '\n'
         write_file(_client_admin_keyring, output,
                    owner=ceph_user(), group=ceph_user(),
                    perms=0o400)
