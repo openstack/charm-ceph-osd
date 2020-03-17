@@ -160,9 +160,10 @@ def handle_create_erasure_profile(request, service):
     # "host" | "rack" or it defaults to "host"  # Any valid Ceph bucket
     failure_domain = request.get('failure-domain')
     name = request.get('name')
-    k = request.get('k')
-    m = request.get('m')
-    l = request.get('l')
+    # Binary Distribution Matrix (BDM) parameters
+    bdm_k = request.get('k')
+    bdm_m = request.get('m')
+    bdm_l = request.get('l')
 
     if failure_domain not in CEPH_BUCKET_TYPES:
         msg = "failure-domain must be one of {}".format(CEPH_BUCKET_TYPES)
@@ -171,7 +172,8 @@ def handle_create_erasure_profile(request, service):
 
     create_erasure_profile(service=service, erasure_plugin_name=erasure_type,
                            profile_name=name, failure_domain=failure_domain,
-                           data_chunks=k, coding_chunks=m, locality=l)
+                           data_chunks=bdm_k, coding_chunks=bdm_m,
+                           locality=bdm_l)
 
 
 def handle_add_permissions_to_key(request, service):
@@ -556,7 +558,7 @@ def handle_set_pool_value(request, service):
 
     # Get the validation method
     validator_params = POOL_KEYS[params['key']]
-    if len(validator_params) is 1:
+    if len(validator_params) == 1:
         # Validate that what the user passed is actually legal per Ceph's rules
         validator(params['value'], validator_params[0])
     else:
