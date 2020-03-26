@@ -1,5 +1,7 @@
 charm_name: ceph-osd
 gate_bundles:
+  - focal-ussuri
+  - bionic-ussuri
   - bionic-train
   - bionic-stein
   - bionic-rocky
@@ -12,7 +14,6 @@ gate_bundles:
 smoke_bundles:
   - bionic-train
 dev_bundles:
-  - eoan-train
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
 tests:
@@ -20,3 +21,6 @@ tests:
   - zaza.openstack.charm_tests.ceph.tests.CephRelationTest
   - zaza.openstack.charm_tests.ceph.tests.CephTest
   - zaza.openstack.charm_tests.ceph.osd.tests.SecurityTest
+tests_options:
+  force_deploy:
+    - focal-ussuri
