@@ -93,8 +93,7 @@ from charmhelpers.contrib.network.ip import (
     format_ipv6_addr,
     get_relation_ip,
 )
-from charmhelpers.contrib.storage.linux.ceph import (
-    CephConfContext)
+import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 from charmhelpers.contrib.storage.linux.utils import (
     is_device_mounted,
     is_block_device,
@@ -435,7 +434,8 @@ def get_ceph_context(upgrading=False):
     # NOTE(dosaboy): these sections must correspond to what is supported in the
     #                config template.
     sections = ['global', 'osd']
-    cephcontext.update(CephConfContext(permitted_sections=sections)())
+    cephcontext.update(
+        ch_ceph.CephOSDConfContext(permitted_sections=sections)())
     return cephcontext
 
 
@@ -656,6 +656,9 @@ def mon_relation():
         import_osd_bootstrap_key(bootstrap_key)
         import_osd_upgrade_key(upgrade_key)
         prepare_disks_and_activate()
+        _, settings, _ = (ch_ceph.CephOSDConfContext()
+                          .filter_osd_from_mon_settings())
+        ceph.apply_osd_settings(settings)
     else:
         log('mon cluster has not yet provided conf')
 
