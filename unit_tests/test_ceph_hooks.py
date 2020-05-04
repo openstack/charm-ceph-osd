@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import OrderedDict
 import copy
 import unittest
 
@@ -54,6 +55,7 @@ class CephHooksTestCase(unittest.TestCase):
     def setUp(self):
         super(CephHooksTestCase, self).setUp()
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -82,6 +84,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -93,6 +97,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -123,6 +128,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -134,6 +141,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -163,6 +171,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -174,6 +184,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -209,6 +220,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -220,6 +233,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -232,6 +246,7 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph, 'config')
     @patch.object(ceph_hooks, 'config')
     def test_get_ceph_context_bluestore_old(self, mock_config, mock_config2):
+        self.maxDiff = None
         config = copy.deepcopy(CHARM_CONFIG)
         config['bluestore'] = True
         config['bluestore-block-wal-size'] = BLUESTORE_WAL_TEST_SIZE
@@ -252,6 +267,8 @@ class CephHooksTestCase(unittest.TestCase):
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -263,6 +280,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -288,11 +306,13 @@ class CephHooksTestCase(unittest.TestCase):
                     'loglevel': 1,
                     'mon_hosts': '10.0.0.1 10.0.0.2',
                     'old_auth': False,
-                    'osd': {'osd max write size': 1024},
+                    'osd': OrderedDict([('osd max write size', 1024)]),
                     'crush_initial_weight': '0',
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,
@@ -304,6 +324,7 @@ class CephHooksTestCase(unittest.TestCase):
                     'bluestore_block_db_size': 0}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
     @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
     @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
@@ -331,11 +352,13 @@ class CephHooksTestCase(unittest.TestCase):
                     'loglevel': 1,
                     'mon_hosts': '10.0.0.1 10.0.0.2',
                     'old_auth': False,
-                    'osd': {'osd max write size': 1024},
+                    'osd': OrderedDict([('osd max write size', 1024)]),
                     'crush_initial_weight': '0',
                     'osd_journal_size': 1024,
                     'osd_max_backfills': 1,
                     'osd_recovery_max_active': 2,
+                    'osd_from_client': OrderedDict(),
+                    'osd_from_client_conflict': OrderedDict(),
                     'public_addr': '10.0.0.1',
                     'short_object_len': True,
                     'upgrade_in_progress': False,

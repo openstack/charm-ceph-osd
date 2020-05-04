@@ -1113,6 +1113,7 @@ _default_caps = collections.OrderedDict([
 
 admin_caps = collections.OrderedDict([
     ('mds', ['allow *']),
+    ('mgr', ['allow *']),
     ('mon', ['allow *']),
     ('osd', ['allow *'])
 ])
@@ -2640,6 +2641,7 @@ def get_osd_state(osd_num, osd_goal_state=None):
             return osd_state
         if osd_state == osd_goal_state:
             return osd_state
+        time.sleep(3)
 
 
 def get_all_osd_states(osd_goal_states=None):
@@ -2898,6 +2900,7 @@ UPGRADE_PATHS = collections.OrderedDict([
     ('jewel', 'luminous'),
     ('luminous', 'mimic'),
     ('mimic', 'nautilus'),
+    ('nautilus', 'octopus'),
 ])
 
 # Map UCA codenames to ceph codenames
@@ -2914,6 +2917,7 @@ UCA_CODENAME_MAP = {
     'rocky': 'mimic',
     'stein': 'mimic',
     'train': 'nautilus',
+    'ussuri': 'octopus',
 }
 
 
@@ -3066,3 +3070,57 @@ def osd_noout(enable):
     except subprocess.CalledProcessError as e:
         log(e)
         raise
+
+
+class OSDConfigSetError(Exception):
+    """Error occured applying OSD settings."""
+    pass
+
+
+def apply_osd_settings(settings):
+    """Applies the provided osd settings
+
+    Apply the provided settings to all local OSD unless settings are already
+    present. Settings stop being applied on encountering an error.
+
+    :param settings: dict. Dictionary of settings to apply.
+    :returns: bool. True if commands ran succesfully.
+    :raises: OSDConfigSetError
+    """
+    current_settings = {}
+    base_cmd = 'ceph daemon osd.{osd_id} config --format=json'
+    get_cmd = base_cmd + ' get {key}'
+    set_cmd = base_cmd + ' set {key} {value}'
+
+    def _get_cli_key(key):
+        return(key.replace(' ', '_'))
+    # Retrieve the current values to check keys are correct and to make this a
+    # noop if setting are already applied.
+    for osd_id in get_local_osd_ids():
+        for key, value in sorted(settings.items()):
+            cli_key = _get_cli_key(key)
+            cmd = get_cmd.format(osd_id=osd_id, key=cli_key)
+            out = json.loads(
+                subprocess.check_output(cmd.split()).decode('UTF-8'))
+            if 'error' in out:
+                log("Error retrieving osd setting: {}".format(out['error']),
+                    level=ERROR)
+                return False
+            current_settings[key] = out[cli_key]
+        settings_diff = {
+            k: v
+            for k, v in settings.items()
+            if str(v) != str(current_settings[k])}
+        for key, value in sorted(settings_diff.items()):
+            log("Setting {} to {}".format(key, value), level=DEBUG)
+            cmd = set_cmd.format(
+                osd_id=osd_id,
+                key=_get_cli_key(key),
+                value=value)
+            out = json.loads(
+                subprocess.check_output(cmd.split()).decode('UTF-8'))
+            if 'error' in out:
+                log("Error applying osd setting: {}".format(out['error']),
+                    level=ERROR)
+                raise OSDConfigSetError
+    return True
