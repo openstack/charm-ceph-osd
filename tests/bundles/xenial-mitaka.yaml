@@ -1,7 +1,7 @@
 series: xenial
 applications:
   ceph-osd:
-    charm: ceph-osd
+    charm: ../../../ceph-osd
     num_units: 3
     series: xenial
     storage:
