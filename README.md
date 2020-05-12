@@ -178,11 +178,24 @@ options `osd-encrypt` and `osd-encrypt-keymanager` for the ceph-osd charm:
 ## Actions
 
 This section covers Juju [actions][juju-docs-actions] supported by the charm.
-Actions allow specific operations to be performed on a per-unit basis.
+Actions allow specific operations to be performed on a per-unit basis. To
+display action descriptions run `juju actions ceph-osd`. If the charm is not
+deployed then see file `actions.yaml`.
 
-### osd-out
+* `add-disk`
+* `blacklist-add-disk`
+* `blacklist-remove-disk`
+* `list-disks`
+* `osd-in`
+* `osd-out`
+* `security-checklist`
+* `zap-disk`
 
-Set as 'out' all OSD volumes on a unit.
+## Working with OSDs
+
+### Set OSDs to 'out'
+
+Use the `osd-out` action to set all OSD volumes on a unit to 'out'.
 
 > **Warning**: This action has the potential of impacting your cluster
   significantly. The [Ceph documentation][ceph-docs-removing-osds] on this
@@ -213,9 +226,9 @@ Example:
 
     juju run-action --wait ceph-osd/4 osd-out
 
-### osd-in
+### Set OSDs to 'in'
 
-Set as 'in' all OSD volumes on a unit.
+Use the `osd-in` action to set all OSD volumes on a unit to 'in'.
 
 The `osd-in` action is reciprocal to the `osd-out` action. The OSDs are set to
 'in'. It is typically used when the `osd-out` action was used in conjunction
@@ -225,12 +238,13 @@ Example:
 
     juju run-action --wait ceph-osd/4 osd-in
 
-### list-disks
+## Working with disks
 
-List disks known to a unit.
+### List disks
 
-The `list-disks` action lists the unit's block devices by categorising them in
-three ways:
+Use the `list-disks` action to list disks known to a unit.
+
+The action lists the unit's block devices by categorising them in three ways:
 
 - `disks`: visible (known by udev), unused (not mounted), and not designated as
   an OSD journal (via the `osd-journal` configuration option)
@@ -244,9 +258,9 @@ Example:
 
     juju run-action --wait ceph-osd/4 list-disks
 
-### add-disk
+### Add a disk
 
-Add a disk to a unit.
+Use the `add-disk` action to add a disk to a unit.
 
 A ceph-osd unit is automatically assigned OSD volumes based on the current
 value of the `osd-devices` application option. The `add-disk` action allows the
@@ -269,15 +283,15 @@ Example:
 
     juju run-action --wait ceph-osd/4 add-disk osd-devices=/dev/vde
 
-### blacklist-add-disk
+### Blacklist a disk
 
-Add a disk to a unit's blacklist.
+Use the `blacklist-add-disk` action to add a disk to a unit's blacklist.
 
-The `blacklist-add-disk` action allows the operator to add disks (that are
-visible to the unit's underlying machine) to the unit's blacklist. A
-blacklisted device will not be initialised as an OSD volume when the value of
-the `osd-devices` application option changes. This action does not prevent a
-device from being activated via the `add-disk` action.
+The action allows the operator to add disks (that are visible to the unit's
+underlying machine) to the unit's blacklist. A blacklisted device will not be
+initialised as an OSD volume when the value of the `osd-devices` application
+option changes. This action does not prevent a device from being activated via
+the `add-disk` action.
 
 Use the `list-disks` action to list the unit's blacklist entries.
 
@@ -296,9 +310,10 @@ Example:
     juju run-action --wait ceph-osd/0 \
        blacklist-add-disk osd-devices='/dev/vda /dev/vdf'
 
-### blacklist-remove-disk
+### Un-blacklist a disk
 
-Remove a disk from a unit's blacklist.
+Use the `blacklist-remove-disk` action to remove a disk from a unit's
+blacklist.
 
 **Parameters**
 
@@ -315,9 +330,9 @@ Example:
     juju run-action --wait ceph-osd/1 \
        blacklist-remove-disk osd-devices=/dev/vdb
 
-### zap-disk
+### Zap a disk
 
-Purge a unit's disk of all data.
+Use the `zap-disk` action to purge a disk of all data.
 
 In order to prevent unintentional data loss, the charm will not use a disk that
 has existing data already on it. To forcibly make a disk available, the
