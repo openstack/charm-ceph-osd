@@ -1957,6 +1957,9 @@ def _allocate_logical_volume(dev, lv_type, osd_fsid,
     vg_name = None
     if not lvm.is_lvm_physical_volume(pv_dev):
         lvm.create_lvm_physical_volume(pv_dev)
+        if not os.path.exists(pv_dev):
+            # NOTE: trigger rescan to work around bug 1878752
+            rescan_osd_devices()
         if shared:
             vg_name = 'ceph-{}-{}'.format(lv_type,
                                           str(uuid.uuid4()))
