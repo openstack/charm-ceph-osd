@@ -1481,11 +1481,11 @@ def get_devices(name):
     :returns: Set(device names), which are strings
     """
     if config(name):
-        devices = [l.strip() for l in config(name).split(' ')]
+        devices = [dev.strip() for dev in config(name).split(' ')]
     else:
         devices = []
     storage_ids = storage_list(name)
-    devices.extend((storage_get('location', s) for s in storage_ids))
+    devices.extend((storage_get('location', sid) for sid in storage_ids))
     devices = filter(os.path.exists, devices)
 
     return set(devices)
