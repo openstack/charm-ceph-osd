@@ -112,3 +112,5 @@ relations:
   - keystone
 - - placement
   - nova-cloud-controller
+- - cinder-ceph:ceph-access
+  - nova-compute:ceph-access

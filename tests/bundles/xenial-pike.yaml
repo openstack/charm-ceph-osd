@@ -102,3 +102,5 @@ relations:
   - nova-compute:cloud-compute
 - - nova-cloud-controller:image-service
   - glance:image-service
+- - cinder-ceph:ceph-access
+  - nova-compute:ceph-access
