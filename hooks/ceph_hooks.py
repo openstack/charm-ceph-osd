@@ -673,6 +673,9 @@ def upgrade_charm():
     install_udev_rules()
     remap_resolved_targets()
     maybe_refresh_nrpe_files()
+    # NOTE(jamespage): https://pad.lv/1861996
+    # ensure number of bootstrapped OSD's is presented to ceph-mon
+    prepare_disks_and_activate()
 
 
 def remap_resolved_targets():
