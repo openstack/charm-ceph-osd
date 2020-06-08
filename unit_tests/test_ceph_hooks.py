@@ -17,7 +17,7 @@ from collections import OrderedDict
 import copy
 import unittest
 
-from mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock, call
 
 import charmhelpers.contrib.storage.linux.ceph as ceph
 

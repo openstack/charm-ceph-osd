@@ -1,4 +1,4 @@
-from mock import call, patch
+from unittest.mock import call, patch
 from test_utils import CharmTestCase
 from ceph_hooks import check_for_upgrade, notify_mon_of_upgrade
 

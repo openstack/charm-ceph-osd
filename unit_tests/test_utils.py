@@ -19,7 +19,7 @@ import sys
 import yaml
 
 from contextlib import contextmanager
-from mock import patch, MagicMock
+from unittest.mock import patch, MagicMock
 
 # python-apt is not installed as part of test-requirements but is imported by
 # some charmhelpers modules so create a fake import.

@@ -15,7 +15,7 @@
 
 import unittest
 
-from mock import patch
+from unittest.mock import patch
 
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:

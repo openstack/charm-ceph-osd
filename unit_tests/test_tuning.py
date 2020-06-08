@@ -1,5 +1,5 @@
 __author__ = 'Chris Holcombe <chris.holcombe@canonical.com>'
-from mock import patch, call
+from unittest.mock import patch, call
 import test_utils
 import charms_ceph.utils as ceph
 
