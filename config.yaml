@@ -19,7 +19,7 @@ options:
     type: string
     default:
     description: |
-      Key ID to import to the apt keyring to support use with arbitary source
+      Key ID to import to the apt keyring to support use with arbitrary source
       configuration from outside of Launchpad archives or PPA's.
   use-syslog:
     type: boolean
@@ -222,7 +222,7 @@ options:
     type: string
     default:
     description: |
-      Cloud instances provide ephermeral storage which is normally mounted
+      Cloud instances provide ephemeral storage which is normally mounted
       on /mnt.
       .
       Setting this option to the path of the ephemeral mountpoint will force
@@ -291,7 +291,6 @@ options:
   nagios_context:
     type: string
     default: "juju"
-    type: string
     description: |
       Used by the nrpe-external-master subordinate charm.
       A string that will be prepended to instance name to set the hostname
