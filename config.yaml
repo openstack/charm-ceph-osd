@@ -317,8 +317,11 @@ options:
       Enabling this option will attempt to tune your network card sysctls and
       hard drive settings. This changes hard drive read ahead settings and
       max_sectors_kb. For the network card this will detect the link speed
-      and make appropriate sysctl changes. Enabling this option should
-      generally be safe.
+      and make appropriate sysctl changes.
+      WARNING: This option is DEPRECATED and will be removed in the next release.
+      Exercise caution when enabling this feature; examine and
+      confirm sysctl values are appropriate for your environment. See
+      http://pad.lv/1798794 for a full discussion.
   aa-profile-mode:
     type: string
     default: 'disable'

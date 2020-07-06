@@ -316,6 +316,8 @@ def install():
     apt_update(fatal=True)
     apt_install(packages=ceph.determine_packages(), fatal=True)
     if config('autotune'):
+        log('The autotune config is deprecated and planned '
+            'for removal in the next release.', level=WARNING)
         tune_network_adapters()
     install_udev_rules()
 
@@ -547,6 +549,8 @@ def prepare_disks_and_activate():
                         config('osd-encrypt-keymanager'))
             # Make it fast!
             if config('autotune'):
+                log('The autotune config is deprecated and planned '
+                    'for removal in the next release.', level=WARNING)
                 ceph.tune_dev(dev)
         ceph.start_osds(get_devices())
 
