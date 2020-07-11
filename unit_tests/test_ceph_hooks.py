@@ -634,6 +634,7 @@ class CephHooksTestCase(unittest.TestCase):
             self.assertEqual(ceph_hooks.get_bdev_enable_discard(), expected)
 
 
+@patch.object(ceph_hooks, 'local_unit')
 @patch.object(ceph_hooks, 'relation_get')
 @patch.object(ceph_hooks, 'relation_set')
 @patch.object(ceph_hooks, 'prepare_disks_and_activate')
@@ -646,7 +647,9 @@ class SecretsStorageTestCase(unittest.TestCase):
                                              _get_relation_ip,
                                              _prepare_disks_and_activate,
                                              _relation_set,
-                                             _relation_get):
+                                             _relation_get,
+                                             _local_unit):
+        _local_unit.return_value = 'ceph-osd/0'
         _get_relation_ip.return_value = '10.23.1.2'
         _socket.gethostname.return_value = 'testhost'
         ceph_hooks.secrets_storage_joined()
@@ -656,6 +659,7 @@ class SecretsStorageTestCase(unittest.TestCase):
             secret_backend='charm-vaultlocker',
             isolated=True,
             access_address='10.23.1.2',
+            unit_name='ceph-osd/0',
             hostname='testhost'
         )
         _socket.gethostname.assert_called_once_with()
@@ -665,7 +669,9 @@ class SecretsStorageTestCase(unittest.TestCase):
                                               _get_relation_ip,
                                               _prepare_disks_and_activate,
                                               _relation_set,
-                                              _relation_get):
+                                              _relation_get,
+                                              _local_unit):
+        _local_unit.return_value = 'ceph-osd/0'
         _relation_get.return_value = None
         ceph_hooks.secrets_storage_changed()
         _prepare_disks_and_activate.assert_called_once_with()

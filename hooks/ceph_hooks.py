@@ -40,6 +40,7 @@ from charmhelpers.core.hookenv import (
     relation_set,
     relations_of_type,
     Hooks,
+    local_unit,
     UnregisteredHookError,
     service_name,
     status_get,
@@ -769,6 +770,7 @@ def secrets_storage_joined(relation_id=None):
                  secret_backend='charm-vaultlocker',
                  isolated=True,
                  access_address=get_relation_ip('secrets-storage'),
+                 unit_name=local_unit(),
                  hostname=socket.gethostname())
 
 
