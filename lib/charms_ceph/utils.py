@@ -2183,6 +2183,9 @@ def upgrade_monitor(new_version):
     log("Current ceph version is {}".format(current_version))
     log("Upgrading to: {}".format(new_version))
 
+    # Needed to determine if whether to stop/start ceph-mgr
+    luminous_or_later = cmp_pkgrevno('ceph-common', '12.2.0') >= 0
+
     try:
         add_source(config('source'), config('key'))
         apt_update(fatal=True)
@@ -2194,6 +2197,10 @@ def upgrade_monitor(new_version):
     try:
         if systemd():
             service_stop('ceph-mon')
+            log("restarting ceph-mgr.target maybe: {}"
+                .format(luminous_or_later))
+            if luminous_or_later:
+                service_stop('ceph-mgr.target')
         else:
             service_stop('ceph-mon-all')
         apt_install(packages=determine_packages(), fatal=True)
@@ -2217,7 +2224,13 @@ def upgrade_monitor(new_version):
               perms=0o755)
 
         if systemd():
-            service_start('ceph-mon')
+            service_restart('ceph-mon')
+            log("starting ceph-mgr.target maybe: {}".format(luminous_or_later))
+            if luminous_or_later:
+                # due to BUG: #1849874 we have to force a restart to get it to
+                # drop the previous version of ceph-manager and start the new
+                # one.
+                service_restart('ceph-mgr.target')
         else:
             service_start('ceph-mon-all')
     except subprocess.CalledProcessError as err:
