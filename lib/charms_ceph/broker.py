@@ -540,11 +540,13 @@ def handle_remove_cache_tier(request, service):
     pool.remove_cache_tier(cache_pool=cache_pool)
 
 
-def handle_set_pool_value(request, service):
+def handle_set_pool_value(request, service, coerce=False):
     """Sets an arbitrary pool value.
 
     :param request: dict of request operations and params
     :param service: The ceph client to run the command under.
+    :param coerce: Try to parse/coerce the value into the correct type.
+                   Used by the action code that only gets Str from Juju
     :returns: dict. exit-code and reason if not 0
     """
     # Set arbitrary pool values
@@ -558,6 +560,16 @@ def handle_set_pool_value(request, service):
 
     # Get the validation method
     validator_params = POOL_KEYS[params['key']]
+    # BUG: #1838650 - the function needs to try to coerce the value param to
+    # the type required for the validator to pass.  Note, if this blows, then
+    # the param isn't parsable to the correct type.
+    if coerce:
+        try:
+            params['value'] = validator_params[0](params['value'])
+        except ValueError:
+            raise RuntimeError("Value {} isn't of type {}"
+                               .format(params['value'], validator_params[0]))
+    # end of BUG: #1838650
     if len(validator_params) == 1:
         # Validate that what the user passed is actually legal per Ceph's rules
         validator(params['value'], validator_params[0])
