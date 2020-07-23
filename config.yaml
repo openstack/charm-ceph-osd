@@ -10,7 +10,8 @@ options:
       Optional configuration to support use of additional sources such as:
       .
         - ppa:myteam/ppa
-        - cloud:xenial-proposed/ocata
+        - cloud:bionic-ussuri
+        - cloud:xenial-proposed/queens
         - http://my.archive.com/ubuntu main
       .
       The last option should be used in conjunction with the key configuration
@@ -76,9 +77,10 @@ options:
     type: string
     default:
     description: |
-      The device to use as a shared journal drive for all OSD's. By default
-      a journal partition will be created on each OSD volume device for use by
-      that OSD.
+      The device to use as a shared journal drive for all OSDs on a node. By
+      default a journal partition will be created on each OSD volume device for
+      use by that OSD. The default behaviour is also the fallback for the case
+      where the specified journal device does not exist on a node.
       .
       Only supported with ceph >= 0.48.3.
   bluestore-wal:
