@@ -15,7 +15,7 @@
 import mock
 import test_utils
 
-from mock import patch
+from mock import MagicMock, patch
 
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -65,6 +65,8 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         self.status_set.assert_called_with('waiting', mock.ANY)
         self.application_version_set.assert_called_with('10.2.2')
 
+    @patch.object(hooks.ch_context, 'CephBlueStoreCompressionContext',
+                  lambda: MagicMock())
     def test_assess_status_monitor_complete_no_disks(self):
         self.relation_ids.return_value = ['mon:1']
         self.related_units.return_value = CEPH_MONS
@@ -74,6 +76,8 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         self.status_set.assert_called_with('blocked', mock.ANY)
         self.application_version_set.assert_called_with('10.2.2')
 
+    @patch.object(hooks.ch_context, 'CephBlueStoreCompressionContext',
+                  lambda: MagicMock())
     def test_assess_status_monitor_complete_disks(self):
         self.relation_ids.return_value = ['mon:1']
         self.related_units.return_value = CEPH_MONS
@@ -117,3 +121,14 @@ class ServiceStatusTestCase(test_utils.CharmTestCase):
         hooks.assess_status()
         self.status_set.assert_called_with('waiting', mock.ANY)
         self.application_version_set.assert_called_with('12.2.4')
+
+    @patch.object(hooks.ch_context, 'CephBlueStoreCompressionContext')
+    def test_assess_status_invalid_bluestore_compression_options(
+            self, _bluestore_compression):
+        self.relation_ids.return_value = ['mon:1']
+        self.related_units.return_value = CEPH_MONS
+        _bluestore_compression().validate.side_effect = ValueError(
+            'fake-config is invalid')
+        hooks.assess_status()
+        self.status_set.assert_called_with(
+            'blocked', 'Invalid configuration: fake-config is invalid')

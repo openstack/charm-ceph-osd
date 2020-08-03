@@ -123,8 +123,28 @@ def import_osd_upgrade_key(key):
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
+    """Render Jinja2 template.
+
+    In addition to the template directory specified by the caller the shared
+    'templates' directory in the ``charmhelpers.contrib.openstack`` module will
+    be searched.
+
+    :param template_name: Name of template file.
+    :type template_name: str
+    :param context: Template context.
+    :type context: Dict[str,any]
+    :param template_dir: Primary path to search for templates.
+                         (default: contents of the ``TEMPLATES_DIR`` global)
+    :type template_dir: Optional[str]
+    :returns: The rendered template
+    :rtype: str
+    """
     templates = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(template_dir))
+        loader=jinja2.ChoiceLoader((
+            jinja2.FileSystemLoader(template_dir),
+            jinja2.PackageLoader('charmhelpers.contrib.openstack',
+                                 'templates'),
+        )))
     template = templates.get_template(template_name)
     return template.render(context)
 
