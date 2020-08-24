@@ -6,6 +6,7 @@
 
 import os
 import subprocess
+from pwd import getpwnam
 
 # fasteners only exists in Bionic, so this will fail on xenial and trusty
 try:
@@ -70,6 +71,16 @@ def do_status():
     _tmp_file = os.path.join(NAGIOS_HOME, CRON_CHECK_TMPFILE)
     with open(_tmp_file, 'wt') as f:
         f.writelines(lines)
+
+    # In cis hardened environments check_ceph_osd_services cannot
+    # read _tmp_file due to restrained permissions (#LP1879667).
+    # Changing the owner of the file to nagios solves this problem.
+    # check_ceph_osd_services.py removes this file, so make
+    # sure that we change permissions on a file that exists.
+    nagios_uid = getpwnam('nagios').pw_uid
+    nagios_gid = getpwnam('nagios').pw_gid
+    if os.path.isfile(_tmp_file):
+        os.chown(_tmp_file, nagios_uid, nagios_gid)
 
 
 def run_main():
