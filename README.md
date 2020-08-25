@@ -57,32 +57,26 @@ be used in the `ceph-osd.yaml` configuration file:
 
 1. Block devices (regular)
 
-```yaml
-    ceph-osd:
-      options:
-        osd-devices: /dev/vdb /dev/vdc /dev/vdd
-```
+       ceph-osd:
+         options:
+           osd-devices: /dev/vdb /dev/vdc /dev/vdd
 
 Each regular block device must be an absolute path to a device node.
 
 2. Block devices (Juju storage)
 
-```yaml
-    ceph-osd:
-      storage:
-        osd-devices: cinder,20G
-```
+       ceph-osd:
+         storage:
+           osd-devices: cinder,20G
 
 See the [Juju documentation][juju-docs-storage] for guidance on implementing
 Juju storage.
 
 3. Directory-backed OSDs
 
-```yaml
-    ceph-osd:
-      storage:
-        osd-devices: /var/tmp/osd-1
-```
+       ceph-osd:
+         storage:
+           osd-devices: /var/tmp/osd-1
 
 > **Note**: OSD directories can no longer be created starting with Ceph
   Nautilus. Existing OSD directories will continue to function after an upgrade
@@ -398,7 +392,10 @@ the `add-disk` action.
 
 Example:
 
-    juju run-action --wait ceph-osd/3 zap-disk i-really-mean-it devices=/dev/vdc
+    juju run-action --wait ceph-osd/3 zap-disk i-really-mean-it=true devices=/dev/vdc
+
+> **Note**: The `zap-disk` action cannot be run on a mounted device, an active
+  Bluestore device, or an encrypted device.
 
 # Bugs
 
