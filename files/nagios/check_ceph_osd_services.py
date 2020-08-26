@@ -53,9 +53,9 @@ def run_main():
     # command in the collect phase does fail, and so the start of the line is
     # 'Failed'
     state = STATE_OK
-    for l in lines:
-        print(l, end='')
-        if l.startswith('Failed'):
+    for line in lines:
+        print(line, end='')
+        if line.startswith('Failed'):
             state = STATE_CRITICAL
 
     return state

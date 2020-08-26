@@ -245,7 +245,7 @@ def get_blacklist():
 
 def get_journal_devices():
     if config('osd-journal'):
-        devices = [l.strip() for l in config('osd-journal').split(' ')]
+        devices = [el.strip() for el in config('osd-journal').split(' ')]
     else:
         devices = []
     storage_ids = storage_list('osd-journals')
@@ -287,6 +287,6 @@ def is_sata30orless(device):
     result = subprocess.check_output(["/usr/sbin/smartctl", "-i", device])
     print(result)
     for line in str(result).split("\\n"):
-        if re.match("SATA Version is: *SATA (1\.|2\.|3\.0)", str(line)):
+        if re.match(r"SATA Version is: *SATA (1\.|2\.|3\.0)", str(line)):
             return True
     return False
