@@ -52,31 +52,31 @@ A storage device is destined as an OSD (Object Storage Device). There can be
 multiple OSDs per storage node (ceph-osd unit).
 
 The list of all possible storage devices for the cluster is defined by the
-`osd-devices` option (default value is '/dev/vdb'). The following examples can
-be used in the `ceph-osd.yaml` configuration file:
+`osd-devices` option (default value is '/dev/vdb'). The below examples can be
+used in the `ceph-osd.yaml` configuration file.
 
-1. Block devices (regular)
+Block devices (regular),
 
-       ceph-osd:
-         options:
-           osd-devices: /dev/vdb /dev/vdc /dev/vdd
+    ceph-osd:
+      options:
+        osd-devices: /dev/vdb /dev/vdc /dev/vdd
 
 Each regular block device must be an absolute path to a device node.
 
-2. Block devices (Juju storage)
+Block devices (Juju storage),
 
-       ceph-osd:
-         storage:
-           osd-devices: cinder,20G
+    ceph-osd:
+      storage:
+        osd-devices: cinder,20G
 
 See the [Juju documentation][juju-docs-storage] for guidance on implementing
 Juju storage.
 
-3. Directory-backed OSDs
+Directory-backed OSDs,
 
-       ceph-osd:
-         storage:
-           osd-devices: /var/tmp/osd-1
+    ceph-osd:
+      storage:
+        osd-devices: /var/tmp/osd-1
 
 > **Note**: OSD directories can no longer be created starting with Ceph
   Nautilus. Existing OSD directories will continue to function after an upgrade
