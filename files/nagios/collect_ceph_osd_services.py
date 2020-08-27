@@ -30,8 +30,8 @@ def lsb_release():
     """Return /etc/lsb-release in a dict"""
     d = {}
     with open('/etc/lsb-release', 'r') as lsb:
-        for l in lsb:
-            k, v = l.split('=')
+        for el in lsb:
+            k, v = el.split('=')
             d[k.strip()] = v.strip()
     return d
 

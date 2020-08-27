@@ -66,7 +66,7 @@ def zap():
                 len(failed_devices),
                 ", ".join(failed_devices))
         if not_block_devices:
-            if message is not '':
+            if len(message):
                 message += "\n\n"
             message += "{} devices are not block devices: {}".format(
                 len(not_block_devices),

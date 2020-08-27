@@ -63,6 +63,7 @@ def osd_in(args):
         check_call(cmd)
     assess_status()
 
+
 # A dictionary of all the defined actions to callables (which take
 # parsed arguments).
 ACTIONS = {"osd-out": osd_out, "osd-in": osd_in}
