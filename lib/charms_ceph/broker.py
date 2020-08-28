@@ -16,6 +16,7 @@ import collections
 import json
 import os
 
+from subprocess import check_call, check_output, CalledProcessError
 from tempfile import NamedTemporaryFile
 
 from charms_ceph.utils import (
@@ -41,18 +42,16 @@ from charmhelpers.contrib.storage.linux.ceph import (
     pool_set,
     remove_pool_snapshot,
     rename_pool,
-    set_pool_quota,
     snapshot_pool,
     validator,
     ErasurePool,
-    Pool,
+    BasePool,
     ReplicatedPool,
 )
 
 # This comes from http://docs.ceph.com/docs/master/rados/operations/pools/
 # This should do a decent job of preventing people from passing in bad values.
 # It will give a useful error message
-from subprocess import check_call, check_output, CalledProcessError
 
 POOL_KEYS = {
     # "Ceph Key Name": [Python type, [Valid Range]]
@@ -155,25 +154,47 @@ def handle_create_erasure_profile(request, service):
     :param service: The ceph client to run the command under.
     :returns: dict. exit-code and reason if not 0
     """
-    # "local" | "shec" or it defaults to "jerasure"
+    # "isa" | "lrc" | "shec" | "clay" or it defaults to "jerasure"
     erasure_type = request.get('erasure-type')
-    # "host" | "rack" or it defaults to "host"  # Any valid Ceph bucket
+    # dependent on erasure coding type
+    erasure_technique = request.get('erasure-technique')
+    # "host" | "rack" | ...
     failure_domain = request.get('failure-domain')
     name = request.get('name')
     # Binary Distribution Matrix (BDM) parameters
     bdm_k = request.get('k')
     bdm_m = request.get('m')
+    # LRC parameters
     bdm_l = request.get('l')
+    crush_locality = request.get('crush-locality')
+    # SHEC parameters
+    bdm_c = request.get('c')
+    # CLAY parameters
+    bdm_d = request.get('d')
+    scalar_mds = request.get('scalar-mds')
+    # Device Class
+    device_class = request.get('device-class')
 
-    if failure_domain not in CEPH_BUCKET_TYPES:
+    if failure_domain and failure_domain not in CEPH_BUCKET_TYPES:
         msg = "failure-domain must be one of {}".format(CEPH_BUCKET_TYPES)
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
-    create_erasure_profile(service=service, erasure_plugin_name=erasure_type,
-                           profile_name=name, failure_domain=failure_domain,
-                           data_chunks=bdm_k, coding_chunks=bdm_m,
-                           locality=bdm_l)
+    create_erasure_profile(service=service,
+                           erasure_plugin_name=erasure_type,
+                           profile_name=name,
+                           failure_domain=failure_domain,
+                           data_chunks=bdm_k,
+                           coding_chunks=bdm_m,
+                           locality=bdm_l,
+                           durability_estimator=bdm_d,
+                           helper_chunks=bdm_c,
+                           scalar_mds=scalar_mds,
+                           crush_locality=crush_locality,
+                           device_class=device_class,
+                           erasure_plugin_technique=erasure_technique)
+
+    return {'exit-code': 0}
 
 
 def handle_add_permissions_to_key(request, service):
@@ -383,21 +404,10 @@ def handle_erasure_pool(request, service):
     """
     pool_name = request.get('name')
     erasure_profile = request.get('erasure-profile')
-    max_bytes = request.get('max-bytes')
-    max_objects = request.get('max-objects')
-    weight = request.get('weight')
     group_name = request.get('group')
 
     if erasure_profile is None:
         erasure_profile = "default-canonical"
-
-    app_name = request.get('app-name')
-
-    # Check for missing params
-    if pool_name is None:
-        msg = "Missing parameter. name is required for the pool"
-        log(msg, level=ERROR)
-        return {'exit-code': 1, 'stderr': msg}
 
     if group_name:
         group_namespace = request.get('group-namespace')
@@ -414,19 +424,22 @@ def handle_erasure_pool(request, service):
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
-    pool = ErasurePool(service=service, name=pool_name,
-                       erasure_code_profile=erasure_profile,
-                       percent_data=weight, app_name=app_name)
+    try:
+        pool = ErasurePool(service=service,
+                           op=request)
+    except KeyError:
+        msg = "Missing parameter."
+        log(msg, level=ERROR)
+        return {'exit-code': 1, 'stderr': msg}
+
     # Ok make the erasure pool
     if not pool_exists(service=service, name=pool_name):
         log("Creating pool '{}' (erasure_profile={})"
             .format(pool.name, erasure_profile), level=INFO)
         pool.create()
 
-    # Set a quota if requested
-    if max_bytes or max_objects:
-        set_pool_quota(service=service, pool_name=pool_name,
-                       max_bytes=max_bytes, max_objects=max_objects)
+    # Set/update properties that are allowed to change after pool creation.
+    pool.update()
 
 
 def handle_replicated_pool(request, service):
@@ -437,26 +450,19 @@ def handle_replicated_pool(request, service):
     :returns: dict. exit-code and reason if not 0.
     """
     pool_name = request.get('name')
-    replicas = request.get('replicas')
-    max_bytes = request.get('max-bytes')
-    max_objects = request.get('max-objects')
-    weight = request.get('weight')
     group_name = request.get('group')
 
     # Optional params
+    # NOTE: Check this against the handling in the Pool classes, reconcile and
+    # remove.
     pg_num = request.get('pg_num')
+    replicas = request.get('replicas')
     if pg_num:
         # Cap pg_num to max allowed just in case.
         osds = get_osds(service)
         if osds:
             pg_num = min(pg_num, (len(osds) * 100 // replicas))
-
-    app_name = request.get('app-name')
-    # Check for missing params
-    if pool_name is None or replicas is None:
-        msg = "Missing parameter. name and replicas are required"
-        log(msg, level=ERROR)
-        return {'exit-code': 1, 'stderr': msg}
+            request.update({'pg_num': pg_num})
 
     if group_name:
         group_namespace = request.get('group-namespace')
@@ -465,18 +471,14 @@ def handle_replicated_pool(request, service):
                           group=group_name,
                           namespace=group_namespace)
 
-    kwargs = {}
-    if pg_num:
-        kwargs['pg_num'] = pg_num
-    if weight:
-        kwargs['percent_data'] = weight
-    if replicas:
-        kwargs['replicas'] = replicas
-    if app_name:
-        kwargs['app_name'] = app_name
+    try:
+        pool = ReplicatedPool(service=service,
+                              op=request)
+    except KeyError:
+        msg = "Missing parameter."
+        log(msg, level=ERROR)
+        return {'exit-code': 1, 'stderr': msg}
 
-    pool = ReplicatedPool(service=service,
-                          name=pool_name, **kwargs)
     if not pool_exists(service=service, name=pool_name):
         log("Creating pool '{}' (replicas={})".format(pool.name, replicas),
             level=INFO)
@@ -485,10 +487,8 @@ def handle_replicated_pool(request, service):
         log("Pool '{}' already exists - skipping create".format(pool.name),
             level=DEBUG)
 
-    # Set a quota if requested
-    if max_bytes or max_objects:
-        set_pool_quota(service=service, pool_name=pool_name,
-                       max_bytes=max_bytes, max_objects=max_objects)
+    # Set/update properties that are allowed to change after pool creation.
+    pool.update()
 
 
 def handle_create_cache_tier(request, service):
@@ -515,7 +515,7 @@ def handle_create_cache_tier(request, service):
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
-    p = Pool(service=service, name=storage_pool)
+    p = BasePool(service=service, name=storage_pool)
     p.add_cache_tier(cache_pool=cache_pool, mode=cache_mode)
 
 
@@ -536,7 +536,7 @@ def handle_remove_cache_tier(request, service):
         log(msg, level=ERROR)
         return {'exit-code': 1, 'stderr': msg}
 
-    pool = Pool(name=storage_pool, service=service)
+    pool = BasePool(name=storage_pool, service=service)
     pool.remove_cache_tier(cache_pool=cache_pool)
 
 

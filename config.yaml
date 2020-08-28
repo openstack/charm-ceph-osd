@@ -335,3 +335,122 @@ options:
       cluster as all ceph-osd processes must be restarted as part of changing
       the apparmor profile enforcement mode.  Always test in pre-production
       before enabling AppArmor on a live cluster.
+  bluestore-compression-algorithm:
+    type: string
+    default: lz4
+    description: |
+      The default compressor to use (if any) if the per-pool property
+      compression_algorithm is not set.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-mode:
+    type: string
+    default:
+    description: |
+      The default policy for using compression if the per-pool property
+      compression_mode is not set. 'none' means never use compression.
+      'passive' means use compression when clients hint that data is
+      compressible. 'aggressive' means use compression unless clients hint that
+      data is not compressible. 'force' means use compression under all
+      circumstances even if the clients hint that the data is not compressible.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-required-ratio:
+    type: float
+    default:
+    description: |
+      The ratio of the size of the data chunk after compression relative to the
+      original size must be at least this small in order to store the
+      compressed version. The per-pool property `compression-required-ratio`
+      overrides this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-min-blob-size:
+    type: int
+    default:
+    description: |
+      Chunks smaller than this are never compressed. The per-pool property
+      `compression_min_blob_size` overrides this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-min-blob-size-hdd:
+    type: int
+    default:
+    description: |
+      Default value of bluestore compression min blob size for rotational
+      media. The per-pool property `compression-min-blob-size-hdd` overrides
+      this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-min-blob-size-ssd:
+    type: int
+    default:
+    description: |
+      Default value of bluestore compression min blob size for solid state
+      media. The per-pool property `compression-min-blob-size-ssd` overrides
+      this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-max-blob-size:
+    type: int
+    default:
+    description: |
+      Chunks larger than this are broken into smaller blobs sizing bluestore
+      compression max blob size before being compressed. The per-pool property
+      `compression_max_blob_size` overrides this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-max-blob-size-hdd:
+    type: int
+    default:
+    description: |
+      Default value of bluestore compression max blob size for rotational
+      media. The per-pool property `compression-max-blob-size-hdd` overrides
+      this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.
+  bluestore-compression-max-blob-size-ssd:
+    type: int
+    default:
+    description: |
+      Default value of bluestore compression max blob size for solid state
+      media. The per-pool property `compression-max-blob-size-ssd` overrides
+      this setting.
+      .
+      NOTE: The recommended approach is to adjust this configuration option on
+      the charm responsible for creating the specific pool you are interested
+      in tuning. Changing the configuration option on the ceph-osd charm will
+      affect ALL pools on the OSDs managed by the named application of the
+      ceph-osd charm in the Juju model.

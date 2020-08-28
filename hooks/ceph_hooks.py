@@ -70,6 +70,7 @@ from charmhelpers.fetch import (
     get_upstream_version,
 )
 from charmhelpers.core.sysctl import create as create_sysctl
+import charmhelpers.contrib.openstack.context as ch_context
 from charmhelpers.contrib.openstack.context import (
     AppArmorContext,
 )
@@ -439,6 +440,8 @@ def get_ceph_context(upgrading=False):
     sections = ['global', 'osd']
     cephcontext.update(
         ch_ceph.CephOSDConfContext(permitted_sections=sections)())
+    cephcontext.update(
+        ch_context.CephBlueStoreCompressionContext()())
     return cephcontext
 
 
@@ -853,6 +856,12 @@ def assess_status():
         get_bdev_enable_discard()
     except ValueError as ex:
         status_set('blocked', str(ex))
+
+    try:
+        bluestore_compression = ch_context.CephBlueStoreCompressionContext()
+        bluestore_compression.validate()
+    except ValueError as e:
+        status_set('blocked', 'Invalid configuration: {}'.format(str(e)))
 
 
 @hooks.hook('update-status')
