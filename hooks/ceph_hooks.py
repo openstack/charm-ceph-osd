@@ -23,6 +23,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import traceback
 
 sys.path.append('lib')
 import charms_ceph.utils as ceph
@@ -825,9 +826,15 @@ def assess_status():
         if not relation_ids('secrets-storage'):
             status_set('blocked', 'Missing relation: vault')
             return
-        if not vaultlocker.vault_relation_complete():
-            status_set('waiting', 'Incomplete relation: vault')
-            return
+        try:
+            if not vaultlocker.vault_relation_complete():
+                status_set('waiting', 'Incomplete relation: vault')
+                return
+        except Exception as e:
+            status_set('blocked', "Warning: couldn't verify vault relation")
+            log("Exception when verifying vault relation - maybe it was "
+                "offline?:\n{}".format(str(e)))
+            log("Traceback: {}".format(traceback.format_exc()))
 
     # Check for OSD device creation parity i.e. at least some devices
     # must have been presented and used for this charm to be operational
