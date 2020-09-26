@@ -58,6 +58,7 @@ from charmhelpers.core.hookenv import (
     status_set,
     network_get_primary_address,
     WARNING,
+    service_name,
 )
 
 from charmhelpers.core.sysctl import create as sysctl_create
@@ -809,6 +810,12 @@ class CephContext(OSContextGenerator):
                     mon_hosts.append(format_ipv6_addr(priv_addr) or priv_addr)
 
         ctxt['mon_hosts'] = ' '.join(sorted(mon_hosts))
+
+        if config('pool-type') and config('pool-type') == 'erasure-coded':
+            base_pool_name = config('rbd-pool') or config('rbd-pool-name')
+            if not base_pool_name:
+                base_pool_name = service_name()
+            ctxt['rbd_default_data_pool'] = base_pool_name
 
         if not os.path.isdir('/etc/ceph'):
             os.mkdir('/etc/ceph')
@@ -3237,6 +3244,18 @@ class CephBlueStoreCompressionContext(OSContextGenerator):
         :rtype: Dict[str,any]
         """
         return self.op
+
+    def get_kwargs(self):
+        """Get values for use as keyword arguments.
+
+        :returns: Context values with key suitable for use as kwargs to
+                  CephBrokerRq add_op_create_*_pool methods.
+        :rtype: Dict[str,any]
+        """
+        return {
+            k.replace('-', '_'): v
+            for k, v in self.op.items()
+        }
 
     def validate(self):
         """Validate options.

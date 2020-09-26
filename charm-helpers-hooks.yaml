@@ -23,3 +23,4 @@ include:
     - contrib.charmsupport
     - contrib.hardening|inc=*
     - contrib.openstack.policyd
+    - contrib.openstack.templates|inc=*/section-ceph-bluestore-compression

@@ -750,6 +750,7 @@ def handle_create_cephfs(request, service):
     """
     cephfs_name = request.get('mds_name')
     data_pool = request.get('data_pool')
+    extra_pools = request.get('extra_pools', [])
     metadata_pool = request.get('metadata_pool')
     # Check if the user params were provided
     if not cephfs_name or not data_pool or not metadata_pool:
@@ -758,14 +759,12 @@ def handle_create_cephfs(request, service):
         return {'exit-code': 1, 'stderr': msg}
 
     # Sanity check that the required pools exist
-    if not pool_exists(service=service, name=data_pool):
-        msg = "CephFS data pool does not exist.  Cannot create CephFS"
-        log(msg, level=ERROR)
-        return {'exit-code': 1, 'stderr': msg}
-    if not pool_exists(service=service, name=metadata_pool):
-        msg = "CephFS metadata pool does not exist.  Cannot create CephFS"
-        log(msg, level=ERROR)
-        return {'exit-code': 1, 'stderr': msg}
+    for pool_name in [data_pool, metadata_pool] + extra_pools:
+        if not pool_exists(service=service, name=pool_name):
+            msg = "CephFS pool {} does not exist. Cannot create CephFS".format(
+                pool_name)
+            log(msg, level=ERROR)
+            return {'exit-code': 1, 'stderr': msg}
 
     if get_cephfs(service=service):
         # CephFS new has already been called
@@ -784,6 +783,14 @@ def handle_create_cephfs(request, service):
             log("CephFS already created")
             return
         else:
+            log(err.output, level=ERROR)
+            return {'exit-code': 1, 'stderr': err.output}
+    for pool_name in extra_pools:
+        cmd = ["ceph", '--id', service, "fs", "add_data_pool", cephfs_name,
+               pool_name]
+        try:
+            check_output(cmd)
+        except CalledProcessError as err:
             log(err.output, level=ERROR)
             return {'exit-code': 1, 'stderr': err.output}
 
