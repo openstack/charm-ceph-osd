@@ -84,5 +84,25 @@ zap-disk:
   required:
     - devices
     - i-really-mean-it
+start:
+  description: |
+    \
+        Start OSD by ID
+        Documentation: https://jaas.ai/ceph-osd/
+  params:
+    osds:
+      description: A comma-separated list of OSD IDs to start (or keyword 'all')
+  required:
+    - osds
+stop:
+  description: |
+    \
+        Stop OSD by ID
+        Documentation: https://jaas.ai/ceph-osd/
+  params:
+    osds:
+      description: A comma-separated list of OSD IDs to stop (or keyword 'all')
+  required:
+    - osds
 security-checklist:
   description: Validate the running configuration against the OpenStack security guides checklist

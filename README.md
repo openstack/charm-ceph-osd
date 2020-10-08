@@ -244,6 +244,8 @@ deployed then see file `actions.yaml`.
 * `osd-in`
 * `osd-out`
 * `security-checklist`
+* `start`
+* `stop`
 * `zap-disk`
 
 ## Working with OSDs
@@ -292,6 +294,25 @@ with the cluster 'noout' flag.
 Example:
 
     juju run-action --wait ceph-osd/4 osd-in
+
+### Managing ceph OSDs
+
+Use the `stop` and `start` actions to manage ceph OSD services within the unit.
+Both actions take one parameter, `osds`, which should contain comma-separated
+numerical IDs of `ceph-osd` services or the keyword `all`.
+
+Example:
+
+    # stop ceph-osd@0 and ceph-osd@1
+    juju run-action --wait ceph-osd/0 stop osds=0,1
+    # start all ceph-osd services on the unit
+    juju run-action --wait ceph-osd/0 start osds=all
+
+ > **Note**: Stopping ceph-osd services will put the unit into the blocked
+ state.
+ 
+ > **Important**: This action is not available on Trusty due to reliance on
+ systemd.
 
 ## Working with disks
 
