@@ -83,6 +83,15 @@ options:
       where the specified journal device does not exist on a node.
       .
       Only supported with ceph >= 0.48.3.
+  bluestore:
+    type: boolean
+    default: True
+    description: |
+      Enable BlueStore storage backend for OSD devices.
+      .
+      Only supported with ceph >= 12.2.0.
+      .
+      Setting to 'False' will use FileStore as the storage format.
   bluestore-wal:
     type: string
     default:
@@ -128,7 +137,6 @@ options:
       .
       A default value is not set as it is calculated by ceph-disk (before Luminous)
       or the charm itself, when ceph-volume is used (Luminous and above).
-
   bluestore-block-db-size:
     type: int
     default: 0
@@ -141,24 +149,22 @@ options:
       .
       A default value is not set as it is calculated by ceph-disk (before Luminous)
       or the charm itself, when ceph-volume is used (Luminous and above).
-
   osd-format:
     type: string
     default: xfs
     description: |
-      Format of filesystem to use for OSD devices; supported formats include:
+      Format of filesystem to use for OSD devices. Supported formats include:
       .
-        xfs (Default >= 0.48.3)
-        ext4 (Only option < 0.48.3)
+        xfs (Default with >= ceph 0.48.3)
+        ext4 (Only option < ceph 0.48.3)
         btrfs (experimental and not recommended)
       .
-      Only supported with ceph >= 0.48.3.
-  bluestore:
-    type: boolean
-    default: True
-    description: |
-      Enable bluestore storage format for OSD devices; Only applies for Ceph
-      Luminous or later.
+      Only supported with >= ceph 0.48.3.
+      .
+      Used with FileStore storage backend.
+      .
+      Always applies prior to ceph 12.2.0. Otherwise, only applies when the
+      "bluestore" option is False.
   osd-encrypt:
     type: boolean
     default: False

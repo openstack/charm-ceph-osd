@@ -18,6 +18,17 @@ default values. A YAML file (e.g. `ceph-osd.yaml`) is often used to store
 configuration options. See the [Juju documentation][juju-docs-config-apps] for
 details on configuring applications.
 
+#### `bluestore`
+
+The `bluestore` option specifies whether the
+[BlueStore][upstream-ceph-bluestore] storage backend is used for all OSD
+devices. The feature is enabled by default (value 'True'). If set to 'True',
+this option overrides the `osd-format` option as BlueStore does not use a
+traditional filesystem.
+
+> **Important**: This option has no effect unless Ceph Luminous (or greater) is
+  in use.
+
 #### `customize-failure-domain`
 
 The `customize-failure-domain` option determines how a Ceph CRUSH map is
@@ -37,6 +48,12 @@ for both charms.
 The `osd-devices` option lists what block devices can be used for OSDs across
 the cluster. See section 'Storage devices' for an elaboration on this
 fundamental topic.
+
+#### `osd-format`
+
+The `osd-format` option specifies what filesystem to use for all OSD devices
+('xfs' or 'ext4'). The default value is 'xfs'. This option only applies when
+Ceph Luminous (or greater) is in use and option `bluestore` is set to 'False'.
 
 #### `source`
 
@@ -418,4 +435,5 @@ For general charm questions refer to the OpenStack [Charm Guide][cg].
 [lp-bugs-charm-ceph-osd]: https://bugs.launchpad.net/charm-ceph-osd/+filebug
 [cdg-install-openstack]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide/latest/install-openstack.html
 [upstream-ceph-buckets]: https://docs.ceph.com/docs/master/rados/operations/crush-map/#types-and-buckets
+[upstream-ceph-bluestore]: https://docs.ceph.com/en/latest/rados/configuration/storage-devices/#bluestore
 [cloud-archive-ceph]: https://wiki.ubuntu.com/OpenStack/CloudArchive#Ceph_and_the_UCA
