@@ -31,6 +31,15 @@ from charms_ceph.utils import is_active_bluestore_device
 from charms_ceph.utils import is_mapped_luks_device
 
 
+def check_device(path):
+    """Check if device exists."""
+    try:
+        os.stat(path)
+    except OSError:
+        return False
+    return True
+
+
 def get_devices():
     """Parse 'devices' action parameter, returns list."""
     devices = []
@@ -38,7 +47,10 @@ def get_devices():
         path = path.strip()
         if not os.path.isabs(path):
             hookenv.action_fail('{}: Not absolute path.'.format(path))
-            raise
+            return []
+        elif not check_device(path):
+            hookenv.action_fail('{}: Device does not exists.'.format(path))
+            return []
         devices.append(path)
     return devices
 
@@ -51,6 +63,8 @@ def zap():
     failed_devices = []
     not_block_devices = []
     devices = get_devices()
+    if not devices:
+        return
     for device in devices:
         if not is_block_device(device):
             not_block_devices.append(device)
