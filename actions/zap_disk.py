@@ -31,15 +31,26 @@ from charms_ceph.utils import is_active_bluestore_device
 from charms_ceph.utils import is_mapped_luks_device
 
 
+class ZapDiskError(Exception):
+    pass
+
+
 def get_devices():
     """Parse 'devices' action parameter, returns list."""
-    devices = []
+    devices, errors = [], []
+
     for path in hookenv.action_get('devices').split(' '):
         path = path.strip()
         if not os.path.isabs(path):
-            hookenv.action_fail('{}: Not absolute path.'.format(path))
-            raise
-        devices.append(path)
+            errors.append('{}: Not absolute path.'.format(path))
+        elif not os.path.exists(path):
+            errors.append('{}: Device does not exist.'.format(path))
+        else:
+            devices.append(path)
+
+    if errors:
+        raise ZapDiskError(", ".join(errors))
+
     return devices
 
 
@@ -50,7 +61,12 @@ def zap():
 
     failed_devices = []
     not_block_devices = []
-    devices = get_devices()
+    try:
+        devices = get_devices()
+    except ZapDiskError as error:
+        hookenv.action_fail("Failed due to: {}".format(error))
+        return
+
     for device in devices:
         if not is_block_device(device):
             not_block_devices.append(device)
