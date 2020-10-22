@@ -62,8 +62,9 @@ options:
       used across all service units, in addition to any volumes attached
       via the --storage flag during deployment.
       .
-      For ceph >= 0.56.6 these can also be directories instead of devices - the
-      charm assumes anything not starting with /dev is a directory instead.
+      For ceph < 14.2.0 (Nautilus) these can also be directories instead of
+      devices. If the value does not start with "/dev" then it will be
+      interpreted as a directory.
   bdev-enable-discard:
     type: string
     default: auto
