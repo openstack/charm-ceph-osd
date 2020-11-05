@@ -750,7 +750,7 @@ def handle_create_cephfs(request, service):
     """
     cephfs_name = request.get('mds_name')
     data_pool = request.get('data_pool')
-    extra_pools = request.get('extra_pools', [])
+    extra_pools = request.get('extra_pools', None) or []
     metadata_pool = request.get('metadata_pool')
     # Check if the user params were provided
     if not cephfs_name or not data_pool or not metadata_pool:

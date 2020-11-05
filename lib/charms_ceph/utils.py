@@ -2141,6 +2141,8 @@ def roll_monitor_cluster(new_version, upgrade_key):
     # A sorted list of osd unit names
     mon_sorted_list = sorted(monitor_list)
 
+    # Install packages immediately but defer restarts to when it's our time.
+    upgrade_monitor(new_version, restart_daemons=False)
     try:
         position = mon_sorted_list.index(my_name)
         log("upgrade position: {}".format(position))
@@ -2182,7 +2184,7 @@ def noop():
     pass
 
 
-def upgrade_monitor(new_version, kick_function=None):
+def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
     """Upgrade the current ceph monitor to the new version
 
     :param new_version: String version to upgrade to.
@@ -2207,6 +2209,22 @@ def upgrade_monitor(new_version, kick_function=None):
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
     kick_function()
+
+    try:
+        apt_install(packages=determine_packages(), fatal=True)
+        rm_packages = determine_packages_to_remove()
+        if rm_packages:
+            apt_purge(packages=rm_packages, fatal=True)
+    except subprocess.CalledProcessError as err:
+        log("Upgrading packages failed "
+            "with message: {}".format(err))
+        status_set("blocked", "Upgrade to {} failed".format(new_version))
+        sys.exit(1)
+
+    if not restart_daemons:
+        log("Packages upgraded but not restarting daemons yet.")
+        return
+
     try:
         if systemd():
             service_stop('ceph-mon')
@@ -2216,10 +2234,7 @@ def upgrade_monitor(new_version, kick_function=None):
                 service_stop('ceph-mgr.target')
         else:
             service_stop('ceph-mon-all')
-        apt_install(packages=determine_packages(), fatal=True)
-        rm_packages = determine_packages_to_remove()
-        if rm_packages:
-            apt_purge(packages=rm_packages, fatal=True)
+
         kick_function()
 
         owner = ceph_user()
