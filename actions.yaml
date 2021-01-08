@@ -9,11 +9,21 @@ osd-out:
     \
         USE WITH CAUTION - Mark unit OSDs as 'out'.
         Documentation: https://jaas.ai/ceph-osd/
+  params:
+    osds:
+      description: A comma-separated list of OSD IDs to start (or keyword 'all')
+  required:
+    - osds
 osd-in:
   description: |
     \
         Set the local osd units in the charm to 'in'.
         Documentation: https://jaas.ai/ceph-osd/
+  params:
+    osds:
+      description: A comma-separated list of OSD IDs to start (or keyword 'all')
+  required:
+    - osds
 list-disks:
   description: |
     \

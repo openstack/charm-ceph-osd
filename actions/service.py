@@ -26,16 +26,13 @@ sys.path.append('hooks')
 
 from charmhelpers.core.hookenv import (
     function_fail,
-    function_get,
     log,
-    WARNING,
 )
 from ceph_hooks import assess_status
+from utils import parse_osds_arguments, ALL
 
 START = 'start'
 STOP = 'stop'
-
-ALL = 'all'
 
 
 def systemctl_execute(action, services):
@@ -110,32 +107,6 @@ def check_service_is_present(service_list):
                            'unit: {}'.format(missing_services))
 
 
-def parse_arguments():
-    """
-    Fetch action arguments and parse them from comma separated list to
-    the set of OSD IDs
-
-    :return: Set of OSD IDs
-    :rtype: set(str)
-    """
-    raw_arg = function_get('osds')
-
-    if raw_arg is None:
-        raise RuntimeError('Action argument "osds" is missing')
-    args = set()
-
-    # convert OSD IDs from user's input into the set
-    for osd_id in str(raw_arg).split(','):
-        args.add(osd_id.strip())
-
-    if ALL in args and len(args) != 1:
-        args = {ALL}
-        log('keyword "all" was found in "osds" argument. Dropping other '
-            'explicitly defined OSD IDs', WARNING)
-
-    return args
-
-
 def execute_action(action):
     """Core implementation of the 'start'/'stop' actions
 
@@ -145,7 +116,7 @@ def execute_action(action):
     if action not in (START, STOP):
         raise RuntimeError('Unknown action "{}"'.format(action))
 
-    osds = parse_arguments()
+    osds = parse_osds_arguments()
     services = osd_ids_to_service_names(osds)
 
     check_service_is_present(services)
