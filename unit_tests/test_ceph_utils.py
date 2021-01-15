@@ -115,3 +115,26 @@ class CephUtilsTestCase(unittest.TestCase):
         ret = utils.is_sata30orless('/dev/sda')
         mock_subprocess_check_output.assert_called()
         self.assertEqual(ret, True)
+
+    @patch.object(utils, "function_get")
+    def test_raise_on_missing_arguments(self, mock_function_get):
+        mock_function_get.return_value = None
+        err_msg = "Action argument \"osds\" is missing"
+        with self.assertRaises(RuntimeError, msg=err_msg):
+            utils.parse_osds_arguments()
+
+    @patch.object(utils, "function_get")
+    def test_parse_service_ids(self, mock_function_get):
+        mock_function_get.return_value = "1,2,3"
+        expected_ids = {"1", "2", "3"}
+
+        parsed = utils.parse_osds_arguments()
+        self.assertEqual(parsed, expected_ids)
+
+    @patch.object(utils, "function_get")
+    def test_parse_service_ids_with_all(self, mock_function_get):
+        mock_function_get.return_value = "1,2,all"
+        expected_id = {utils.ALL}
+
+        parsed = utils.parse_osds_arguments()
+        self.assertEqual(parsed, expected_id)

@@ -32,6 +32,7 @@ from charmhelpers.core.hookenv import (
     status_set,
     storage_get,
     storage_list,
+    function_get,
 )
 from charmhelpers.core import unitdata
 from charmhelpers.fetch import (
@@ -49,7 +50,7 @@ from charmhelpers.contrib.network.ip import (
     get_ipv6_addr
 )
 
-
+ALL = "all"  # string value representing all "OSD devices"
 TEMPLATES_DIR = 'templates'
 
 try:
@@ -310,3 +311,28 @@ def is_sata30orless(device):
         if re.match(r"SATA Version is: *SATA (1\.|2\.|3\.0)", str(line)):
             return True
     return False
+
+
+def parse_osds_arguments():
+    """Parse OSD IDs from action `osds` argument.
+
+    Fetch action arguments and parse them from comma separated list to
+    the set of OSD IDs.
+
+    :return: Set of OSD IDs
+    :rtype: set(str)
+    """
+    raw_arg = function_get("osds")
+
+    if raw_arg is None:
+        raise RuntimeError("Action argument \"osds\" is missing")
+
+    # convert OSD IDs from user's input into the set
+    args = {osd_id.strip() for osd_id in str(raw_arg).split(',')}
+
+    if ALL in args and len(args) != 1:
+        args = {ALL}
+        log("keyword \"all\" was found in \"osds\" argument. Dropping other "
+            "explicitly defined OSD IDs", WARNING)
+
+    return args

@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import mock
+import subprocess
 
 import sys
 
@@ -23,46 +23,106 @@ sys.path.append('hooks')
 import osd_in_out as actions
 
 
+def mock_check_output(cmd, **kwargs):
+    action, osd_id = cmd[-2:]  # get the last two arguments from cmd
+    return "marked {} osd.{}. \n".format(action, osd_id).encode("utf-8")
+
+
 class OSDOutTestCase(CharmTestCase):
     def setUp(self):
         super(OSDOutTestCase, self).setUp(
-            actions, ["check_call",
+            actions, ["check_output",
                       "get_local_osd_ids",
-                      "assess_status"])
+                      "assess_status",
+                      "parse_osds_arguments",
+                      "function_fail",
+                      "function_set"])
+
+        self.check_output.side_effect = mock_check_output
 
     def test_osd_out(self):
-        self.get_local_osd_ids.return_value = [5]
-        actions.osd_out([])
-        cmd = ['ceph', '--id',
-               'osd-upgrade', 'osd', 'out', '5']
-        self.check_call.assert_called_once_with(cmd)
+        self.get_local_osd_ids.return_value = ["5", "6", "7"]
+        self.parse_osds_arguments.return_value = {"5"}
+        actions.osd_out()
+        self.check_output.assert_called_once_with(
+            ["ceph", "--id", "osd-upgrade", "osd", "out", "5"],
+            stderr=subprocess.STDOUT
+        )
         self.assess_status.assert_called_once_with()
+
+    def test_osd_out_all(self):
+        self.get_local_osd_ids.return_value = ["5", "6", "7"]
+        self.parse_osds_arguments.return_value = {"all"}
+        actions.osd_out()
+        self.check_output.assert_has_calls(
+            [mock.call(
+                ["ceph", "--id", "osd-upgrade", "osd", "out", i],
+                stderr=subprocess.STDOUT
+            ) for i in set(["5", "6", "7"])])
+        self.assess_status.assert_called_once_with()
+
+    def test_osd_out_not_local(self):
+        self.get_local_osd_ids.return_value = ["5"]
+        self.parse_osds_arguments.return_value = {"6", "7", "8"}
+        actions.osd_out()
+        self.check_output.assert_not_called()
+        self.function_fail.assert_called_once_with(
+            "invalid ceph OSD device id: "
+            "{}".format(",".join(set(["6", "7", "8"]))))
+        self.assess_status.assert_not_called()
 
 
 class OSDInTestCase(CharmTestCase):
     def setUp(self):
         super(OSDInTestCase, self).setUp(
-            actions, ["check_call",
+            actions, ["check_output",
                       "get_local_osd_ids",
-                      "assess_status"])
+                      "assess_status",
+                      "parse_osds_arguments",
+                      "function_fail",
+                      "function_set"])
+
+        self.check_output.side_effect = mock_check_output
 
     def test_osd_in(self):
-        self.get_local_osd_ids.return_value = [5]
-        actions.osd_in([])
-        cmd = ['ceph', '--id',
-               'osd-upgrade', 'osd', 'in', '5']
-        self.check_call.assert_called_once_with(cmd)
+        self.get_local_osd_ids.return_value = ["5", "6", "7"]
+        self.parse_osds_arguments.return_value = {"5"}
+        actions.osd_in()
+        self.check_output.assert_called_once_with(
+            ["ceph", "--id", "osd-upgrade", "osd", "in", "5"],
+            stderr=subprocess.STDOUT
+        )
         self.assess_status.assert_called_once_with()
+
+    def test_osd_in_all(self):
+        self.get_local_osd_ids.return_value = ["5", "6", "7"]
+        self.parse_osds_arguments.return_value = {"all"}
+        actions.osd_in()
+        self.check_output.assert_has_calls(
+            [mock.call(
+                ["ceph", "--id", "osd-upgrade", "osd", "in", i],
+                stderr=subprocess.STDOUT
+            ) for i in set(["5", "6", "7"])])
+        self.assess_status.assert_called_once_with()
+
+    def test_osd_in_not_local(self):
+        self.get_local_osd_ids.return_value = ["5"]
+        self.parse_osds_arguments.return_value = {"6"}
+        actions.osd_in()
+        self.check_output.assert_not_called()
+        self.function_fail.assert_called_once_with(
+            "invalid ceph OSD device id: 6")
+        self.assess_status.assert_not_called()
 
 
 class MainTestCase(CharmTestCase):
     def setUp(self):
-        super(MainTestCase, self).setUp(actions, ["action_fail"])
+        super(MainTestCase, self).setUp(actions, ["function_fail"])
 
     def test_invokes_action(self):
         dummy_calls = []
 
-        def dummy_action(args):
+        def dummy_action():
             dummy_calls.append(True)
 
         with mock.patch.dict(actions.ACTIONS, {"foo": dummy_action}):
@@ -75,12 +135,12 @@ class MainTestCase(CharmTestCase):
         self.assertEqual("Action foo undefined", exit_string)
 
     def test_failing_action(self):
-        """Actions which traceback trigger action_fail() calls."""
+        """Actions which traceback trigger function_fail() calls."""
         dummy_calls = []
 
-        self.action_fail.side_effect = dummy_calls.append
+        self.function_fail.side_effect = dummy_calls.append
 
-        def dummy_action(args):
+        def dummy_action():
             raise ValueError("uh oh")
 
         with mock.patch.dict(actions.ACTIONS, {"foo": dummy_action}):
