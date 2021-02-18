@@ -281,7 +281,7 @@ completely (e.g. the storage hardware is reaching EOL).
 
 Example:
 
-    juju run-action --wait ceph-osd/4 osd-out
+    juju run-action --wait ceph-osd/4 osd-out osds=osd.0,osd.1
 
 ### Set OSDs to 'in'
 
@@ -293,7 +293,7 @@ with the cluster 'noout' flag.
 
 Example:
 
-    juju run-action --wait ceph-osd/4 osd-in
+    juju run-action --wait ceph-osd/4 osd-in osds=all
 
 ### Managing ceph OSDs
 

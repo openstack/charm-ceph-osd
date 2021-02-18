@@ -11,7 +11,7 @@ osd-out:
         Documentation: https://jaas.ai/ceph-osd/
   params:
     osds:
-      description: A comma-separated list of OSD IDs to start (or keyword 'all')
+      description: A comma-separated list of OSD IDs to stop (or keyword 'all')
   required:
     - osds
 osd-in:
