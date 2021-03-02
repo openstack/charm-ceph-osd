@@ -234,8 +234,8 @@ options `osd-encrypt` and `osd-encrypt-keymanager` for the ceph-osd charm:
 
 This section covers Juju [actions][juju-docs-actions] supported by the charm.
 Actions allow specific operations to be performed on a per-unit basis. To
-display action descriptions run `juju actions ceph-osd`. If the charm is not
-deployed then see file `actions.yaml`.
+display action descriptions run `juju actions --schema ceph-osd`. If the charm
+is not deployed then see file `actions.yaml`.
 
 * `add-disk`
 * `blacklist-add-disk`
@@ -252,23 +252,22 @@ deployed then see file `actions.yaml`.
 
 ### Set OSDs to 'out'
 
-Use the `osd-out` action to set all OSD volumes on a unit to 'out'.
+Use the `osd-out` action to set OSD volumes on a unit to 'out'.
 
 > **Warning**: This action has the potential of impacting your cluster
   significantly. The [Ceph documentation][ceph-docs-removing-osds] on this
   topic is considered essential reading.
 
-The `osd-out` action sets **all** OSDs on the unit as 'out'. Unless the cluster
-itself is set to 'noout' this action will cause Ceph to rebalance data by
-migrating PGs out of the unit's OSDs and onto OSDs available on other units.
-The impact is twofold:
+Unless the cluster itself is set to 'noout' this action will cause Ceph to
+rebalance data by migrating PGs out of the affected OSDs and onto OSDs
+available on other units. The impact is twofold:
 
 1. The available space on the remaining OSDs is reduced. Not only is there less
    space for future workloads but there is a danger of exceeding the cluster's
    storage capacity.
 1. The traffic and CPU load on the cluster is increased.
 
-> **Note**: It has been reported that setting OSDs as 'out' may cause some PGs
+> **Note**: It has been reported that setting OSDs to 'out' may cause some PGs
   to get stuck in the 'active+remapped' state. This is an upstream issue.
 
 The [ceph-mon][ceph-mon-charm] charm has an action called `set-noout` that sets
@@ -279,40 +278,47 @@ whether the OSDs are being paused temporarily (e.g. the underlying machine is
 scheduled for maintenance) or whether they are being removed from the cluster
 completely (e.g. the storage hardware is reaching EOL).
 
-Example:
+Examples:
 
+    # Set OSDs '0' and '1' to 'out' on unit `ceph-osd/4`
     juju run-action --wait ceph-osd/4 osd-out osds=osd.0,osd.1
+
+    # Set all OSDs to 'out' on unit `ceph-osd/2`
+    juju run-action --wait ceph-osd/2 osd-out osds=all
 
 ### Set OSDs to 'in'
 
-Use the `osd-in` action to set all OSD volumes on a unit to 'in'.
+Use the `osd-in` action to set OSD volumes on a unit to 'in'.
 
 The `osd-in` action is reciprocal to the `osd-out` action. The OSDs are set to
 'in'. It is typically used when the `osd-out` action was used in conjunction
 with the cluster 'noout' flag.
 
-Example:
+Examples:
 
-    juju run-action --wait ceph-osd/4 osd-in osds=all
+    # Set OSDs '0' and '1' to 'in' on unit `ceph-osd/4`
+    juju run-action --wait ceph-osd/4 osd-in osds=osd.0,osd.1
 
-### Managing ceph OSDs
+    # Set all OSDs to 'in' on unit `ceph-osd/2`
+    juju run-action --wait ceph-osd/2 osd-in osds=all
 
-Use the `stop` and `start` actions to manage ceph OSD services within the unit.
-Both actions take one parameter, `osds`, which should contain comma-separated
-numerical IDs of `ceph-osd` services or the keyword `all`.
+### Stop and start OSDs
 
-Example:
+Use the `stop` and `start` actions to stop and start OSD daemons on a unit.
 
-    # stop ceph-osd@0 and ceph-osd@1
-    juju run-action --wait ceph-osd/0 stop osds=0,1
-    # start all ceph-osd services on the unit
-    juju run-action --wait ceph-osd/0 start osds=all
+> **Important**: These actions are not available on the 'trusty' series due to
+  the reliance on `systemd`.
 
- > **Note**: Stopping ceph-osd services will put the unit into the blocked
- state.
- 
- > **Important**: This action is not available on Trusty due to reliance on
- systemd.
+Examples:
+
+    # Stop services 'ceph-osd@0' and 'ceph-osd@1' on unit `ceph-osd/4`
+    juju run-action --wait ceph-osd/4 stop osds=0,1
+
+    # Start all ceph-osd services on unit `ceph-osd/2`
+    juju run-action --wait ceph-osd/2 start osds=all
+
+> **Note**: Stopping an OSD daemon will put the associated unit into a blocked
+  state.
 
 ## Working with disks
 
@@ -332,6 +338,7 @@ The action lists the unit's block devices by categorising them in three ways:
 
 Example:
 
+    # List disks on unit `ceph-osd/4`
     juju run-action --wait ceph-osd/4 list-disks
 
 ### Add a disk
@@ -357,6 +364,7 @@ operator to manually add OSD volumes (for disks that are not listed by
 
 Example:
 
+    # Add disk /dev/vde on unit `ceph-osd/4`
     juju run-action --wait ceph-osd/4 add-disk osd-devices=/dev/vde
 
 ### Blacklist a disk
@@ -383,6 +391,7 @@ Use the `list-disks` action to list the unit's blacklist entries.
 
 Example:
 
+    # Blacklist disks /dev/vda and /dev/vdf on unit `ceph-osd/0`
     juju run-action --wait ceph-osd/0 \
        blacklist-add-disk osd-devices='/dev/vda /dev/vdf'
 
@@ -403,6 +412,7 @@ Each device should have an existing entry in the unit's blacklist. Use the
 
 Example:
 
+    # Un-blacklist disk /dev/vdb on unit `ceph-osd/1`
     juju run-action --wait ceph-osd/1 \
        blacklist-remove-disk osd-devices=/dev/vdb
 
@@ -411,10 +421,10 @@ Example:
 Use the `zap-disk` action to purge a disk of all data.
 
 In order to prevent unintentional data loss, the charm will not use a disk that
-has existing data already on it. To forcibly make a disk available, the
-`zap-disk` action can be used. Due to the destructive nature of this action the
-`i-really-mean-it` option must be passed. This action is normally followed by
-the `add-disk` action.
+contains data. To forcibly make a disk available, the `zap-disk` action can be
+used. Due to the destructive nature of this action the `i-really-mean-it`
+option must be passed. This action is normally followed by the `add-disk`
+action.
 
 **Parameters**
 
@@ -426,27 +436,40 @@ the `add-disk` action.
 <!-- The next line has two trailing spaces. -->
 
 * `i-really-mean-it` (required)  
-  An option that acts as a confirmation for performing the action.
+  A boolean option for confirming the action.
 
 Example:
 
-    juju run-action --wait ceph-osd/3 zap-disk i-really-mean-it=true devices=/dev/vdc
+    # Zap disk /dev/vdc on unit `ceph-osd/3`
+    juju run-action --wait ceph-osd/3 \
+       zap-disk i-really-mean-it=true devices=/dev/vdc
 
 > **Note**: The `zap-disk` action cannot be run on a mounted device, an active
-  Bluestore device, or an encrypted device.
+  BlueStore device, or an encrypted device. There are also issues with
+  LVM-backed volumes (see [LP #1858519][lp-bug-1858519]).
+
+# Documentation
+
+The OpenStack Charms project maintains two documentation guides:
+
+* [OpenStack Charm Guide][cg]: for project information, including development
+  and support notes
+* [OpenStack Charms Deployment Guide][cdg]: for charm usage information
+
+See also the [Charmed Ceph documentation][charmed-ceph-docs].
 
 # Bugs
 
 Please report bugs on [Launchpad][lp-bugs-charm-ceph-osd].
 
-For general charm questions refer to the OpenStack [Charm Guide][cg].
-
 <!-- LINKS -->
 
 [ceph-upstream]: https://ceph.io
 [cg]: https://docs.openstack.org/charm-guide
+[cdg]: https://docs.openstack.org/project-deploy-guide/charm-deployment-guide
 [ceph-mon-charm]: https://jaas.ai/ceph-mon
 [vault-charm]: https://jaas.ai/vault
+[charmed-ceph-docs]: https://ubuntu.com/ceph/docs
 [juju-docs-storage]: https://jaas.ai/docs/storage
 [juju-docs-actions]: https://jaas.ai/docs/actions
 [juju-docs-spaces]: https://jaas.ai/docs/spaces
@@ -458,3 +481,4 @@ For general charm questions refer to the OpenStack [Charm Guide][cg].
 [upstream-ceph-buckets]: https://docs.ceph.com/docs/master/rados/operations/crush-map/#types-and-buckets
 [upstream-ceph-bluestore]: https://docs.ceph.com/en/latest/rados/configuration/storage-devices/#bluestore
 [cloud-archive-ceph]: https://wiki.ubuntu.com/OpenStack/CloudArchive#Ceph_and_the_UCA
+[lp-bug-1858519]: https://bugs.launchpad.net/charm-ceph-osd/+bug/1858519
