@@ -13,7 +13,11 @@
 # limitations under the License.
 
 import sys
+from unittest.mock import MagicMock
+
 sys.path.append('hooks')
 sys.path.append('lib')
 sys.path.append('actions')
 sys.path.append('unit_tests')
+
+sys.modules["tabulate"] = MagicMock()
