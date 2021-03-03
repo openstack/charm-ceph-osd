@@ -1,6 +1,8 @@
 charm_name: ceph-osd
 gate_bundles:
+  - hirsute-wallaby
   - groovy-victoria
+  - focal-wallaby
   - focal-victoria
   - focal-ussuri
   - bionic-ussuri
@@ -26,4 +28,5 @@ tests:
   - zaza.openstack.charm_tests.ceph.osd.tests.ServiceTest
 tests_options:
   force_deploy:
-    - groovy-victoria
+    - hirsute-wallaby
+    - trusty-mitaka
