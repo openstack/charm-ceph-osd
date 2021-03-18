@@ -21,8 +21,8 @@ import sys
 
 from subprocess import check_output, STDOUT
 
-sys.path.append('lib')
-sys.path.append('hooks')
+sys.path.insert(0, 'lib')
+sys.path.insert(0, 'hooks')
 
 from charmhelpers.core.hookenv import (
     function_fail,

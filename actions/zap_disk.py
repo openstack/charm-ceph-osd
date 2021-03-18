@@ -17,8 +17,8 @@
 import os
 import sys
 
-sys.path.append('lib')
-sys.path.append('hooks')
+sys.path.insert(0, 'lib')
+sys.path.insert(0, 'hooks')
 
 import charmhelpers.core.hookenv as hookenv
 from charmhelpers.contrib.storage.linux.utils import (

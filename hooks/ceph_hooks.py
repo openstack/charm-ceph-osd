@@ -25,7 +25,7 @@ import subprocess
 import sys
 import traceback
 
-sys.path.append('lib')
+sys.path.insert(0, 'lib')
 import charms_ceph.utils as ceph
 from charmhelpers.core import hookenv
 from charmhelpers.core.hookenv import (

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import sys
-sys.path.append('hooks')
-sys.path.append('lib')
-sys.path.append('actions')
-sys.path.append('unit_tests')
+sys.path.insert(0, 'hooks')
+sys.path.insert(0, 'lib')
+sys.path.insert(0, 'actions')
+sys.path.insert(0, 'unit_tests')

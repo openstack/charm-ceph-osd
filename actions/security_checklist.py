@@ -16,7 +16,7 @@
 
 import sys
 
-sys.path.append('hooks')
+sys.path.insert(0, 'hooks')
 
 import charmhelpers.contrib.openstack.audits as audits
 from charmhelpers.contrib.openstack.audits import (

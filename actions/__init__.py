@@ -13,5 +13,5 @@
 # limitations under the License.
 
 import sys
-sys.path.append('hooks')
-sys.path.append('lib')
+sys.path.insert(0, 'lib')
+sys.path.insert(0, 'hooks')

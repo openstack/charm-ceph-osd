@@ -18,7 +18,7 @@ import sys
 
 from test_utils import CharmTestCase
 
-sys.path.append('hooks')
+sys.path.insert(0, 'hooks')
 
 import osd_in_out as actions
 

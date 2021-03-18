@@ -17,7 +17,7 @@
 import os
 import sys
 
-sys.path.append('hooks')
+sys.path.insert(0, 'hooks')
 
 import charmhelpers.core.hookenv as hookenv
 import charmhelpers.core.unitdata as unitdata

@@ -18,7 +18,7 @@ import socket
 import subprocess
 import sys
 
-sys.path.append('lib')
+sys.path.insert(0, 'lib')
 import charms_ceph.utils as ceph
 
 from charmhelpers.core.hookenv import (

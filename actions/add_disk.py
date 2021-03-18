@@ -18,8 +18,8 @@ import os
 import psutil
 import sys
 
-sys.path.append('lib')
-sys.path.append('hooks')
+sys.path.insert(0, 'lib')
+sys.path.insert(0, 'hooks')
 
 import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 import charmhelpers.core.hookenv as hookenv
