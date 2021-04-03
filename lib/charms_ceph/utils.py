@@ -56,11 +56,11 @@ from charmhelpers.core.hookenv import (
 )
 from charmhelpers.fetch import (
     add_source,
-    apt_cache,
     apt_install,
     apt_purge,
     apt_update,
-    filter_missing_packages
+    filter_missing_packages,
+    get_installed_version
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     get_mon_map,
@@ -497,10 +497,7 @@ def tune_dev(block_dev):
 
 
 def ceph_user():
-    if get_version() > 1:
-        return 'ceph'
-    else:
-        return "root"
+    return 'ceph'
 
 
 class CrushLocation(object):
@@ -715,22 +712,15 @@ def get_version():
     """Derive Ceph release from an installed package."""
     import apt_pkg as apt
 
-    cache = apt_cache()
     package = "ceph"
-    try:
-        pkg = cache[package]
-    except KeyError:
-        # the package is unknown to the current apt cache.
-        e = 'Could not determine version of package with no installation ' \
-            'candidate: %s' % package
-        error_out(e)
 
-    if not pkg.current_ver:
+    current_ver = get_installed_version(package)
+    if not current_ver:
         # package is known, but no version is currently installed.
         e = 'Could not determine version of uninstalled package: %s' % package
         error_out(e)
 
-    vers = apt.upstream_version(pkg.current_ver.ver_str)
+    vers = apt.upstream_version(current_ver.ver_str)
 
     # x.y match only for 20XX.X
     # and ignore patch level for other packages
