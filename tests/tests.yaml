@@ -1,6 +1,6 @@
 charm_name: ceph-osd
+
 gate_bundles:
-  - hirsute-wallaby
   - groovy-victoria
   - focal-wallaby
   - focal-victoria
@@ -10,22 +10,28 @@ gate_bundles:
   - bionic-stein
   - bionic-queens
   - xenial-mitaka
+
 dev_bundles:
   - trusty-mitaka
   - xenial-ocata
   - xenial-pike
   - xenial-queens
   - bionic-rocky
+  - hirsute-wallaby
+
 smoke_bundles:
   - bionic-train
+
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
+
 tests:
   - zaza.openstack.charm_tests.ceph.tests.CephLowLevelTest
   - zaza.openstack.charm_tests.ceph.tests.CephRelationTest
   - zaza.openstack.charm_tests.ceph.tests.CephTest
   - zaza.openstack.charm_tests.ceph.osd.tests.SecurityTest
   - zaza.openstack.charm_tests.ceph.osd.tests.ServiceTest
+
 tests_options:
   force_deploy:
     - hirsute-wallaby
