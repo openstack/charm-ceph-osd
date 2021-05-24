@@ -532,6 +532,9 @@ def prepare_disks_and_activate():
     # filter osd-devices that are active bluestore devices
     devices = [dev for dev in devices
                if not ceph.is_active_bluestore_device(dev)]
+    # filter osd-devices that are used as dmcrypt devices
+    devices = [dev for dev in devices
+               if not ceph.is_mapped_luks_device(dev)]
 
     log('Checking for pristine devices: "{}"'.format(devices), level=DEBUG)
     if not all(ceph.is_pristine_disk(dev) for dev in devices):
@@ -852,7 +855,8 @@ def assess_status():
         osd_journals = get_journal_devices()
         for dev in list(set(ceph.unmounted_disks()) - set(osd_journals)):
             if (not ceph.is_active_bluestore_device(dev) and
-                    not ceph.is_pristine_disk(dev)):
+                    not ceph.is_pristine_disk(dev) and
+                    not ceph.is_mapped_luks_device(dev)):
                 pristine = False
                 break
         if pristine:
