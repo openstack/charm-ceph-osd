@@ -590,7 +590,7 @@ def get_mon_hosts():
                         relid))
 
             if addr:
-                hosts.append('{}:6789'.format(format_ipv6_addr(addr) or addr))
+                hosts.append('{}'.format(format_ipv6_addr(addr) or addr))
 
     return sorted(hosts)
 
