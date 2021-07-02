@@ -24,6 +24,7 @@ import subprocess
 import sys
 import time
 import uuid
+import functools
 
 from contextlib import contextmanager
 from datetime import datetime
@@ -3271,13 +3272,14 @@ def determine_packages():
 def determine_packages_to_remove():
     """Determines packages for removal
 
+    Note: if in a container, then the CHRONY_PACKAGE is removed.
+
     :returns: list of packages to be removed
+    :rtype: List[str]
     """
     rm_packages = REMOVE_PACKAGES.copy()
     if is_container():
-        install_list = filter_missing_packages(CHRONY_PACKAGE)
-        if not install_list:
-            rm_packages.append(CHRONY_PACKAGE)
+        rm_packages.extend(filter_missing_packages([CHRONY_PACKAGE]))
     return rm_packages
 
 
@@ -3376,3 +3378,132 @@ def apply_osd_settings(settings):
                     level=ERROR)
                 raise OSDConfigSetError
     return True
+
+
+def enabled_manager_modules():
+    """Return a list of enabled manager modules.
+
+    :rtype: List[str]
+    """
+    cmd = ['ceph', 'mgr', 'module', 'ls']
+    try:
+        modules = subprocess.check_output(cmd).decode('UTF-8')
+    except subprocess.CalledProcessError as e:
+        log("Failed to list ceph modules: {}".format(e), WARNING)
+        return []
+    modules = json.loads(modules)
+    return modules['enabled_modules']
+
+
+def is_mgr_module_enabled(module):
+    """Is a given manager module enabled.
+
+    :param module:
+    :type module: str
+    :returns: Whether the named module is enabled
+    :rtype: bool
+    """
+    return module in enabled_manager_modules()
+
+
+is_dashboard_enabled = functools.partial(is_mgr_module_enabled, 'dashboard')
+
+
+def mgr_enable_module(module):
+    """Enable a Ceph Manager Module.
+
+    :param module: The module name to enable
+    :type module: str
+
+    :raises: subprocess.CalledProcessError
+    """
+    if not is_mgr_module_enabled(module):
+        subprocess.check_call(['ceph', 'mgr', 'module', 'enable', module])
+        return True
+    return False
+
+
+mgr_enable_dashboard = functools.partial(mgr_enable_module, 'dashboard')
+
+
+def mgr_disable_module(module):
+    """Enable a Ceph Manager Module.
+
+    :param module: The module name to enable
+    :type module: str
+
+    :raises: subprocess.CalledProcessError
+    """
+    if is_mgr_module_enabled(module):
+        subprocess.check_call(['ceph', 'mgr', 'module', 'disable', module])
+        return True
+    return False
+
+
+mgr_disable_dashboard = functools.partial(mgr_disable_module, 'dashboard')
+
+
+def ceph_config_set(name, value, who):
+    """Set a ceph config option
+
+    :param name: key to set
+    :type name: str
+    :param value: value corresponding to key
+    :type value: str
+    :param who: Config area the key is associated with (e.g. 'dashboard')
+    :type who: str
+
+    :raises: subprocess.CalledProcessError
+    """
+    subprocess.check_call(['ceph', 'config', 'set', who, name, value])
+
+
+mgr_config_set = functools.partial(ceph_config_set, who='mgr')
+
+
+def ceph_config_get(name, who):
+    """Retrieve the value of a ceph config option
+
+    :param name: key to lookup
+    :type name: str
+    :param who: Config area the key is associated with (e.g. 'dashboard')
+    :type who: str
+    :returns: Value associated with key
+    :rtype: str
+    :raises: subprocess.CalledProcessError
+    """
+    return subprocess.check_output(
+        ['ceph', 'config', 'get', who, name]).decode('UTF-8')
+
+
+mgr_config_get = functools.partial(ceph_config_get, who='mgr')
+
+
+def _dashboard_set_ssl_artifact(path, artifact_name, hostname=None):
+    """Set SSL dashboard config option.
+
+    :param path: Path to file
+    :type path: str
+    :param artifact_name: Option name for setting the artifact
+    :type artifact_name: str
+    :param hostname: If hostname is set artifact will only be associated with
+                     the dashboard on that host.
+    :type hostname: str
+    :raises: subprocess.CalledProcessError
+    """
+    cmd = ['ceph', 'dashboard', artifact_name]
+    if hostname:
+        cmd.append(hostname)
+    cmd.extend(['-i', path])
+    log(cmd, level=DEBUG)
+    subprocess.check_call(cmd)
+
+
+dashboard_set_ssl_certificate = functools.partial(
+    _dashboard_set_ssl_artifact,
+    artifact_name='set-ssl-certificate')
+
+
+dashboard_set_ssl_certificate_key = functools.partial(
+    _dashboard_set_ssl_artifact,
+    artifact_name='set-ssl-certificate-key')
