@@ -29,6 +29,8 @@ from charmhelpers.contrib.storage.linux.utils import (
 from charmhelpers.core.unitdata import kv
 from charms_ceph.utils import is_active_bluestore_device
 from charms_ceph.utils import is_mapped_luks_device
+from charmhelpers.contrib.storage.linux.lvm import is_lvm_physical_volume
+from charmhelpers.core.hookenv import log
 
 
 class ZapDiskError(Exception):
@@ -61,6 +63,7 @@ def zap():
 
     failed_devices = []
     not_block_devices = []
+    lvm_devices = []
     try:
         devices = get_devices()
     except ZapDiskError as error:
@@ -68,6 +71,8 @@ def zap():
         return
 
     for device in devices:
+        if is_lvm_physical_volume(device):
+            lvm_devices.append(device)
         if not is_block_device(device):
             not_block_devices.append(device)
         if (is_device_mounted(device) or
@@ -75,10 +80,15 @@ def zap():
                 is_mapped_luks_device(device)):
             failed_devices.append(device)
 
-    if failed_devices or not_block_devices:
+    if lvm_devices or failed_devices or not_block_devices:
         message = ""
+        if lvm_devices:
+            log('Cannot zap a device used by lvm')
+            message = "{} devices are lvm devices: {}".format(
+                len(lvm_devices),
+                ", ".join(lvm_devices))
         if failed_devices:
-            message = "{} devices are mounted: {}".format(
+            message += "{} devices are mounted: {}".format(
                 len(failed_devices),
                 ", ".join(failed_devices))
         if not_block_devices:
