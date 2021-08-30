@@ -79,9 +79,9 @@ class Crushmap(object):
                                     stdin=crush.stdout)
                        .decode('UTF-8'))
         except CalledProcessError as e:
-            log("Error occured while loading and decompiling CRUSH map:"
+            log("Error occurred while loading and decompiling CRUSH map:"
                 "{}".format(e), ERROR)
-            raise "Failed to read CRUSH map"
+            raise
 
     def ensure_bucket_is_present(self, bucket_name):
         if bucket_name not in [bucket.name for bucket in self.buckets()]:
@@ -111,7 +111,7 @@ class Crushmap(object):
             return ceph_output
         except CalledProcessError as e:
             log("save error: {}".format(e))
-            raise "Failed to save CRUSH map."
+            raise
 
     def build_crushmap(self):
         """Modifies the current CRUSH map to include the new buckets"""

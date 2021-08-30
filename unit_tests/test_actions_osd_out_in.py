@@ -115,6 +115,23 @@ class OSDInTestCase(CharmTestCase):
         self.assess_status.assert_not_called()
 
 
+class OSDMountTestCase(CharmTestCase):
+    def setUp(self):
+        super(OSDMountTestCase, self).setUp(actions, [])
+
+    @mock.patch('os.path.exists')
+    @mock.patch('os.listdir')
+    @mock.patch('charms_ceph.utils.filesystem_mounted')
+    def test_mounted_osds(self, fs_mounted, listdir, exists):
+        exists.return_value = True
+        listdir.return_value = [
+            '/var/lib/ceph/osd/ceph-1', '/var/lib/ceph/osd/ceph-2']
+        fs_mounted.side_effect = lambda x: x == listdir.return_value[0]
+        osds = actions.get_local_osd_ids()
+        self.assertIn(listdir.return_value[0][-1], osds)
+        self.assertNotIn(listdir.return_value[1][-1], osds)
+
+
 class MainTestCase(CharmTestCase):
     def setUp(self):
         super(MainTestCase, self).setUp(actions, ["function_fail"])
