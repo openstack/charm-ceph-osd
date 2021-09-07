@@ -240,6 +240,7 @@ is not deployed then see file `actions.yaml`.
 * `add-disk`
 * `blacklist-add-disk`
 * `blacklist-remove-disk`
+* `get-availibility-zone`
 * `list-disks`
 * `osd-in`
 * `osd-out`

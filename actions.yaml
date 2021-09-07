@@ -116,3 +116,18 @@ stop:
     - osds
 security-checklist:
   description: Validate the running configuration against the OpenStack security guides checklist
+get-availability-zone:
+  description: |
+    Obtain information about the availability zone, which will contain information about the CRUSH
+    structure. Specifically 'rack' and 'row'.
+  params:
+    format:
+      type: string
+      default: text
+      enum:
+        - text
+        - json
+      description: Specify output format (text|json).
+    show-all:
+      type: boolean
+      description: Option to view information for all units. Default is 'false'.
