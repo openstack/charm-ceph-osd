@@ -2,6 +2,7 @@ charm_name: ceph-osd
 
 gate_bundles:
   - groovy-victoria
+  - focal-xena
   - focal-wallaby
   - focal-victoria
   - focal-ussuri
@@ -18,6 +19,7 @@ dev_bundles:
   - xenial-queens
   - bionic-rocky
   - hirsute-wallaby
+  - impish-xena
 
 smoke_bundles:
   - bionic-train
@@ -34,5 +36,7 @@ tests:
 
 tests_options:
   force_deploy:
-    - hirsute-wallaby
     - trusty-mitaka
+    - groovy-victoria
+    - hirsute-wallaby
+    - impish-xena
