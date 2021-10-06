@@ -22,6 +22,8 @@ options:
     description: |
       Key ID to import to the apt keyring to support use with arbitrary source
       configuration from outside of Launchpad archives or PPA's.
+      The accepted formats should be a GPG key in ASCII armor format, 
+      including  BEGIN and END markers or a keyid.
   use-syslog:
     type: boolean
     default: False
