@@ -69,8 +69,8 @@ A storage device is destined as an OSD (Object Storage Device). There can be
 multiple OSDs per storage node (ceph-osd unit).
 
 The list of all possible storage devices for the cluster is defined by the
-`osd-devices` option (default value is '/dev/vdb'). The below examples can be
-used in the `ceph-osd.yaml` configuration file.
+`osd-devices` option. The below examples can be used in the `ceph-osd.yaml`
+configuration file.
 
 Block devices (regular),
 
