@@ -14,7 +14,7 @@ applications:
     constraints:
       virt-type=kvm
   ceph-mon:
-    charm: cs:~openstack-charmers-next/ceph-mon
+    charm: cs:~openstack-charmers/ceph-mon
     num_units: 3
     options:
       monitor-count: '3'
@@ -24,6 +24,7 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   percona-cluster:
     charm: cs:trusty/percona-cluster
     num_units: 1
@@ -36,7 +37,7 @@ applications:
     constraints:
       virt-type=kvm
   rabbitmq-server:
-    charm: cs:~openstack-charmers-next/rabbitmq-server
+    charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
     options:
       source: cloud:trusty-mitaka
@@ -44,9 +45,10 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   keystone:
     expose: True
-    charm: cs:~openstack-charmers-next/keystone
+    charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -54,8 +56,9 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   nova-compute:
-    charm: cs:~openstack-charmers-next/nova-compute
+    charm: cs:~openstack-charmers/nova-compute
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -63,9 +66,10 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   glance:
     expose: True
-    charm: cs:~openstack-charmers-next/glance
+    charm: cs:~openstack-charmers/glance
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -73,9 +77,10 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   cinder:
     expose: True
-    charm: cs:~openstack-charmers-next/cinder
+    charm: cs:~openstack-charmers/cinder
     num_units: 1
     options:
       block-device: 'None'
@@ -85,11 +90,13 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
   cinder-ceph:
-    charm: cs:~openstack-charmers-next/cinder-ceph
+    charm: cs:~openstack-charmers/cinder-ceph
+    channel: candidate
   nova-cloud-controller:
     expose: True
-    charm: cs:~openstack-charmers-next/nova-cloud-controller
+    charm: cs:~openstack-charmers/nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: cloud:trusty-mitaka
@@ -97,6 +104,7 @@ applications:
     # model-constraints support
     constraints:
       virt-type=kvm
+    channel: candidate
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp
