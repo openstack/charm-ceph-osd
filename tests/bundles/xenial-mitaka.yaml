@@ -14,32 +14,26 @@ applications:
     options:
       monitor-count: '3'
       auth-supported: 'none'
-    channel: candidate
   percona-cluster:
     charm: cs:~openstack-charmers/percona-cluster
     num_units: 1
     options:
       dataset-size: 25%
       max-connections: 1000
-    channel: candidate
   rabbitmq-server:
     charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
-    channel: candidate
   keystone:
     expose: True
     charm: cs:~openstack-charmers/keystone
     num_units: 1
-    channel: candidate
   nova-compute:
     charm: cs:~openstack-charmers/nova-compute
     num_units: 1
-    channel: candidate
   glance:
     expose: True
     charm: cs:~openstack-charmers/glance
     num_units: 1
-    channel: candidate
   cinder:
     expose: True
     charm: cs:~openstack-charmers/cinder
@@ -47,15 +41,12 @@ applications:
     options:
       block-device: 'None'
       glance-api-version: '2'
-    channel: candidate
   cinder-ceph:
     charm: cs:~openstack-charmers/cinder-ceph
-    channel: candidate
   nova-cloud-controller:
     expose: True
     charm: cs:~openstack-charmers/nova-cloud-controller
     num_units: 1
-    channel: candidate
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp

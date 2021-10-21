@@ -15,7 +15,6 @@ applications:
     options:
       monitor-count: '3'
       source: cloud:bionic-train
-    channel: candidate
   percona-cluster:
     charm: cs:~openstack-charmers/percona-cluster
     num_units: 1
@@ -23,33 +22,28 @@ applications:
       dataset-size: 25%
       max-connections: 1000
       source: cloud:bionic-train
-    channel: candidate
   rabbitmq-server:
     charm: cs:~openstack-charmers/rabbitmq-server
     num_units: 1
     options:
       source: cloud:bionic-train
-    channel: candidate
   keystone:
     expose: True
     charm: cs:~openstack-charmers/keystone
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
-    channel: candidate
   nova-compute:
     charm: cs:~openstack-charmers/nova-compute
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
-    channel: candidate
   glance:
     expose: True
     charm: cs:~openstack-charmers/glance
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
-    channel: candidate
   cinder:
     expose: True
     charm: cs:~openstack-charmers/cinder
@@ -58,23 +52,19 @@ applications:
       block-device: 'None'
       glance-api-version: '2'
       openstack-origin: cloud:bionic-train
-    channel: candidate
   cinder-ceph:
     charm: cs:~openstack-charmers/cinder-ceph
-    channel: candidate
   nova-cloud-controller:
     expose: True
     charm: cs:~openstack-charmers/nova-cloud-controller
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
-    channel: candidate
   placement:
     charm: cs:~openstack-charmers/placement
     num_units: 1
     options:
       openstack-origin: cloud:bionic-train
-    channel: candidate
 relations:
 - - nova-compute:amqp
   - rabbitmq-server:amqp
