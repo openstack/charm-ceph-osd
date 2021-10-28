@@ -75,8 +75,7 @@ configuration file.
 Block devices (regular),
 
     ceph-osd:
-      options:
-        osd-devices: /dev/vdb /dev/vdc /dev/vdd
+      osd-devices: /dev/vdb /dev/vdc /dev/vdd
 
 Each regular block device must be an absolute path to a device node.
 
@@ -210,8 +209,7 @@ Jewel, set option `osd-encrypt` for the ceph-osd charm:
 
 ```yaml
     ceph-osd:
-      options:
-        osd-encrypt: True
+      osd-encrypt: True
 ```
 
 Here, dm-crypt keys are stored in the MON sub-cluster.
@@ -222,9 +220,8 @@ options `osd-encrypt` and `osd-encrypt-keymanager` for the ceph-osd charm:
 
 ```yaml
     ceph-osd:
-      options:
-        osd-encrypt: True
-        osd-encrypt-keymanager: vault
+      osd-encrypt: True
+      osd-encrypt-keymanager: vault
 ```
 
 > **Important**: Post deployment configuration will only affect block devices
