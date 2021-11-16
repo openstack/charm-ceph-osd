@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright 2016 Canonical Ltd
+# Copyright 2016-2021 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -198,7 +198,7 @@ def tune_network_adapters():
 
 def aa_profile_changed(service_name='ceph-osd-all'):
     """
-    Reload AA profie and restart OSD processes.
+    Reload AA profile and restart OSD processes.
     """
     log("Loading new AppArmor profile")
     service_reload('apparmor')
@@ -372,7 +372,7 @@ def get_ceph_context(upgrading=False):
     """Returns the current context dictionary for generating ceph.conf
 
     :param upgrading: bool - determines if the context is invoked as
-                      part of an upgrade proedure Setting this to true
+                      part of an upgrade procedure. Setting this to true
                       causes settings useful during an upgrade to be
                       defined in the ceph.conf file
     """
@@ -471,7 +471,7 @@ def config_changed():
     # Check if an upgrade was requested
     check_for_upgrade()
 
-    # Pre-flight checks
+    # Preflight checks
     if config('osd-format') not in ceph.DISK_FORMATS:
         log('Invalid OSD disk format configuration specified', level=ERROR)
         sys.exit(1)
@@ -745,9 +745,9 @@ def update_nrpe_config():
     # whether ceph is okay, the check_systemd.py or 'status ceph-osd' still
     # needs to be called with the contents of ../osd/ceph-*/whoami files.  To
     # get around this conundrum, instead a cron.d job that runs as root will
-    # perform the checks every minute, and write to a tempory file the results,
-    # and the nrpe check will grep this file and error out (return 2) if the
-    # first 3 characters of a line are not 'OK:'.
+    # perform the checks every minute, and write to a temporary file the
+    # results, and the nrpe check will grep this file and error out (return 2)
+    # if the first 3 characters of a line are not 'OK:'.
 
     cmd = ('MAILTO=""\n'
            '* * * * * root '

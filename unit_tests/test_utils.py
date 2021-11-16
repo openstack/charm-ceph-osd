@@ -1,4 +1,4 @@
-# Copyright 2016 Canonical Ltd
+# Copyright 2016-2021 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ mock_apt.apt_pkg = MagicMock()
 
 def load_config():
     '''
-    Walk backwords from __file__ looking for config.yaml, load and return the
+    Walk backwards from __file__ looking for config.yaml, load and return the
     'options' section'
     '''
     config = None

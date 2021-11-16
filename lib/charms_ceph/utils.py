@@ -1,4 +1,4 @@
-# Copyright 2017 Canonical Ltd
+# Copyright 2017-2021 Canonical Ltd
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -293,7 +293,7 @@ def get_link_speed(network_interface):
 
 def persist_settings(settings_dict):
     # Write all settings to /etc/hdparm.conf
-    """ This will persist the hard drive settings to the /etc/hdparm.conf file
+    """This will persist the hard drive settings to the /etc/hdparm.conf file
 
     The settings_dict should be in the form of {"uuid": {"key":"value"}}
 
@@ -552,7 +552,7 @@ def get_osd_weight(osd_id):
 
     :returns: Float
     :raises: ValueError if the monmap fails to parse.
-    :raises: CalledProcessError if our ceph command fails.
+    :raises: CalledProcessError if our Ceph command fails.
     """
     try:
         tree = str(subprocess
@@ -560,7 +560,7 @@ def get_osd_weight(osd_id):
                    .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
-            # Make sure children are present in the json
+            # Make sure children are present in the JSON
             if not json_tree['nodes']:
                 return None
             for device in json_tree['nodes']:
@@ -619,12 +619,12 @@ def _flatten_roots(nodes, lookup_type='host'):
 
 
 def get_osd_tree(service):
-    """Returns the current osd map in JSON.
+    """Returns the current OSD map in JSON.
 
     :returns: List.
     :rtype: List[CrushLocation]
     :raises: ValueError if the monmap fails to parse.
-             Also raises CalledProcessError if our ceph command fails
+             Also raises CalledProcessError if our Ceph command fails
     """
     try:
         tree = str(subprocess
@@ -666,12 +666,12 @@ def _get_child_dirs(path):
 def _get_osd_num_from_dirname(dirname):
     """Parses the dirname and returns the OSD id.
 
-    Parses a string in the form of 'ceph-{osd#}' and returns the osd number
+    Parses a string in the form of 'ceph-{osd#}' and returns the OSD number
     from the directory name.
 
     :param dirname: the directory name to return the OSD number from
-    :return int: the osd number the directory name corresponds to
-    :raises ValueError: if the osd number cannot be parsed from the provided
+    :return int: the OSD number the directory name corresponds to
+    :raises ValueError: if the OSD number cannot be parsed from the provided
                         directory name.
     """
     match = re.search(r'ceph-(?P<osd_id>\d+)', dirname)
@@ -686,7 +686,7 @@ def get_local_osd_ids():
     to split the ID off of the directory name and return it in
     a list.
 
-    :returns: list. A list of osd identifiers
+    :returns: list. A list of OSD identifiers
     :raises: OSError if something goes wrong with listing the directory.
     """
     osd_ids = []
@@ -875,12 +875,12 @@ DISK_FORMATS = [
 ]
 
 CEPH_PARTITIONS = [
-    '89C57F98-2FE5-4DC0-89C1-5EC00CEFF2BE',  # ceph encrypted disk in creation
-    '45B0969E-9B03-4F30-B4C6-5EC00CEFF106',  # ceph encrypted journal
-    '4FBD7E29-9D25-41B8-AFD0-5EC00CEFF05D',  # ceph encrypted osd data
-    '4FBD7E29-9D25-41B8-AFD0-062C0CEFF05D',  # ceph osd data
-    '45B0969E-9B03-4F30-B4C6-B4B80CEFF106',  # ceph osd journal
-    '89C57F98-2FE5-4DC0-89C1-F3AD0CEFF2BE',  # ceph disk in creation
+    '89C57F98-2FE5-4DC0-89C1-5EC00CEFF2BE',  # Ceph encrypted disk in creation
+    '45B0969E-9B03-4F30-B4C6-5EC00CEFF106',  # Ceph encrypted journal
+    '4FBD7E29-9D25-41B8-AFD0-5EC00CEFF05D',  # Ceph encrypted OSD data
+    '4FBD7E29-9D25-41B8-AFD0-062C0CEFF05D',  # Ceph OSD data
+    '45B0969E-9B03-4F30-B4C6-B4B80CEFF106',  # Ceph OSD journal
+    '89C57F98-2FE5-4DC0-89C1-F3AD0CEFF2BE',  # Ceph disk in creation
 ]
 
 
@@ -984,7 +984,7 @@ def is_osd_disk(dev):
 
 
 def start_osds(devices):
-    # Scan for ceph block devices
+    # Scan for Ceph block devices
     rescan_osd_devices()
     if (cmp_pkgrevno('ceph', '0.56.6') >= 0 and
             cmp_pkgrevno('ceph', '14.2.0') < 0):
@@ -1229,12 +1229,6 @@ def get_named_key(name, caps=None, pool_list=None):
                 'get',
                 key_name,
             ]).decode('UTF-8')).strip()
-        # NOTE(jamespage);
-        # Apply any changes to key capabilities, dealing with
-        # upgrades which requires new caps for operation.
-        upgrade_key_caps(key_name,
-                         caps or _default_caps,
-                         pool_list)
         return parse_key(output)
     except subprocess.CalledProcessError:
         # Couldn't get the key, time to create it!
@@ -1270,7 +1264,7 @@ def get_named_key(name, caps=None, pool_list=None):
 
 
 def upgrade_key_caps(key, caps, pool_list=None):
-    """ Upgrade key to have capabilities caps """
+    """Upgrade key to have capabilities caps"""
     if not is_leader():
         # Not the MON leader OR not clustered
         return
@@ -1304,11 +1298,11 @@ def use_bluestore():
 
 
 def bootstrap_monitor_cluster(secret):
-    """Bootstrap local ceph mon into the ceph cluster
+    """Bootstrap local Ceph mon into the Ceph cluster
 
     :param secret: cephx secret to use for monitor authentication
     :type secret: str
-    :raises: Exception if ceph mon cannot be bootstrapped
+    :raises: Exception if Ceph mon cannot be bootstrapped
     """
     hostname = socket.gethostname()
     path = '/var/lib/ceph/mon/ceph-{}'.format(hostname)
@@ -1351,11 +1345,11 @@ def _create_monitor(keyring, secret, hostname, path, done, init_marker):
     :type: secret: str
     :param hostname: hostname of the local unit
     :type hostname: str
-    :param path: full path to ceph mon directory
+    :param path: full path to Ceph mon directory
     :type path: str
-    :param done: full path to 'done' marker for ceph mon
+    :param done: full path to 'done' marker for Ceph mon
     :type done: str
-    :param init_marker: full path to 'init' marker for ceph mon
+    :param init_marker: full path to 'init' marker for Ceph mon
     :type init_marker: str
     """
     subprocess.check_call(['ceph-authtool', keyring,
@@ -1415,13 +1409,13 @@ def create_keyrings():
                    owner=ceph_user(), group=ceph_user(),
                    perms=0o400)
     else:
-        # NOTE(jamespage): Later ceph releases require explicit
+        # NOTE(jamespage): Later Ceph releases require explicit
         #                  call to ceph-create-keys to setup the
         #                  admin keys for the cluster; this command
         #                  will wait for quorum in the cluster before
         #                  returning.
         # NOTE(fnordahl): Explicitly run `ceph-create-keys` for older
-        #                 ceph releases too.  This improves bootstrap
+        #                 Ceph releases too.  This improves bootstrap
         #                 resilience as the charm will wait for
         #                 presence of peer units before attempting
         #                 to bootstrap.  Note that charms deploying
@@ -1503,9 +1497,9 @@ def find_least_used_utility_device(utility_devices, lvs=False):
 
 
 def get_devices(name):
-    """ Merge config and juju storage based devices
+    """Merge config and Juju storage based devices
 
-    :name: THe name of the device type, eg: wal, osd, journal
+    :name: The name of the device type, e.g.: wal, osd, journal
     :returns: Set(device names), which are strings
     """
     if config(name):
@@ -1547,7 +1541,7 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
     :param: ignore_errors: Don't fail in the event of any errors during
                            processing
     :param: encrypt: Encrypt block devices using 'key_manager'
-    :param: bluestore: Use bluestore native ceph block device format
+    :param: bluestore: Use bluestore native Ceph block device format
     :param: key_manager: Key management approach for encryption keys
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            subprocess operation failed
@@ -1840,7 +1834,7 @@ def get_conf(variable):
     Get the value of the given configuration variable from the
     cluster.
 
-    :param variable: ceph configuration variable
+    :param variable: Ceph configuration variable
     :returns: str. configured value for provided variable
 
     """
@@ -1860,7 +1854,7 @@ def calculate_volume_size(lv_type):
     :raises KeyError: if invalid lv_type is supplied
     :returns: int. Configured size in megabytes for volume type
     """
-    # lv_type -> ceph configuration option
+    # lv_type -> Ceph configuration option
     _config_map = {
         'db': 'bluestore_block_db_size',
         'wal': 'bluestore_block_wal_size',
@@ -1874,7 +1868,7 @@ def calculate_volume_size(lv_type):
         'journal': 1024,
     }
 
-    # conversion of ceph config units to MB
+    # conversion of Ceph config units to MB
     _units = {
         'db': 1048576,  # Bytes -> MB
         'wal': 1048576,  # Bytes -> MB
@@ -1907,7 +1901,7 @@ def _luks_uuid(dev):
 def _initialize_disk(dev, dev_uuid, encrypt=False,
                      key_manager=CEPH_KEY_MANAGER):
     """
-    Initialize a raw block device consuming 100% of the avaliable
+    Initialize a raw block device consuming 100% of the available
     disk space.
 
     Function assumes that block device has already been wiped.
@@ -2004,7 +1998,7 @@ def _allocate_logical_volume(dev, lv_type, osd_fsid,
 
 
 def osdize_dir(path, encrypt=False, bluestore=False):
-    """Ask ceph-disk to prepare a directory to become an osd.
+    """Ask ceph-disk to prepare a directory to become an OSD.
 
     :param path: str. The directory to osdize
     :param encrypt: bool. Should the OSD directory be encrypted at rest
@@ -2074,11 +2068,11 @@ def get_running_osds():
 def get_cephfs(service):
     """List the Ceph Filesystems that exist.
 
-    :param service: The service name to run the ceph command under
-    :returns: list. Returns a list of the ceph filesystems
+    :param service: The service name to run the Ceph command under
+    :returns: list. Returns a list of the Ceph filesystems
     """
     if get_version() < 0.86:
-        # This command wasn't introduced until 0.86 ceph
+        # This command wasn't introduced until 0.86 Ceph
         return []
     try:
         output = str(subprocess
@@ -2157,7 +2151,7 @@ def roll_monitor_cluster(new_version, upgrade_key):
         sys.exit(1)
     log('monitor_list: {}'.format(monitor_list))
 
-    # A sorted list of osd unit names
+    # A sorted list of OSD unit names
     mon_sorted_list = sorted(monitor_list)
 
     # Install packages immediately but defer restarts to when it's our time.
@@ -2204,7 +2198,7 @@ def noop():
 
 
 def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
-    """Upgrade the current ceph monitor to the new version
+    """Upgrade the current Ceph monitor to the new version
 
     :param new_version: String version to upgrade to.
     """
@@ -2212,7 +2206,7 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
         kick_function = noop
     current_version = get_version()
     status_set("maintenance", "Upgrading monitor")
-    log("Current ceph version is {}".format(current_version))
+    log("Current Ceph version is {}".format(current_version))
     log("Upgrading to: {}".format(new_version))
 
     # Needed to determine if whether to stop/start ceph-mgr
@@ -2223,7 +2217,7 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
         add_source(config('source'), config('key'))
         apt_update(fatal=True)
     except subprocess.CalledProcessError as err:
-        log("Adding the ceph source failed with message: {}".format(
+        log("Adding the Ceph source failed with message: {}".format(
             err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
@@ -2294,7 +2288,7 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
 
 
 def lock_and_roll(upgrade_key, service, my_name, version):
-    """Create a lock on the ceph monitor cluster and upgrade.
+    """Create a lock on the Ceph monitor cluster and upgrade.
 
     :param upgrade_key: str. The cephx key to use
     :param service: str. The cephx id to use
@@ -2443,7 +2437,7 @@ class WatchDog(object):
     allow for other delays.
 
     There is a compatibility mode where if the otherside never kicks, then it
-    simply waits for the compatability timer.
+    simply waits for the compatibility timer.
     """
 
     class WatchDogDeadException(Exception):
@@ -2578,11 +2572,11 @@ class WatchDog(object):
 
 
 def get_upgrade_position(osd_sorted_list, match_name):
-    """Return the upgrade position for the given osd.
+    """Return the upgrade position for the given OSD.
 
-    :param osd_sorted_list: Osds sorted
+    :param osd_sorted_list: OSDs sorted
     :type osd_sorted_list: [str]
-    :param match_name: The osd name to match
+    :param match_name: The OSD name to match
     :type match_name: str
     :returns: The position of the name
     :rtype: int
@@ -2591,20 +2585,20 @@ def get_upgrade_position(osd_sorted_list, match_name):
     for index, item in enumerate(osd_sorted_list):
         if item.name == match_name:
             return index
-    raise ValueError("osd name '{}' not found in get_upgrade_position list"
+    raise ValueError("OSD name '{}' not found in get_upgrade_position list"
                      .format(match_name))
 
 
 # Edge cases:
 # 1. Previous node dies on upgrade, can we retry?
-# 2. This assumes that the osd failure domain is not set to osd.
+# 2. This assumes that the OSD failure domain is not set to OSD.
 #    It rolls an entire server at a time.
 def roll_osd_cluster(new_version, upgrade_key):
     """This is tricky to get right so here's what we're going to do.
 
     There's 2 possible cases: Either I'm first in line or not.
     If I'm not first in line I'll wait a random time between 5-30 seconds
-    and test to see if the previous osd is upgraded yet.
+    and test to see if the previous OSD is upgraded yet.
 
     TODO: If you're not in the same failure domain it's safe to upgrade
      1. Examine all pools and adopt the most strict failure domain policy
@@ -2620,7 +2614,7 @@ def roll_osd_cluster(new_version, upgrade_key):
     log('roll_osd_cluster called with {}'.format(new_version))
     my_name = socket.gethostname()
     osd_tree = get_osd_tree(service=upgrade_key)
-    # A sorted list of osd unit names
+    # A sorted list of OSD unit names
     osd_sorted_list = sorted(osd_tree)
     log("osd_sorted_list: {}".format(osd_sorted_list))
 
@@ -2655,7 +2649,7 @@ def roll_osd_cluster(new_version, upgrade_key):
 
 
 def upgrade_osd(new_version, kick_function=None):
-    """Upgrades the current osd
+    """Upgrades the current OSD
 
     :param new_version: str. The new version to upgrade to
     """
@@ -2663,15 +2657,15 @@ def upgrade_osd(new_version, kick_function=None):
         kick_function = noop
 
     current_version = get_version()
-    status_set("maintenance", "Upgrading osd")
-    log("Current ceph version is {}".format(current_version))
+    status_set("maintenance", "Upgrading OSD")
+    log("Current Ceph version is {}".format(current_version))
     log("Upgrading to: {}".format(new_version))
 
     try:
         add_source(config('source'), config('key'))
         apt_update(fatal=True)
     except subprocess.CalledProcessError as err:
-        log("Adding the ceph sources failed with message: {}".format(
+        log("Adding the Ceph sources failed with message: {}".format(
             err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
@@ -2685,7 +2679,7 @@ def upgrade_osd(new_version, kick_function=None):
         kick_function()
 
         # If the upgrade does not need an ownership update of any of the
-        # directories in the osd service directory, then simply restart
+        # directories in the OSD service directory, then simply restart
         # all of the OSDs at the same time as this will be the fastest
         # way to update the code on the node.
         if not dirs_need_ownership_update('osd'):
@@ -2700,7 +2694,7 @@ def upgrade_osd(new_version, kick_function=None):
         # Need to change the ownership of all directories which are not OSD
         # directories as well.
         # TODO - this should probably be moved to the general upgrade function
-        #        and done before mon/osd.
+        #        and done before mon/OSD.
         update_owner(CEPH_BASE_DIR, recurse_dirs=False)
         non_osd_dirs = filter(lambda x: not x == 'osd',
                               os.listdir(CEPH_BASE_DIR))
@@ -2721,12 +2715,12 @@ def upgrade_osd(new_version, kick_function=None):
                 _upgrade_single_osd(osd_num, osd_dir)
             except ValueError as ex:
                 # Directory could not be parsed - junk directory?
-                log('Could not parse osd directory %s: %s' % (osd_dir, ex),
+                log('Could not parse OSD directory %s: %s' % (osd_dir, ex),
                     WARNING)
                 continue
 
     except (subprocess.CalledProcessError, IOError) as err:
-        log("Stopping ceph and upgrading packages failed "
+        log("Stopping Ceph and upgrading packages failed "
             "with message: {}".format(err))
         status_set("blocked", "Upgrade to {} failed".format(new_version))
         sys.exit(1)
@@ -2753,7 +2747,7 @@ def _upgrade_single_osd(osd_num, osd_dir):
 def stop_osd(osd_num):
     """Stops the specified OSD number.
 
-    :param osd_num: the osd number to stop
+    :param osd_num: the OSD number to stop
     """
     if systemd():
         service_stop('ceph-osd@{}'.format(osd_num))
@@ -2764,7 +2758,7 @@ def stop_osd(osd_num):
 def start_osd(osd_num):
     """Starts the specified OSD number.
 
-    :param osd_num: the osd number to start.
+    :param osd_num: the OSD number to start.
     """
     if systemd():
         service_start('ceph-osd@{}'.format(osd_num))
@@ -2775,12 +2769,12 @@ def start_osd(osd_num):
 def disable_osd(osd_num):
     """Disables the specified OSD number.
 
-    Ensures that the specified osd will not be automatically started at the
+    Ensures that the specified OSD will not be automatically started at the
     next reboot of the system. Due to differences between init systems,
-    this method cannot make any guarantees that the specified osd cannot be
+    this method cannot make any guarantees that the specified OSD cannot be
     started manually.
 
-    :param osd_num: the osd id which should be disabled.
+    :param osd_num: the OSD id which should be disabled.
     :raises CalledProcessError: if an error occurs invoking the systemd cmd
                                 to disable the OSD
     :raises IOError, OSError: if the attempt to read/remove the ready file in
@@ -2820,7 +2814,7 @@ def enable_osd(osd_num):
     :param osd_num: the osd id which should be enabled.
     :raises CalledProcessError: if the call to the systemd command issued
                                 fails when enabling the service
-    :raises IOError: if the attempt to write the ready file in an usptart
+    :raises IOError: if the attempt to write the ready file in an upstart
                      enabled system fails
     """
     if systemd():
@@ -2828,7 +2822,7 @@ def enable_osd(osd_num):
         subprocess.check_call(cmd)
     else:
         # When running on upstart, the OSDs are started via the ceph-osd-all
-        # upstart script which will only start the osd if it has a 'ready'
+        # upstart script which will only start the OSD if it has a 'ready'
         # file. Make sure that file exists.
         ready_file = os.path.join(OSD_BASE_DIR, 'ceph-{}'.format(osd_num),
                                   'ready')
@@ -2881,7 +2875,7 @@ def get_osd_state(osd_num, osd_goal_state=None):
     If osd_goal_state is not None, loop until the current OSD state matches
     the OSD goal state.
 
-    :param osd_num: the osd id to get state for
+    :param osd_num: the OSD id to get state for
     :param osd_goal_state: (Optional) string indicating state to wait for
                            Defaults to None
     :returns: Returns a str, the OSD state.
@@ -2942,7 +2936,7 @@ def maintain_osd_state(osd_num):
     Ensures the state of an OSD is the same at the end of a block nested
     in a with statement as it was at the beginning of the block.
 
-    :param osd_num: the osd id to maintain state for
+    :param osd_num: the OSD id to maintain state for
     """
     osd_state = get_osd_state(osd_num)
     try:
@@ -2969,9 +2963,9 @@ def maintain_all_osd_states():
 def list_pools(client='admin'):
     """This will list the current pools that Ceph has
 
-    :param client: (Optional) client id for ceph key to use
+    :param client: (Optional) client id for Ceph key to use
                    Defaults to ``admin``
-    :type cilent: str
+    :type client: str
     :returns: Returns a list of available pools.
     :rtype: list
     :raises: subprocess.CalledProcessError if the subprocess fails to run.
@@ -2996,9 +2990,9 @@ def get_pool_param(pool, param, client='admin'):
     :type pool: str
     :param param: Name of variable to get
     :type param: str
-    :param client: (Optional) client id for ceph key to use
+    :param client: (Optional) client id for Ceph key to use
                    Defaults to ``admin``
-    :type cilent: str
+    :type client: str
     :returns: Value of variable on pool or None
     :rtype: str or None
     :raises: subprocess.CalledProcessError
@@ -3020,9 +3014,9 @@ def get_pool_erasure_profile(pool, client='admin'):
 
     :param pool: Name of pool to get variable from
     :type pool: str
-    :param client: (Optional) client id for ceph key to use
+    :param client: (Optional) client id for Ceph key to use
                    Defaults to ``admin``
-    :type cilent: str
+    :type client: str
     :returns: Erasure code profile of pool or None
     :rtype: str or None
     :raises: subprocess.CalledProcessError
@@ -3041,9 +3035,9 @@ def get_pool_quota(pool, client='admin'):
 
     :param pool: Name of pool to get variable from
     :type pool: str
-    :param client: (Optional) client id for ceph key to use
+    :param client: (Optional) client id for Ceph key to use
                    Defaults to ``admin``
-    :type cilent: str
+    :type client: str
     :returns: Dictionary with quota variables
     :rtype: dict
     :raises: subprocess.CalledProcessError
@@ -3066,9 +3060,9 @@ def get_pool_applications(pool='', client='admin'):
     :param pool: (Optional) Name of pool to get applications for
                  Defaults to get for all pools
     :type pool: str
-    :param client: (Optional) client id for ceph key to use
+    :param client: (Optional) client id for Ceph key to use
                    Defaults to ``admin``
-    :type cilent: str
+    :type client: str
     :returns: Dictionary with pool name as key
     :rtype: dict
     :raises: subprocess.CalledProcessError
@@ -3131,7 +3125,7 @@ def dirs_need_ownership_update(service):
     necessary due to the upgrade from Hammer to Jewel where the daemon user
     changes from root: to ceph:.
 
-    :param service: the name of the service folder to check (e.g. osd, mon)
+    :param service: the name of the service folder to check (e.g. OSD, mon)
     :returns: boolean. True if the directories need a change of ownership,
              False otherwise.
     :raises IOError: if an error occurs reading the file stats from one of
@@ -3161,7 +3155,7 @@ def dirs_need_ownership_update(service):
     return False
 
 
-# A dict of valid ceph upgrade paths. Mapping is old -> new
+# A dict of valid Ceph upgrade paths. Mapping is old -> new
 UPGRADE_PATHS = collections.OrderedDict([
     ('firefly', 'hammer'),
     ('hammer', 'jewel'),
@@ -3173,7 +3167,7 @@ UPGRADE_PATHS = collections.OrderedDict([
     ('pacific', 'quincy'),
 ])
 
-# Map UCA codenames to ceph codenames
+# Map UCA codenames to Ceph codenames
 UCA_CODENAME_MAP = {
     'icehouse': 'firefly',
     'juno': 'firefly',
@@ -3196,24 +3190,24 @@ UCA_CODENAME_MAP = {
 
 
 def pretty_print_upgrade_paths():
-    """Pretty print supported upgrade paths for ceph"""
+    """Pretty print supported upgrade paths for Ceph"""
     return ["{} -> {}".format(key, value)
             for key, value in UPGRADE_PATHS.items()]
 
 
 def resolve_ceph_version(source):
-    """Resolves a version of ceph based on source configuration
+    """Resolves a version of Ceph based on source configuration
     based on Ubuntu Cloud Archive pockets.
 
     @param: source: source configuration option of charm
-    :returns: ceph release codename or None if not resolvable
+    :returns: Ceph release codename or None if not resolvable
     """
     os_release = get_os_codename_install_source(source)
     return UCA_CODENAME_MAP.get(os_release)
 
 
 def get_ceph_pg_stat():
-    """Returns the result of ceph pg stat.
+    """Returns the result of 'ceph pg stat'.
 
     :returns: dict
     """
@@ -3248,7 +3242,7 @@ def get_ceph_health():
                    .decode('UTF-8'))
         try:
             json_tree = json.loads(tree)
-            # Make sure children are present in the json
+            # Make sure children are present in the JSON
             if not json_tree['overall_status']:
                 return None
 
@@ -3265,7 +3259,7 @@ def get_ceph_health():
 def reweight_osd(osd_num, new_weight):
     """Changes the crush weight of an OSD to the value specified.
 
-    :param osd_num: the osd id which should be changed
+    :param osd_num: the OSD id which should be changed
     :param new_weight: the new weight for the OSD
     :returns: bool. True if output looks right, else false.
     :raises CalledProcessError: if an error occurs invoking the systemd cmd
@@ -3292,7 +3286,7 @@ def reweight_osd(osd_num, new_weight):
 def determine_packages():
     """Determines packages for installation.
 
-    :returns: list of ceph packages
+    :returns: list of Ceph packages
     """
     packages = PACKAGES.copy()
     if CompareHostReleases(lsb_release()['DISTRIB_CODENAME']) >= 'eoan':
@@ -3361,12 +3355,12 @@ def osd_noout(enable):
 
 
 class OSDConfigSetError(Exception):
-    """Error occured applying OSD settings."""
+    """Error occurred applying OSD settings."""
     pass
 
 
 def apply_osd_settings(settings):
-    """Applies the provided osd settings
+    """Applies the provided OSD settings
 
     Apply the provided settings to all local OSD unless settings are already
     present. Settings stop being applied on encountering an error.
@@ -3391,7 +3385,7 @@ def apply_osd_settings(settings):
             out = json.loads(
                 subprocess.check_output(cmd.split()).decode('UTF-8'))
             if 'error' in out:
-                log("Error retrieving osd setting: {}".format(out['error']),
+                log("Error retrieving OSD setting: {}".format(out['error']),
                     level=ERROR)
                 return False
             current_settings[key] = out[cli_key]
@@ -3408,7 +3402,7 @@ def apply_osd_settings(settings):
             out = json.loads(
                 subprocess.check_output(cmd.split()).decode('UTF-8'))
             if 'error' in out:
-                log("Error applying osd setting: {}".format(out['error']),
+                log("Error applying OSD setting: {}".format(out['error']),
                     level=ERROR)
                 raise OSDConfigSetError
     return True
@@ -3478,7 +3472,7 @@ mgr_disable_dashboard = functools.partial(mgr_disable_module, 'dashboard')
 
 
 def ceph_config_set(name, value, who):
-    """Set a ceph config option
+    """Set a Ceph config option
 
     :param name: key to set
     :type name: str
@@ -3496,7 +3490,7 @@ mgr_config_set = functools.partial(ceph_config_set, who='mgr')
 
 
 def ceph_config_get(name, who):
-    """Retrieve the value of a ceph config option
+    """Retrieve the value of a Ceph config option
 
     :param name: key to lookup
     :type name: str
