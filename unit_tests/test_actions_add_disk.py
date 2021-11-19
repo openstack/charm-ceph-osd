@@ -54,4 +54,50 @@ class AddDiskActionTests(CharmTestCase):
         self.hookenv.relation_set.assert_has_calls([call])
         mock_osdize.assert_has_calls([mock.call('/dev/myosddev',
                                                 None, '', True, True, True,
-                                                True)])
+                                                True, None)])
+
+        piter = add_disk.PartitionIter(['/dev/cache'], 100, ['/dev/myosddev'])
+        mock_create_bcache = mock.MagicMock(side_effect=lambda b: b)
+        with mock.patch.object(add_disk.PartitionIter, 'create_bcache',
+                               mock_create_bcache) as mock_call:
+            add_disk.add_device(request, '/dev/myosddev', part_iter=piter)
+            mock_call.assert_called()
+
+        mock_create_bcache.side_effect = lambda b: None
+        with mock.patch.object(add_disk.PartitionIter, 'create_bcache',
+                               mock_create_bcache) as mock_call:
+            with self.assertRaises(add_disk.DeviceError):
+                add_disk.add_device(request, '/dev/myosddev', part_iter=piter)
+
+    def test_get_devices(self):
+        self.hookenv.action_get.return_value = '/dev/foo bar'
+        rv = add_disk.get_devices('')
+        self.assertEqual(rv, ['/dev/foo'])
+        self.hookenv.action_get.return_value = None
+        rv = add_disk.get_devices('')
+        self.assertEqual(rv, [])
+
+    @mock.patch.object(add_disk, 'device_size')
+    @mock.patch.object(add_disk, 'function_fail')
+    def test_validate_psize(self, function_fail, device_size):
+        caches = {'cache1': 100, 'cache2': 200}
+        device_size.side_effect = lambda c: caches[c]
+        function_fail.return_value = None
+        with self.assertRaises(SystemExit):
+            add_disk.validate_partition_size(
+                60, ['a', 'b', 'c'], list(caches.keys()))
+        self.assertIsNone(add_disk.validate_partition_size(
+            60, ['a', 'b'], list(caches.keys())))
+
+    def test_cache_storage(self):
+        self.hookenv.storage_list.return_value = [{'location': 'a', 'key': 1},
+                                                  {'location': 'b'}]
+        self.hookenv.storage_get.side_effect = lambda k, elem: elem.get(k)
+        rv = add_disk.cache_storage()
+        self.assertEqual(['a', 'b'], rv)
+
+    def test_validate_osd_id(self):
+        for elem in ('osd.1', '1', 0, 113):
+            self.assertTrue(add_disk.validate_osd_id(elem))
+        for elem in ('osd.-1', '-3', '???', -100, 3.4, {}):
+            self.assertFalse(add_disk.validate_osd_id(elem))

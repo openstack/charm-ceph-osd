@@ -48,3 +48,8 @@ storage:
     type: block
     multiple:
       range: 0-
+  cache-devices:
+    type: block
+    multiple:
+      range: 0-
+    minimum-size: 10G

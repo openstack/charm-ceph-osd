@@ -15,7 +15,7 @@
 
 import unittest
 
-from unittest.mock import patch
+from unittest.mock import patch, mock_open
 
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -138,3 +138,123 @@ class CephUtilsTestCase(unittest.TestCase):
 
         parsed = utils.parse_osds_arguments()
         self.assertEqual(parsed, expected_id)
+
+    @patch('subprocess.check_call')
+    @patch('subprocess.check_output')
+    def test_setup_bcache(self, check_output, check_call):
+        check_output.return_value = b'''
+          {
+            "blockdevices": [
+              {"name":"/dev/nvme0n1",
+                 "children": [
+                   {"name":"/dev/bcache0"}
+                 ]
+              }
+            ]
+          }
+        '''
+        self.assertEqual(utils.setup_bcache('', ''), '/dev/bcache0')
+
+    @patch('subprocess.check_output')
+    def test_get_partition_names(self, check_output):
+        check_output.return_value = b'''
+            {
+              "blockdevices": [
+                {"name":"/dev/sdd",
+                 "children": [
+                   {"name":"/dev/sdd1"}
+                 ]
+               }
+             ]
+           }
+        '''
+        partitions = utils.get_partition_names('')
+        self.assertEqual(partitions, set(['/dev/sdd1']))
+        # Check for a raw device with no partitions.
+        check_output.return_value = b'''
+          {"blockdevices": [{"name":"/dev/sdd"}]}
+        '''
+        self.assertEqual(set(), utils.get_partition_names(''))
+
+    @patch.object(utils, 'get_partition_names')
+    @patch('subprocess.check_call')
+    def test_create_partition(self, check_call, get_partition_names):
+        first_call = True
+
+        def gpn(dev):
+            nonlocal first_call
+            if first_call:
+                first_call = False
+                return set()
+            return set(['/dev/nvm0n1p1'])
+        get_partition_names.side_effect = gpn
+        partition_name = utils.create_partition('/dev/nvm0n1', 101, 0)
+        self.assertEqual(partition_name, '/dev/nvm0n1p1')
+        args = check_call.call_args[0][0]
+        self.assertIn('/dev/nvm0n1', args)
+        self.assertIn('101GB', args)
+
+    @patch('subprocess.check_output')
+    def test_device_size(self, check_output):
+        check_output.return_value = b'''
+            {
+              "blockdevices": [{"size":800166076416}]
+            }
+            '''
+        self.assertEqual(745, int(utils.device_size('')))
+
+    @patch('subprocess.check_output')
+    def test_bcache_remove(self, check_output):
+        check_output.return_value = b'''
+        sb.magic		ok
+        sb.first_sector		8 [match]
+        sb.csum			63F23B706BA0FE6A [match]
+        sb.version		3 [cache device]
+        dev.label		(empty)
+        dev.uuid		ca4ce5e1-4cf3-4330-b1c9-2c735b14cd0b
+        dev.sectors_per_block	1
+        dev.sectors_per_bucket	1024
+        dev.cache.first_sector	1024
+        dev.cache.cache_sectors	1562822656
+        dev.cache.total_sectors	1562823680
+        dev.cache.ordered	yes
+        dev.cache.discard	no
+        dev.cache.pos		0
+        dev.cache.replacement	0 [lru]
+        cset.uuid		424242
+        '''
+        mo = mock_open()
+        with patch('builtins.open', mo):
+            utils.bcache_remove('/dev/bcache0', '/dev/nvme0n1p1')
+            mo.assert_any_call('/sys/block/bcache0/bcache/stop', 'wb')
+            mo.assert_any_call('/sys/fs/bcache/424242/stop', 'wb')
+
+    @patch.object(utils, 'create_partition')
+    @patch.object(utils, 'setup_bcache')
+    def test_partition_iter(self, setup_bcache, create_partition):
+        create_partition.side_effect = \
+            lambda c, s, n: c + '|' + str(s) + '|' + str(n)
+        setup_bcache.side_effect = lambda *args: args
+        piter = utils.PartitionIter(['/dev/nvm0n1', '/dev/nvm0n2'],
+                                    200, ['dev1', 'dev2', 'dev3'])
+        piter.create_bcache('dev1')
+        setup_bcache.assert_called_with('dev1', '/dev/nvm0n1|200|0')
+        setup_bcache.mock_reset()
+        piter.create_bcache('dev2')
+        setup_bcache.assert_called_with('dev2', '/dev/nvm0n2|200|0')
+        piter.create_bcache('dev3')
+        setup_bcache.assert_called_with('dev3', '/dev/nvm0n1|200|1')
+
+    @patch.object(utils, 'device_size')
+    @patch.object(utils, 'create_partition')
+    @patch.object(utils, 'setup_bcache')
+    def test_partition_iter_no_size(self, setup_bcache, create_partition,
+                                    device_size):
+        device_size.return_value = 300
+        piter = utils.PartitionIter(['/dev/nvm0n1'], 0,
+                                    ['dev1', 'dev2', 'dev3'])
+        create_partition.side_effect = lambda c, sz, g: sz
+
+        # 300GB across 3 devices, i.e: 100 for each.
+        self.assertEqual(100, next(piter))
+        self.assertEqual(100, next(piter))
