@@ -1162,6 +1162,10 @@ osd_upgrade_caps = collections.OrderedDict([
              'allow command "osd in"',
              'allow command "osd rm"',
              'allow command "auth del"',
+             'allow command "osd safe-to-destroy"',
+             'allow command "osd crush reweight"',
+             'allow command "osd purge"',
+             'allow command "osd destroy"',
              ])
 ])
 

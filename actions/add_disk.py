@@ -61,6 +61,9 @@ def add_device(request, device_path, bucket=None,
     else:
         effective_dev = device_path
 
+    if osd_id is not None and osd_id.startswith('osd.'):
+        osd_id = osd_id[4:]
+
     charms_ceph.utils.osdize(effective_dev, hookenv.config('osd-format'),
                              ceph_hooks.get_journal_devices(),
                              hookenv.config('ignore-device-errors'),
@@ -90,6 +93,14 @@ def add_device(request, device_path, bucket=None,
                 'bootstrapped-osds': bootstrapped_osds,
             }
         )
+
+    if part_iter is not None:
+        # Update the alias map so we can refer to an OSD via the original
+        # device instead of the newly created cache name.
+        aliases = db.get('osd-aliases', {})
+        aliases[device_path] = effective_dev
+        db.set('osd-aliases', aliases)
+        db.flush()
 
     return request
 
@@ -183,5 +194,5 @@ if __name__ == "__main__":
             for error in errors:
                 part_iter.cleanup(error)
 
-        function_fail('Failed to add devices: {}', ','.join(errors))
+        function_fail('Failed to add devices: {}'.format(','.join(errors)))
         sys.exit(1)

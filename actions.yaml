@@ -149,3 +149,39 @@ get-availability-zone:
     show-all:
       type: boolean
       description: Option to view information for all units. Default is 'false'.
+remove-disk:
+  description: |
+    Remove disks from Ceph, producing a report afterwards indicating the user
+    as to how to replace them in the closest way possible.
+  params:
+    osd-devices:
+      type: string
+      description: A space-separated list of devices to remove
+    osd-ids:
+      type: string
+      description: |
+        A space separated list of OSD ids to remove. This parameter is mutually
+        exclusive with the parameter 'osd-devices'.
+    purge:
+      type: boolean
+      description: |
+        Whether to fully purge the OSD or let the id be available for reuse.
+      default: false
+    timeout:
+      type: integer
+      description: |
+        The time in minutes to wait for the OSD to be safe to remove.
+      default: 5
+    force:
+      type: boolean
+      description: |
+        Whether to forcefully remove the OSD even if it's determined to be
+        unsafe to destroy it.
+      default: false
+    format:
+      type: string
+      enum:
+        - text
+        - json
+      default: text
+      description: The output format returned for the command.

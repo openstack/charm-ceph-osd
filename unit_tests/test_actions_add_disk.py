@@ -44,7 +44,7 @@ class AddDiskActionTests(CharmTestCase):
 
         db = mock.MagicMock()
         self.kv.return_value = db
-        db.get.return_value = ['/dev/myosddev']
+        db.get.side_effect = {'osd-devices': ['/dev/myosddev']}.get
 
         request = {'ops': []}
         add_disk.add_device(request, '/dev/myosddev')
@@ -57,11 +57,13 @@ class AddDiskActionTests(CharmTestCase):
                                                 True, None)])
 
         piter = add_disk.PartitionIter(['/dev/cache'], 100, ['/dev/myosddev'])
-        mock_create_bcache = mock.MagicMock(side_effect=lambda b: b)
+        mock_create_bcache = mock.MagicMock(side_effect=lambda b: '/dev/cache')
         with mock.patch.object(add_disk.PartitionIter, 'create_bcache',
                                mock_create_bcache) as mock_call:
             add_disk.add_device(request, '/dev/myosddev', part_iter=piter)
             mock_call.assert_called()
+            db.set.assert_called_with('osd-aliases',
+                                      {'/dev/myosddev': '/dev/cache'})
 
         mock_create_bcache.side_effect = lambda b: None
         with mock.patch.object(add_disk.PartitionIter, 'create_bcache',

@@ -72,6 +72,7 @@ except ImportError:
 
 _bootstrap_keyring = "/var/lib/ceph/bootstrap-osd/ceph.keyring"
 _upgrade_keyring = "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring"
+_removal_keyring = "/var/lib/ceph/osd/ceph.client.osd-removal.keyring"
 
 
 def is_osd_bootstrap_ready():
@@ -83,6 +84,21 @@ def is_osd_bootstrap_ready():
     return os.path.exists(_bootstrap_keyring)
 
 
+def _import_key(key, path, name):
+    if not os.path.exists(path):
+        cmd = [
+            'sudo',
+            '-u',
+            ceph.ceph_user(),
+            'ceph-authtool',
+            path,
+            '--create-keyring',
+            '--name={}'.format(name),
+            '--add-key={}'.format(key)
+        ]
+        subprocess.check_call(cmd)
+
+
 def import_osd_bootstrap_key(key):
     """
     Ensure that the osd-bootstrap keyring is setup.
@@ -90,18 +106,7 @@ def import_osd_bootstrap_key(key):
     :param key: The cephx key to add to the bootstrap keyring
     :type key: str
     :raises: subprocess.CalledProcessError"""
-    if not os.path.exists(_bootstrap_keyring):
-        cmd = [
-            "sudo",
-            "-u",
-            ceph.ceph_user(),
-            'ceph-authtool',
-            _bootstrap_keyring,
-            '--create-keyring',
-            '--name=client.bootstrap-osd',
-            '--add-key={}'.format(key)
-        ]
-        subprocess.check_call(cmd)
+    _import_key(key, _bootstrap_keyring, 'client.bootstrap-osd')
 
 
 def import_osd_upgrade_key(key):
@@ -111,18 +116,17 @@ def import_osd_upgrade_key(key):
     :param key: The cephx key to add to the upgrade keyring
     :type key: str
     :raises: subprocess.CalledProcessError"""
-    if not os.path.exists(_upgrade_keyring):
-        cmd = [
-            "sudo",
-            "-u",
-            ceph.ceph_user(),
-            'ceph-authtool',
-            _upgrade_keyring,
-            '--create-keyring',
-            '--name=client.osd-upgrade',
-            '--add-key={}'.format(key)
-        ]
-        subprocess.check_call(cmd)
+    _import_key(key, _upgrade_keyring, 'client.osd-upgrade')
+
+
+def import_osd_removal_key(key):
+    """
+    Ensure that the osd-removal keyring is setup.
+
+    :param key: The cephx key to add to the upgrade keyring
+    :type key: str
+    :raises: subprocess.CalledProcessError"""
+    _import_key(key, _removal_keyring, 'client.osd-removal')
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
@@ -348,16 +352,16 @@ class DeviceError(Exception):
     pass
 
 
-def _check_output(args):
+def _check_output(args, **kwargs):
     try:
-        return subprocess.check_output(args).decode('UTF-8')
+        return subprocess.check_output(args, **kwargs).decode('UTF-8')
     except subprocess.CalledProcessError as e:
         raise DeviceError(str(e))
 
 
-def _check_call(args):
+def _check_call(args, **kwargs):
     try:
-        return subprocess.check_call(args)
+        return subprocess.check_call(args, **kwargs)
     except subprocess.CalledProcessError as e:
         raise DeviceError(str(e))
 
@@ -458,16 +462,37 @@ def device_size(dev):
     return ret / (1024 * 1024 * 1024)   # Return size in GB.
 
 
-def bcache_remove(bcache, cache_dev):
+def remove_lvm(device):
+    """Remove any physical and logical volumes associated to a device."""
+    vgs = []
+    try:
+        rv = _check_output(['sudo', 'pvdisplay', device])
+    except DeviceError:
+        # Assume no physical volumes.
+        return
+
+    for line in rv.splitlines():
+        line = line.strip()
+        if line.startswith('VG Name'):
+            vgs.append(line.split()[2])
+    if vgs:
+        _check_call(['sudo', 'vgremove', '-y'] + vgs)
+    _check_call(['sudo', 'pvremove', '-y', device])
+
+
+def bcache_remove(bcache, backing, caching):
     """Remove a bcache kernel device, given its caching.
 
     :param bache: The path of the bcache device.
     :type bcache: str
 
-    :param cache_dev: The caching device used for the bcache name.
-    :type cache_dev: str
+    :param backing: The backing device for bcache
+    :type backing: str
+
+    :param caching: The caching device for bcache
+    :type caching: str
     """
-    rv = _check_output(['sudo', 'bcache-super-show', cache_dev])
+    rv = _check_output(['sudo', 'bcache-super-show', backing])
     uuid = None
     # Fetch the UUID for the caching device.
     for line in rv.split('\n'):
@@ -478,15 +503,47 @@ def bcache_remove(bcache, cache_dev):
     else:
         return
     bcache_name = bcache[bcache.rfind('/') + 1:]
-    with open('/sys/block/{}/bcache/stop'.format(bcache_name), 'wb') as f:
-        f.write(b'1')
-    with open('/sys/fs/bcache/{}/stop'.format(uuid), 'wb') as f:
-        f.write(b'1')
+
+    def write_one(path):
+        os.system('echo 1 | sudo tee {}'.format(path))
+
+    # The command ceph-volume typically creates PV's and VG's for the
+    # OSD device. Remove them now before deleting the bcache.
+    remove_lvm(bcache)
+
+    # NOTE: We *must* do the following steps in this order. For
+    # kernels 4.x and prior, not doing so will cause the bcache device
+    # to be undeletable.
+    # In addition, we have to use 'sudo tee' as done above, since it
+    # can cause permission issues in some implementations.
+    write_one('/sys/block/{}/bcache/detach'.format(bcache_name))
+    write_one('/sys/block/{}/bcache/stop'.format(bcache_name))
+    write_one('/sys/fs/bcache/{}/stop'.format(uuid))
+
+    # We wipe the bcache signatures here because the bcache tools will not
+    # create the devices otherwise. There is a 'force' option, but it's not
+    # always available, so we do the portable thing here.
+    wipefs_safely(backing)
+    wipefs_safely(caching)
 
 
-def wipe_disk(dev):
+def wipe_disk(dev, timeout=None):
     """Destroy all data in a specific device, including partition tables."""
-    _check_call(['sudo', 'wipefs', '-a', dev])
+    _check_call(['sudo', 'wipefs', '-a', dev], timeout=timeout)
+
+
+def wipefs_safely(dev):
+    for _ in range(10):
+        try:
+            wipe_disk(dev, 1)
+            return
+        except DeviceError:
+            time.sleep(0.3)
+        except subprocess.TimeoutExpired:
+            # If this command times out, then it's likely because
+            # the disk is dead, so give up.
+            return
+    raise DeviceError('Failed to wipe bcache device: {}'.format(dev))
 
 
 class PartitionIter:
@@ -556,11 +613,71 @@ class PartitionIter:
         return ret
 
     def cleanup(self, device):
+        """Destroy any created partitions and bcache names for a device."""
         args = self.created.get(device)
         if not args:
             return
 
+        bcache, caching = args
         try:
-            bcache_remove(*args)
+            bcache_remove(bcache, device, caching)
         except DeviceError:
-            log('Failed to cleanup bcache device: {}'.format(args[0]))
+            log('Failed to cleanup bcache device: {}'.format(bcache))
+
+
+def _device_suffix(dev):
+    ix = dev.rfind('/')
+    if ix >= 0:
+        dev = dev[ix + 1:]
+    return dev
+
+
+def get_bcache_names(dev):
+    """Return the backing and caching devices for a bcache device,
+    in that specific order.
+
+    :param dev: The path to the bcache device, i.e: /dev/bcache0
+    :type dev: str
+
+    :returns: A tuple with the backing and caching devices.
+    :rtype: list[Option[None, str], Option[None, str]]
+    """
+    if dev is None:
+        return None, None
+
+    dev_name = _device_suffix(dev)
+    bcache_path = '/sys/block/{}/slaves'.format(dev_name)
+    if (not os.path.exists('/sys/block/{}/bcache'.format(dev_name)) or
+            not os.path.exists(bcache_path)):
+        return None, None
+
+    cache = os.listdir(bcache_path)
+    if len(cache) < 2:
+        return None, None
+
+    backing = '/dev/' + cache[0]
+    caching = '/dev/' + cache[1]
+    out = _check_output(['sudo', 'bcache-super-show', backing])
+    if 'backing device' not in out:
+        return caching, backing
+    return backing, caching
+
+
+def get_parent_device(dev):
+    """Return the device's parent, assuming if it's a block device."""
+    try:
+        rv = subprocess.check_output(['lsblk', '-as', dev, '-J'])
+        rv = json.loads(rv.decode('UTF-8'))
+    except subprocess.CalledProcessError:
+        return dev
+
+    children = rv.get('blockdevices', [])
+    if not children:
+        return dev
+
+    children = children[0].get('children', [])
+    for child in children:
+        if 'children' not in child:
+            return '/dev/' + child['name']
+
+    return dev

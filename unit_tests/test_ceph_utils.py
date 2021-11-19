@@ -15,7 +15,7 @@
 
 import unittest
 
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 with patch('charmhelpers.contrib.hardening.harden.harden') as mock_dec:
     mock_dec.side_effect = (lambda *dargs, **dkwargs: lambda f:
@@ -204,7 +204,10 @@ class CephUtilsTestCase(unittest.TestCase):
         self.assertEqual(745, int(utils.device_size('')))
 
     @patch('subprocess.check_output')
-    def test_bcache_remove(self, check_output):
+    @patch.object(utils, 'remove_lvm')
+    @patch.object(utils, 'wipe_disk')
+    @patch('os.system')
+    def test_bcache_remove(self, system, wipe_disk, remove_lvm, check_output):
         check_output.return_value = b'''
         sb.magic		ok
         sb.first_sector		8 [match]
@@ -223,15 +226,93 @@ class CephUtilsTestCase(unittest.TestCase):
         dev.cache.replacement	0 [lru]
         cset.uuid		424242
         '''
-        mo = mock_open()
-        with patch('builtins.open', mo):
-            utils.bcache_remove('/dev/bcache0', '/dev/nvme0n1p1')
-            mo.assert_any_call('/sys/block/bcache0/bcache/stop', 'wb')
-            mo.assert_any_call('/sys/fs/bcache/424242/stop', 'wb')
+        utils.bcache_remove('/dev/bcache0', 'backing', 'caching')
+        system.assert_any_call(
+            'echo 1 | sudo tee /sys/block/bcache0/bcache/detach')
+        system.assert_any_call(
+            'echo 1 | sudo tee /sys/block/bcache0/bcache/stop')
+        system.assert_any_call(
+            'echo 1 | sudo tee /sys/fs/bcache/424242/stop')
+        wipe_disk.assert_any_call('backing', 1)
+        wipe_disk.assert_any_call('caching', 1)
 
+    @patch('os.listdir')
+    @patch('os.path.exists')
+    @patch('subprocess.check_output')
+    def test_get_bcache_names(self, check_output, exists, listdir):
+        exists.return_value = True
+        check_output.return_value = b'''
+sb.magic		ok
+sb.first_sector		8 [match]
+sb.csum			A71D96D4364343BF [match]
+sb.version		1 [backing device]
+
+dev.label		(empty)
+dev.uuid		cca84a86-3f68-4ffb-8be1-4449c9fb29a8
+dev.sectors_per_block	1
+dev.sectors_per_bucket	1024
+dev.data.first_sector	16
+dev.data.cache_mode	1 [writeback]
+dev.data.cache_state	1 [clean]
+
+cset.uuid		57add9da-e5de-47c6-8f39-3e16aafb8d31
+        '''
+        listdir.return_value = ['backing', 'caching']
+        values = utils.get_bcache_names('/dev/bcache0')
+        self.assertEqual(2, len(values))
+        self.assertEqual(values[0], '/dev/backing')
+        check_output.return_value = b'''
+sb.magic		ok
+sb.first_sector		8 [match]
+sb.csum			6802E76075FF7B77 [match]
+sb.version		3 [cache device]
+
+dev.label		(empty)
+dev.uuid		fb6e9d06-12e2-46ca-b8fd-797ecec1a126
+dev.sectors_per_block	1
+dev.sectors_per_bucket	1024
+dev.cache.first_sector	1024
+dev.cache.cache_sectors	10238976
+dev.cache.total_sectors	10240000
+dev.cache.ordered	yes
+dev.cache.discard	no
+dev.cache.pos		0
+dev.cache.replacement	0 [lru]
+
+cset.uuid		57add9da-e5de-47c6-8f39-3e16aafb8d31
+        '''
+        values = utils.get_bcache_names('/dev/bcache0')
+        self.assertEqual(values[0], '/dev/caching')
+
+    @patch('subprocess.check_output')
+    @patch('subprocess.check_call')
+    def test_remove_lvm(self, check_call, check_output):
+        check_output.return_value = b'''
+--- Physical volume ---
+  PV Name               /dev/bcache0
+  VG Name               ceph-1
+  VG Name               ceph-2
+        '''
+        utils.remove_lvm('/dev/bcache0')
+        check_call.assert_any_call(
+            ['sudo', 'vgremove', '-y', 'ceph-1', 'ceph-2'])
+        check_call.assert_any_call(['sudo', 'pvremove', '-y', '/dev/bcache0'])
+
+        check_call.reset_mock()
+
+        def just_raise(*args):
+            raise utils.DeviceError()
+
+        check_output.side_effect = just_raise
+        utils.remove_lvm('')
+        check_call.assert_not_called()
+
+    @patch.object(utils, 'wipe_disk')
+    @patch.object(utils, 'bcache_remove')
     @patch.object(utils, 'create_partition')
     @patch.object(utils, 'setup_bcache')
-    def test_partition_iter(self, setup_bcache, create_partition):
+    def test_partition_iter(self, setup_bcache, create_partition,
+                            bcache_remove, wipe_disk):
         create_partition.side_effect = \
             lambda c, s, n: c + '|' + str(s) + '|' + str(n)
         setup_bcache.side_effect = lambda *args: args
@@ -239,6 +320,8 @@ class CephUtilsTestCase(unittest.TestCase):
                                     200, ['dev1', 'dev2', 'dev3'])
         piter.create_bcache('dev1')
         setup_bcache.assert_called_with('dev1', '/dev/nvm0n1|200|0')
+        piter.cleanup('dev1')
+        bcache_remove.assert_called()
         setup_bcache.mock_reset()
         piter.create_bcache('dev2')
         setup_bcache.assert_called_with('dev2', '/dev/nvm0n2|200|0')
@@ -258,3 +341,14 @@ class CephUtilsTestCase(unittest.TestCase):
         # 300GB across 3 devices, i.e: 100 for each.
         self.assertEqual(100, next(piter))
         self.assertEqual(100, next(piter))
+
+    @patch.object(utils.subprocess, 'check_output')
+    def test_parent_device(self, check_output):
+        check_output.return_value = b'''
+{"blockdevices": [
+  {"name": "loop1p1",
+   "children": [
+       {"name": "loop1"}]
+  }]
+}'''
+        self.assertEqual(utils.get_parent_device('/dev/loop1p1'), '/dev/loop1')
