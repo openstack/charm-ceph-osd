@@ -56,7 +56,7 @@ options:
       natively supported config in the charm.
   osd-devices:
     type: string
-    default: /dev/vdb
+    default:
     description: |
       The devices to format and set up as OSD volumes.
       .
