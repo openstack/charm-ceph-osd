@@ -1,24 +1,15 @@
 charm_name: ceph-osd
 
 gate_bundles:
-  - bionic-queens
-  - bionic-stein
-  - bionic-ussuri
-  - focal-ussuri
-  - focal-victoria
-  - focal-wallaby
   - focal-xena
-  - hirsute-wallaby
   - impish-xena
 
 dev_bundles:
-  - bionic-rocky
-  - bionic-train
   - focal-yoga
   - jammy-yoga
 
 smoke_bundles:
-  - focal-ussuri
+  - focal-xena
 
 configure:
   - zaza.openstack.charm_tests.glance.setup.add_lts_image
@@ -32,6 +23,5 @@ tests:
 
 tests_options:
   force_deploy:
-    - hirsute-wallaby
     - impish-xena
     - jammy-yoga
