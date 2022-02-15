@@ -5,6 +5,7 @@
 .stestr
 bin
 *.sw[nop]
+*.charm
 *.pyc
 .unit-state.db
 .idea

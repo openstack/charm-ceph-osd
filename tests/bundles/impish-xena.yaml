@@ -56,7 +56,7 @@ applications:
     channel: latest/edge
 
   ceph-osd:
-    charm: ../../../ceph-osd
+    charm: ../../ceph-osd.charm
     num_units: 3
     storage:
       osd-devices: 'cinder,10G'
@@ -78,7 +78,7 @@ applications:
       - '6'
       - '7'
       - '8'
-    channel: latest/edge
+    channel: quincy/edge
 
   rabbitmq-server:
     charm: ch:rabbitmq-server
@@ -97,7 +97,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '10'
-    channel: latest/edge
+    channel: yoga/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -106,7 +106,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '11'
-    channel: latest/edge
+    channel: yoga/edge
 
   glance:
     expose: True
@@ -116,7 +116,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '12'
-    channel: latest/edge
+    channel: yoga/edge
 
   cinder:
     expose: True
@@ -128,11 +128,11 @@ applications:
       glance-api-version: '2'
     to:
       - '13'
-    channel: latest/edge
+    channel: yoga/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: latest/edge
+    channel: yoga/edge
 
   nova-cloud-controller:
     expose: True
@@ -142,7 +142,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '14'
-    channel: latest/edge
+    channel: yoga/edge
 
   placement:
     charm: ch:placement
@@ -151,7 +151,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '15'
-    channel: latest/edge
+    channel: yoga/edge
 
 relations:
   - - 'nova-compute:amqp'
