@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import re
 import os
 import socket
 import subprocess
 import sys
+import time
 
 sys.path.append('lib')
 import charms_ceph.utils as ceph
@@ -336,3 +338,229 @@ def parse_osds_arguments():
             "explicitly defined OSD IDs", WARNING)
 
     return args
+
+
+class DeviceError(Exception):
+
+    """Exception type used to signal errors raised by calling
+    external commands that manipulate devices.
+    """
+    pass
+
+
+def _check_output(args):
+    try:
+        return subprocess.check_output(args).decode('UTF-8')
+    except subprocess.CalledProcessError as e:
+        raise DeviceError(str(e))
+
+
+def _check_call(args):
+    try:
+        return subprocess.check_call(args)
+    except subprocess.CalledProcessError as e:
+        raise DeviceError(str(e))
+
+
+def setup_bcache(backing, cache):
+    """Create a bcache device out of the backing storage and caching device.
+
+    :param backing: The path to the backing device.
+    :type backing: str
+
+    :param cache: The path to the caching device.
+    :type cache: str
+
+    :returns: The full path of the newly created bcache device.
+    :rtype: str
+    """
+    _check_call(['sudo', 'make-bcache', '-B', backing,
+                 '-C', cache, '--writeback'])
+
+    def bcache_name(dev):
+        rv = _check_output(['lsblk', '-p', '-b', cache, '-J', '-o', 'NAME'])
+        for x in json.loads(rv)['blockdevices'][0].get('children', []):
+            if x['name'] != dev:
+                return x['name']
+
+    for _ in range(100):
+        rv = bcache_name(cache)
+        if rv is not None:
+            return rv
+
+        # Tell the kernel to refresh the partitions.
+        time.sleep(0.3)
+        _check_call(['sudo', 'partprobe'])
+
+
+def get_partition_names(dev):
+    """Given a raw device, return a set of the partitions it contains.
+
+    :param dev: The path to the device.
+    :type dev: str
+
+    :returns: A set with the partitions of the passed device.
+    :rtype: set[str]
+    """
+    rv = _check_output(['lsblk', '-b', dev, '-J', '-p', '-o', 'NAME'])
+    rv = json.loads(rv)['blockdevices'][0].get('children', {})
+    return set(x['name'] for x in rv)
+
+
+def create_partition(cache, size, n_iter):
+    """Create a partition of a specific size in a device. If needed,
+       make sure the device has a GPT ready.
+
+    :param cache: The path to the caching device from which to create
+        the partition.
+    :type cache: str
+
+    :param size: The size (in GB) of the partition to create.
+    :type size: int
+
+    :param n_iter: The iteration number. If zero, this function will
+        also create the GPT on the caching device.
+    :type n_iter: int
+
+    :returns: The full path of the newly created partition.
+    :rtype: str
+    """
+    if not n_iter:
+        # In our first iteration, make sure the device has a GPT.
+        _check_call(['sudo', 'parted', '-s', cache, 'mklabel', 'gpt'])
+    prev_partitions = get_partition_names(cache)
+    cmd = ['sudo', 'parted', '-s', cache, 'mkpart', 'primary',
+           str(n_iter * size) + 'GB', str((n_iter + 1) * size) + 'GB']
+
+    _check_call(cmd)
+    for _ in range(100):
+        ret = get_partition_names(cache) - prev_partitions
+        if ret:
+            return next(iter(ret))
+
+        time.sleep(0.3)
+        _check_call(['sudo', 'partprobe'])
+
+    raise DeviceError('Failed to create partition')
+
+
+def device_size(dev):
+    """Compute the size of a device, in GB.
+
+    :param dev: The full path to the device.
+    :type dev: str
+
+    :returns: The size in GB of the specified device.
+    :rtype: int
+    """
+    ret = _check_output(['lsblk', '-b', '-d', dev, '-J', '-o', 'SIZE'])
+    ret = int(json.loads(ret)['blockdevices'][0]['size'])
+    return ret / (1024 * 1024 * 1024)   # Return size in GB.
+
+
+def bcache_remove(bcache, cache_dev):
+    """Remove a bcache kernel device, given its caching.
+
+    :param bache: The path of the bcache device.
+    :type bcache: str
+
+    :param cache_dev: The caching device used for the bcache name.
+    :type cache_dev: str
+    """
+    rv = _check_output(['sudo', 'bcache-super-show', cache_dev])
+    uuid = None
+    # Fetch the UUID for the caching device.
+    for line in rv.split('\n'):
+        idx = line.find('cset.uuid')
+        if idx >= 0:
+            uuid = line[idx + 9:].strip()
+            break
+    else:
+        return
+    bcache_name = bcache[bcache.rfind('/') + 1:]
+    with open('/sys/block/{}/bcache/stop'.format(bcache_name), 'wb') as f:
+        f.write(b'1')
+    with open('/sys/fs/bcache/{}/stop'.format(uuid), 'wb') as f:
+        f.write(b'1')
+
+
+def wipe_disk(dev):
+    """Destroy all data in a specific device, including partition tables."""
+    _check_call(['sudo', 'wipefs', '-a', dev])
+
+
+class PartitionIter:
+
+    """Class used to create partitions iteratively.
+
+    Objects of this type are used to create partitions out of
+    the specified cache devices, either with a specific size,
+    or with a size proportional to what is needed."""
+
+    def __init__(self, caches, psize, devices):
+        """Construct a partition iterator.
+
+        :param caches: The list of cache devices to use.
+        :type caches: iterable
+
+        :param psize: The size of the partitions (in GB), or None
+        :type psize: Option[int, None]
+
+        :param devices: The backing devices. Only used to get their length.
+        :type devices: iterable
+        """
+        self.caches = [[cache, 0] for cache in caches]
+        self.idx = 0
+        if not psize:
+            factor = min(1.0, len(caches) / len(devices))
+            self.psize = [factor * device_size(cache) for cache in caches]
+        else:
+            self.psize = psize
+        self.created = {}
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        """Return a newly created partition.
+
+        The object keeps track of the currently used caching device,
+        so upon creating a new partition, it will move to the next one,
+        distributing the load among them in a round-robin fashion.
+        """
+        cache, n_iter = self.caches[self.idx]
+        size = self.psize
+        if not isinstance(size, (int, float)):
+            size = self.psize[self.idx]
+
+        self.caches[self.idx][1] += 1
+        self.idx = (self.idx + 1) % len(self.caches)
+        log('Creating partition in device {} of size {}'.format(cache, size))
+        return create_partition(cache, size, n_iter)
+
+    def create_bcache(self, backing):
+        """Create a bcache device, using the internal caching device,
+        and an external backing one.
+
+        :param backing: The path to the backing device.
+        :type backing: str
+
+        :returns: The name for the newly created bcache device.
+        :rtype: str
+        """
+        cache = next(self)
+        ret = setup_bcache(backing, cache)
+        if ret is not None:
+            self.created[backing] = (ret, cache)
+            log('Bcache device created: {}'.format(cache))
+        return ret
+
+    def cleanup(self, device):
+        args = self.created.get(device)
+        if not args:
+            return
+
+        try:
+            bcache_remove(*args)
+        except DeviceError:
+            log('Failed to cleanup bcache device: {}'.format(args[0]))

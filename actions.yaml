@@ -41,6 +41,24 @@ add-disk:
     bucket:
       type: string
       description: The name of the bucket in Ceph to add these devices into
+    osd-ids:
+      type: string
+      description: |
+        The OSD ids to recycle. If specified, the number of elements in this
+        list must be the same as the number of 'osd-devices'.
+    cache-devices:
+      type: string
+      description: |
+        A list of devices to act as caching devices for 'bcache', using the
+        'osd-devices' as backing. If the number of elements in this list is
+        less than the number of 'osd-devices', then the caching ones will be
+        distributed in a round-robin fashion.
+    partition-size:
+      type: integer
+      description: |
+        The size of the partitions to create for the caching devices. If left
+        unspecified, then the full size of the devices will be split evenly
+        across partitions.
   required:
     - osd-devices
 blacklist-add-disk:

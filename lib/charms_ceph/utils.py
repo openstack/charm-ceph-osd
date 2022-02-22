@@ -1514,11 +1514,11 @@ def get_devices(name):
 
 
 def osdize(dev, osd_format, osd_journal, ignore_errors=False, encrypt=False,
-           bluestore=False, key_manager=CEPH_KEY_MANAGER):
+           bluestore=False, key_manager=CEPH_KEY_MANAGER, osd_id=None):
     if dev.startswith('/dev'):
         osdize_dev(dev, osd_format, osd_journal,
                    ignore_errors, encrypt,
-                   bluestore, key_manager)
+                   bluestore, key_manager, osd_id)
     else:
         if cmp_pkgrevno('ceph', '14.0.0') >= 0:
             log("Directory backed OSDs can not be created on Nautilus",
@@ -1528,7 +1528,8 @@ def osdize(dev, osd_format, osd_journal, ignore_errors=False, encrypt=False,
 
 
 def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
-               encrypt=False, bluestore=False, key_manager=CEPH_KEY_MANAGER):
+               encrypt=False, bluestore=False, key_manager=CEPH_KEY_MANAGER,
+               osd_id=None):
     """
     Prepare a block device for use as a Ceph OSD
 
@@ -1593,7 +1594,8 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
                                osd_journal,
                                encrypt,
                                bluestore,
-                               key_manager)
+                               key_manager,
+                               osd_id)
         else:
             cmd = _ceph_disk(dev,
                              osd_format,
@@ -1677,7 +1679,7 @@ def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
 
 
 def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
-                 key_manager=CEPH_KEY_MANAGER):
+                 key_manager=CEPH_KEY_MANAGER, osd_id=None):
     """
     Prepare and activate a device for usage as a Ceph OSD using ceph-volume.
 
@@ -1689,6 +1691,7 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
     :param: encrypt: Use block device encryption
     :param: bluestore: Use bluestore storage for OSD
     :param: key_manager: dm-crypt Key Manager to use
+    :param: osd_id: The OSD-id to recycle, or None to create a new one
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            LVM operation failed.
     :returns: list. 'ceph-volume' command and required parameters for
@@ -1709,6 +1712,9 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
 
     if encrypt and key_manager == CEPH_KEY_MANAGER:
         cmd.append('--dmcrypt')
+
+    if osd_id is not None:
+        cmd.extend(['--osd-id', str(osd_id)])
 
     # On-disk journal volume creation
     if not osd_journal and not bluestore:
