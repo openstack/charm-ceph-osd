@@ -1,10 +1,11 @@
 - project:
     templates:
-      - charm-unit-jobs
-      - charm-functional-jobs
+      - charm-unit-jobs-py38
+      - charm-wallaby-functional-jobs
     check:
       jobs:
-        - focal-xena:
-            voting: false
-        - impish-xena:
-            voting: false
+        - focal-ussuri
+    vars:
+      needs_charm_build: true
+      charm_build_name: ceph-osd
+      build_type: charmcraft
