@@ -1162,10 +1162,6 @@ osd_upgrade_caps = collections.OrderedDict([
              'allow command "osd in"',
              'allow command "osd rm"',
              'allow command "auth del"',
-             'allow command "osd safe-to-destroy"',
-             'allow command "osd crush reweight"',
-             'allow command "osd purge"',
-             'allow command "osd destroy"',
              ])
 ])
 
@@ -2196,6 +2192,20 @@ def roll_monitor_cluster(new_version, upgrade_key):
             wait_for_all_monitors_to_upgrade(new_version=new_version,
                                              upgrade_key=upgrade_key)
             bootstrap_manager()
+
+        # NOTE(jmcvaughn):
+        # Nautilus and later binaries use msgr2 by default, but existing
+        # clusters that have been upgraded from pre-Nautilus will not
+        # automatically have msgr2 enabled. Without this, Ceph will show
+        # a warning only (with no impact to operations), but newly added units
+        # will not be able to join the cluster. Therefore, we ensure it is
+        # enabled on upgrade for all versions including and after Nautilus
+        # (to cater for previous charm versions that will not have done this).
+        nautilus_or_later = cmp_pkgrevno('ceph-common', '14.0.0') >= 0
+        if nautilus_or_later:
+            wait_for_all_monitors_to_upgrade(new_version=new_version,
+                                             upgrade_key=upgrade_key)
+            enable_msgr2()
     except ValueError:
         log("Failed to find {} in list {}.".format(
             my_name, mon_sorted_list))
@@ -2221,7 +2231,8 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
 
     # Needed to determine if whether to stop/start ceph-mgr
     luminous_or_later = cmp_pkgrevno('ceph-common', '12.2.0') >= 0
-
+    # Needed to differentiate between systemd unit names
+    nautilus_or_later = cmp_pkgrevno('ceph-common', '14.0.0') >= 0
     kick_function()
     try:
         add_source(config('source'), config('key'))
@@ -2250,7 +2261,11 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
 
     try:
         if systemd():
-            service_stop('ceph-mon')
+            if nautilus_or_later:
+                systemd_unit = 'ceph-mon@{}'.format(socket.gethostname())
+            else:
+                systemd_unit = 'ceph-mon'
+            service_stop(systemd_unit)
             log("restarting ceph-mgr.target maybe: {}"
                 .format(luminous_or_later))
             if luminous_or_later:
@@ -2281,7 +2296,11 @@ def upgrade_monitor(new_version, kick_function=None, restart_daemons=True):
               perms=0o755)
 
         if systemd():
-            service_restart('ceph-mon')
+            if nautilus_or_later:
+                systemd_unit = 'ceph-mon@{}'.format(socket.gethostname())
+            else:
+                systemd_unit = 'ceph-mon'
+            service_restart(systemd_unit)
             log("starting ceph-mgr.target maybe: {}".format(luminous_or_later))
             if luminous_or_later:
                 # due to BUG: #1849874 we have to force a restart to get it to
@@ -3340,6 +3359,16 @@ def bootstrap_manager():
         unit = 'ceph-mgr@{}'.format(hostname)
         subprocess.check_call(['systemctl', 'enable', unit])
         service_restart(unit)
+
+
+def enable_msgr2():
+    """
+    Enables msgr2
+
+    :raises: subprocess.CalledProcessError if the command fails
+    """
+    cmd = ['ceph', 'mon', 'enable-msgr2']
+    subprocess.check_call(cmd)
 
 
 def osd_noout(enable):

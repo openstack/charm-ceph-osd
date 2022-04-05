@@ -2,10 +2,9 @@ charm_name: ceph-osd
 
 gate_bundles:
   - focal-xena
-  - impish-xena
+  - focal-yoga
 
 dev_bundles:
-  - focal-yoga
   - jammy-yoga
 
 smoke_bundles:
@@ -23,5 +22,4 @@ tests:
 
 tests_options:
   force_deploy:
-    - impish-xena
     - jammy-yoga
