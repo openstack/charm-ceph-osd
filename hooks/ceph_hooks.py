@@ -658,8 +658,7 @@ def get_bdev_enable_discard():
                           "bdev-enable-discard: %s") % bdev_enable_discard)
 
 
-@hooks.hook('mon-relation-changed',
-            'mon-relation-departed')
+@hooks.hook('mon-relation-changed')
 def mon_relation():
     bootstrap_key = relation_get('osd_bootstrap_key')
     upgrade_key = relation_get('osd_upgrade_key')
