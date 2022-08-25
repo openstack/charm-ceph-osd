@@ -18,6 +18,7 @@ import datetime
 import errno
 import json
 from math import ceil
+import os
 import subprocess
 import sys
 import time
@@ -240,6 +241,14 @@ class ActionOSD:
         # Stop the OSD service.
         hookenv.log('Stopping the OSD service', hookenv.DEBUG)
         charms_ceph.utils.stop_osd(self.osd_id[4:])
+        charms_ceph.utils.disable_osd(self.osd_id[4:])
+        unit_filename = \
+            '/run/systemd/system/ceph-osd.target.wants/ceph-osd@{}.service' \
+            .format(self.osd_id[4:])
+        if os.path.exists(unit_filename):
+            os.remove(unit_filename)
+
+        subprocess.check_call(['systemctl', 'daemon-reload'])
 
         # Remove the OSD from the cluster.
         hookenv.log('Destroying the OSD', hookenv.DEBUG)
