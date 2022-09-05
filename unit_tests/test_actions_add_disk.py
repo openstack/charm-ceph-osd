@@ -103,3 +103,22 @@ class AddDiskActionTests(CharmTestCase):
             self.assertTrue(add_disk.validate_osd_id(elem))
         for elem in ('osd.-1', '-3', '???', -100, 3.4, {}):
             self.assertFalse(add_disk.validate_osd_id(elem))
+
+    @mock.patch.object(add_disk.charms_ceph.utils, 'disable_osd')
+    @mock.patch.object(add_disk.charms_ceph.utils, 'stop_osd')
+    @mock.patch.object(add_disk.subprocess, 'check_output')
+    @mock.patch.object(add_disk.subprocess, 'check_call')
+    @mock.patch.object(add_disk, 'apt_install')
+    @mock.patch.object(add_disk.shutil, 'copy')
+    @mock.patch.object(add_disk.os.path, 'exists')
+    def test_crimson_osd(self, os_path_exists, shcopy, apt_install,
+                         check_call, check_output, stop_osd, disable_osd):
+        os_path_exists.return_value = False
+        check_output.return_value = b'{"1": [{"devices": ["/dev/vdc"]}]}'
+        self.assertIsNone(add_disk.get_osd_from_device("/dev/vda"))
+
+        add_disk.start_crimson_osd(None, '/dev/vdc')
+        stop_osd.assert_called_with("1")
+        check_call.assert_any_call(['systemctl', 'start', 'crimson-osd@1'])
+        shcopy.assert_called()
+        apt_install.assert_called()

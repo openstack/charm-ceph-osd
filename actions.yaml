@@ -59,6 +59,16 @@ add-disk:
         The size of the partitions to create for the caching devices. If left
         unspecified, then the full size of the devices will be split evenly
         across partitions.
+    use-crimson:
+      type: boolean
+      description: |
+        Whether to use the Crimson implementation for the new OSD. Note that
+        this is an experimental feature, and the charm doesn't provide any
+        lifecycle support for OSD's that run on Crimson.
+    i-really-mean-it:
+      type: boolean
+      description: |
+        Must be set when 'use-crimson' is True.
   required:
     - osd-devices
 blacklist-add-disk:
