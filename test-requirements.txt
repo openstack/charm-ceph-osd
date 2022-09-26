@@ -43,3 +43,4 @@ tempest<24.0.0;python_version<'3.6'
 croniter            # needed for charm-rabbitmq-server unit tests
 pyparsing<3.0.0  # aodhclient is pinned in zaza and needs pyparsing < 3.0.0, but cffi also needs it, so pin here.
 cffi==1.14.6; python_version < '3.6'  # cffi 1.15.0 drops support for py35.
+pyopenssl<=22.0.0
