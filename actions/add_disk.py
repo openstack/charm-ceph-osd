@@ -14,8 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import psutil
+import shutil
+import subprocess
 import sys
 
 sys.path.append('lib')
@@ -24,6 +27,7 @@ sys.path.append('hooks')
 import charmhelpers.contrib.storage.linux.ceph as ch_ceph
 import charmhelpers.core.hookenv as hookenv
 from charmhelpers.core.hookenv import function_fail
+from charmhelpers.fetch import apt_install
 
 from charmhelpers.core.unitdata import kv
 from utils import (PartitionIter, device_size, DeviceError)
@@ -32,8 +36,51 @@ import ceph_hooks
 import charms_ceph.utils
 
 
+CRIMSON_PACKAGES = ['crimson-osd', 'libc-ares2', 'libcrypto++-dev',
+                    'libyaml-cpp-dev']
+CRIMSON_SYSTEMD_FILE = '/lib/systemd/system/crimson-osd@.service'
+
+
+def get_osd_from_device(device):
+    """Given a device, return the OSD ID that it maps to."""
+    output = subprocess.check_output(['ceph-volume', 'lvm', 'list',
+                                      '--format=json'])
+    devmap = json.loads(output.decode('utf8'))
+    for osd_id, data in devmap.items():
+        for elem in data:
+            if device in elem.get('devices', []):
+                return osd_id
+
+
+def start_crimson_osd(osd_id, device):
+    """An OSD was started with the classic daemon, but Crimson was
+    requested. As such, stop the current one and launch the correct daemon."""
+
+    if osd_id is None:
+        osd_id = get_osd_from_device(device)
+
+    charms_ceph.utils.stop_osd(osd_id)
+    charms_ceph.utils.disable_osd(osd_id)
+    unit_name = (
+        '/run/systemd/system/ceph-osd.target.wants/ceph-osd@{}.service'
+        .format(osd_id))
+
+    if os.path.exists(unit_name):
+        os.remove(unit_name)
+
+    if not os.path.exists(CRIMSON_SYSTEMD_FILE):
+        apt_install(CRIMSON_PACKAGES, fatal=True)
+        shutil.copy('files/systemd/crimson-osd@.service', CRIMSON_SYSTEMD_FILE)
+        subprocess.check_call(['systemctl', 'daemon-reload'])
+
+    subprocess.check_call(['systemctl', 'enable',
+                           'crimson-osd@{}'.format(osd_id)])
+    subprocess.check_call(['systemctl', 'start',
+                           'crimson-osd@{}'.format(osd_id)])
+
+
 def add_device(request, device_path, bucket=None,
-               osd_id=None, part_iter=None):
+               osd_id=None, part_iter=None, use_crimson=False):
     """Add a new device to be used by the OSD unit.
 
     :param request: A broker request to notify monitors of changes.
@@ -71,6 +118,10 @@ def add_device(request, device_path, bucket=None,
                              charms_ceph.utils.use_bluestore(),
                              hookenv.config('osd-encrypt-keymanager'),
                              osd_id)
+
+    if use_crimson:
+        start_crimson_osd(osd_id, effective_dev)
+
     # Make it fast!
     if hookenv.config('autotune'):
         charms_ceph.utils.tune_dev(device_path)
@@ -152,6 +203,11 @@ def validate_partition_size(psize, devices, caches):
 
 
 if __name__ == "__main__":
+    crimson = hookenv.action_get('use-crimson')
+    if crimson and not hookenv.action_get('i-really-mean-it'):
+        function_fail('Need to pass i-really-mean-it for Crimson OSDs')
+        sys.exit(1)
+
     request = ch_ceph.CephBrokerRq()
     devices = get_devices('osd-devices')
     caches = get_devices('cache-devices') or cache_storage()
@@ -184,7 +240,8 @@ if __name__ == "__main__":
             request = add_device(request=request,
                                  device_path=dev,
                                  bucket=hookenv.action_get("bucket"),
-                                 osd_id=osd_id, part_iter=part_iter)
+                                 osd_id=osd_id, part_iter=part_iter,
+                                 use_crimson=crimson)
         except Exception:
             errors.append(dev)
 

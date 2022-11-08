@@ -1,0 +1,9 @@
+[Unit]
+Description=Ceph object storage daemon crimson-osd.%i
+
+[Service]
+Environment=CLUSTER=ceph
+ExecStart=/usr/bin/crimson-osd -i %i
+ExecStop=/usr/bin/kill -QUIT $MAINPID
+User=ceph
+Group=ceph
