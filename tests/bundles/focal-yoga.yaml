@@ -63,6 +63,7 @@ applications:
     options:
       osd-devices: '/dev/test-non-existent'
       source: *openstack-origin
+      aa-profile-mode: enforce
     to:
       - '3'
       - '4'

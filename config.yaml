@@ -67,6 +67,9 @@ options:
       For ceph < 14.2.0 (Nautilus) these can also be directories instead of
       devices. If the value does not start with "/dev" then it will be
       interpreted as a directory.
+      NOTE: if the value does not start with "/dev" then apparmor
+      "enforce" profile is not supported.
+
   bdev-enable-discard:
     type: string
     default: auto
@@ -344,6 +347,8 @@ options:
       cluster as all ceph-osd processes must be restarted as part of changing
       the apparmor profile enforcement mode.  Always test in pre-production
       before enabling AppArmor on a live cluster.
+      NOTE: apparmor 'enforce' profile is supported only if osd-device
+      name starts with "/dev"
   bluestore-compression-algorithm:
     type: string
     default: lz4

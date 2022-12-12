@@ -37,7 +37,7 @@
   /{,var/}tmp/ r,
 
   /dev/ r,
-  /dev/** rw,
+  /dev/** rwk,
   /sys/devices/** r,
 
   /run/blkid/blkid.tab r,
