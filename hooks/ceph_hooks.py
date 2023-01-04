@@ -80,6 +80,7 @@ from utils import (
     import_osd_bootstrap_key,
     import_osd_upgrade_key,
     import_osd_removal_key,
+    import_client_crash_key,
     get_host_ip,
     get_networks,
     assert_charm_supports_ipv6,
@@ -653,6 +654,7 @@ def mon_relation():
     bootstrap_key = relation_get('osd_bootstrap_key')
     upgrade_key = relation_get('osd_upgrade_key')
     removal_key = relation_get('osd_disk_removal_key')
+    client_crash_key = relation_get('client_crash_key')
     if get_fsid() and get_auth() and bootstrap_key:
         log('mon has provided conf- scanning disks')
         emit_cephconf()
@@ -664,6 +666,8 @@ def mon_relation():
         _, settings, _ = (ch_ceph.CephOSDConfContext()
                           .filter_osd_from_mon_settings())
         ceph.apply_osd_settings(settings)
+        if client_crash_key:
+            import_client_crash_key(client_crash_key)
     else:
         log('mon cluster has not yet provided conf')
 
