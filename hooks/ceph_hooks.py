@@ -19,6 +19,7 @@ import glob
 import json
 import netifaces
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -54,6 +55,7 @@ from charmhelpers.core.host import (
     add_to_updatedb_prunepath,
     cmp_pkgrevno,
     is_container,
+    get_total_ram,
     lsb_release,
     mkdir,
     service_reload,
@@ -360,6 +362,63 @@ def use_short_objects():
     return False
 
 
+def warn_if_memory_outside_bounds(value):
+    """
+    Log a warning if value < 4GB or (value * osds) > 90% total memory.
+
+    :param value: int - proposed value for osd_memory_target in bytes
+    """
+    ninety_percent = int(0.9 * get_total_ram())
+    four_GB = 4 * 1024 * 1024 * 1024
+    num_osds = len(kv().get("osd-devices", []))
+
+    # 4GB is the default value; we don't want to go lower than that,
+    # otherwise performance will be impacted.
+    if value < four_GB:
+        log("tune-osd-memory-target results in value < 4GB. "
+            "This is not recommended.", level=WARNING)
+
+    # 90% is a somewhat arbitrary upper limit,
+    # that should allow enough memory for the OS to function,
+    # while not limiting ceph too much.
+    elif (value * num_osds) > ninety_percent:
+        log("tune-osd-memory-target results in value > 90% of system ram. "
+            "This is not recommended.", level=WARNING)
+
+
+def get_osd_memory_target():
+    """
+    Processes the config value of tune-osd-memory-target.
+
+    Returns a safe value for osd_memory_target.
+
+    :returns: integer value for osd_memory_target, converted to a string.
+    :rtype: string
+    """
+    tune_osd_memory_target = config('tune-osd-memory-target')
+
+    if not tune_osd_memory_target:
+        return ""
+
+    match = re.match(r"(\d+)GB$", tune_osd_memory_target)
+    if match:
+        osd_memory_target = int(match.group(1)) * 1024 * 1024 * 1024
+        warn_if_memory_outside_bounds(osd_memory_target)
+        return str(osd_memory_target)
+
+    match = re.match(r"(\d+)%$", tune_osd_memory_target)
+    if match:
+        percentage = int(match.group(1)) / 100
+        num_osds = len(kv().get("osd-devices", []))
+        osd_memory_target = int(get_total_ram() * percentage / num_osds)
+        warn_if_memory_outside_bounds(osd_memory_target)
+        return str(osd_memory_target)
+
+    log("tune-osd-memory-target value invalid,"
+        " leaving the OSD memory target unchanged", level=ERROR)
+    return ""
+
+
 def get_ceph_context(upgrading=False):
     """Returns the current context dictionary for generating ceph.conf
 
@@ -475,6 +534,15 @@ def config_changed():
     if sysctl_dict:
         create_sysctl(sysctl_dict, '/etc/sysctl.d/50-ceph-osd-charm.conf')
 
+    for r_id in hookenv.relation_ids('mon'):
+        hookenv.relation_set(
+            relation_id=r_id,
+            relation_settings={
+                'osd-host': socket.gethostname(),
+                'osd-memory-target': get_osd_memory_target(),
+            }
+        )
+
     e_mountpoint = config('ephemeral-unmount')
     if e_mountpoint and ceph.filesystem_mounted(e_mountpoint):
         umount(e_mountpoint)
@@ -563,7 +631,9 @@ def prepare_disks_and_activate():
                 'bootstrapped-osds': len(db.get('osd-devices', [])),
                 'ceph_release': ceph.resolve_ceph_version(
                     hookenv.config('source') or 'distro'
-                )
+                ),
+                'osd-host': socket.gethostname(),
+                'osd-memory-target': get_osd_memory_target(),
             }
         )
 
