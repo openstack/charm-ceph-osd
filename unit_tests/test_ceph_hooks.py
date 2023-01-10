@@ -34,6 +34,7 @@ CHARM_CONFIG = {'config-flags': '',
                 'osd-journal-size': 1024,
                 'osd-max-backfills': 1,
                 'osd-recovery-max-active': 2,
+                'tune-osd-memory-target': '',
                 'use-direct-io': True,
                 'osd-format': 'ext4',
                 'prefer-ipv6': False,
@@ -54,6 +55,8 @@ BLUESTORE_DB_TEST_SIZE = 2 * 2 ** 30
 
 
 class CephHooksTestCase(unittest.TestCase):
+    maxDiff = None
+
     def setUp(self):
         super(CephHooksTestCase, self).setUp()
 
@@ -706,6 +709,115 @@ class CephHooksTestCase(unittest.TestCase):
                                 ('auto', True)]:
             config['bdev-enable-discard'] = value
             self.assertEqual(ceph_hooks.get_bdev_enable_discard(), expected)
+
+    @patch.object(ceph_hooks, "get_total_ram")
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks, "log")
+    def test_warn_memory_bounds(
+        self, mock_log, mock_kv, mock_total_ram
+    ):
+        mock_total_ram.return_value = 16 * 1024 * 1024 * 1024  # 16GB
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+        ceph_hooks.warn_if_memory_outside_bounds(5 * 1024 * 1024 * 1024)  # 5GB
+        mock_log.assert_not_called()
+
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2", "osd3"]}
+        ceph_hooks.warn_if_memory_outside_bounds(5 * 1024 * 1024 * 1024)  # 5GB
+        mock_log.assert_called_with(
+            "tune-osd-memory-target results in value > 90% of system ram. "
+            "This is not recommended.",
+            level=ceph_hooks.WARNING
+        )
+
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+        ceph_hooks.warn_if_memory_outside_bounds(2 * 1024 * 1024 * 1024)  # 2GB
+        mock_log.assert_called_with(
+            "tune-osd-memory-target results in value < 4GB. "
+            "This is not recommended.",
+            level=ceph_hooks.WARNING
+        )
+
+    @patch.object(ceph_hooks, "config")
+    @patch.object(ceph_hooks, "get_total_ram")
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks, "log")
+    def test_get_osd_memory_target_gb(
+        self, mock_log, mock_kv, mock_total_ram,
+        mock_config,
+    ):
+        mock_total_ram.return_value = 16 * 1024 * 1024 * 1024  # 16GB
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+
+        def config_func(k):
+            if k == "tune-osd-memory-target":
+                return "5GB"
+            raise ValueError
+        mock_config.side_effect = config_func
+
+        target = ceph_hooks.get_osd_memory_target()
+        self.assertEqual(target, str(5 * 1024 * 1024 * 1024))  # 5GB
+
+    @patch.object(ceph_hooks, "config")
+    @patch.object(ceph_hooks, "get_total_ram")
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks, "log")
+    def test_get_osd_memory_target_percentage(
+        self, mock_log, mock_kv, mock_total_ram,
+        mock_config,
+    ):
+        mock_total_ram.return_value = 16 * 1024 * 1024 * 1024  # 16GB
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+
+        def config_func(k):
+            if k == "tune-osd-memory-target":
+                return "50%"
+            raise ValueError
+        mock_config.side_effect = config_func
+
+        target = ceph_hooks.get_osd_memory_target()
+        # should be 50% of 16GB / 2 osd devices = 4GB
+        self.assertEqual(target, str(4 * 1024 * 1024 * 1024))  # 4GB
+
+    @patch.object(ceph_hooks, "config")
+    @patch.object(ceph_hooks, "get_total_ram")
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks, "log")
+    def test_get_osd_memory_target_empty(
+        self, mock_log, mock_kv, mock_total_ram,
+        mock_config,
+    ):
+        mock_total_ram.return_value = 16 * 1024 * 1024 * 1024  # 16GB
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+
+        mock_config.side_effect = lambda _: None
+
+        target = ceph_hooks.get_osd_memory_target()
+        self.assertEqual(target, "")
+
+    @patch.object(ceph_hooks, "config")
+    @patch.object(ceph_hooks, "get_total_ram")
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks, "log")
+    def test_get_osd_memory_target_invalid(
+        self, mock_log, mock_kv, mock_total_ram,
+        mock_config,
+    ):
+        mock_total_ram.return_value = 16 * 1024 * 1024 * 1024  # 16GB
+        mock_kv.return_value = {"osd-devices": ["osd1", "osd2"]}
+
+        def config_func(k):
+            if k == "tune-osd-memory-target":
+                return "foo"
+            raise ValueError
+        mock_config.side_effect = config_func
+
+        target = ceph_hooks.get_osd_memory_target()
+        self.assertEqual(target, "")
+        mock_log.assert_called_with(
+            "tune-osd-memory-target value invalid,"
+            " leaving the OSD memory target unchanged",
+            level=ceph_hooks.ERROR,
+        )
 
 
 @patch.object(ceph_hooks, 'local_unit')
