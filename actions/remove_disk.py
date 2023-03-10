@@ -103,35 +103,43 @@ def map_id_to_device(dev_map, osd_id):
             return elem['path']
 
 
-def safe_to_destroy(osd_id):
+def safe_to_destroy(osd_id, timeout=300):
     """Test whether an OSD id is safe to destroy per the Ceph cluster."""
-    ret = subprocess.call(['ceph', '--id', 'osd-removal',
-                           'osd', 'safe-to-destroy', osd_id])
+    ret = subprocess.call([
+        'ceph', '--id', 'osd-removal',
+        'osd', 'safe-to-destroy', osd_id
+    ], timeout=timeout)
     return ret == 0
 
 
-def safe_to_stop(osd_id):
+def safe_to_stop(osd_id, timeout=300):
     """Test whether an OSD is safe to stop."""
-    ret = subprocess.call(['ceph', '--id', 'osd-removal',
-                           'osd', 'ok-to-stop', osd_id])
+    ret = subprocess.call([
+        'ceph', '--id', 'osd-removal',
+        'osd', 'ok-to-stop', osd_id
+    ], timeout=timeout)
     return ret == 0
 
 
-def reweight_osd(osd_id):
+def reweight_osd(osd_id, timeout=300):
     """Set the weight of the OSD id to zero."""
-    subprocess.check_call(['ceph', '--id', 'osd-removal',
-                           'osd', 'crush', 'reweight', osd_id, '0'])
+    subprocess.check_call([
+        'ceph', '--id', 'osd-removal',
+        'osd', 'crush', 'reweight', osd_id, '0'
+    ], timeout=timeout)
 
 
-def destroy(osd_id, purge=False):
+def destroy(osd_id, purge=False, timeout=300):
     """Destroy or purge an OSD id."""
     for _ in range(10):
         # We might get here before the OSD is marked as down. As such,
         # retry if the error code is EBUSY.
         try:
-            subprocess.check_call(['ceph', '--id', 'osd-removal', 'osd',
-                                   'purge' if purge else 'destroy',
-                                   osd_id, '--yes-i-really-mean-it'])
+            subprocess.check_call([
+                'ceph', '--id', 'osd-removal', 'osd',
+                'purge' if purge else 'destroy',
+                osd_id, '--yes-i-really-mean-it'
+            ], timeout=timeout)
             return
         except subprocess.CalledProcessError as e:
             if e.returncode != errno.EBUSY:

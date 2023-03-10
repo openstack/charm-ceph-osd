@@ -87,11 +87,20 @@ class RemoveDiskActionTests(CharmTestCase):
         obj = remove_disk.ActionOSD(dev_map, osd_id='1')
 
         obj.remove(True, 1, True)
-        call.assert_any_call(prefix_args + ['osd', 'safe-to-destroy', 'osd.1'])
-        check_call.assert_any_call(prefix_args + ['osd', 'purge', 'osd.1',
-                                                  '--yes-i-really-mean-it'])
-        check_call.assert_any_call(prefix_args + ['osd', 'crush', 'reweight',
-                                                  'osd.1', '0'])
+
+        # Subprocess Call checks
+        call.assert_any_call(
+            prefix_args + ['osd', 'safe-to-destroy', 'osd.1'], timeout=300
+        )
+        check_call.assert_any_call(
+            prefix_args + ['osd', 'purge', 'osd.1', '--yes-i-really-mean-it'],
+            timeout=300
+        )
+        check_call.assert_any_call(
+            prefix_args + ['osd', 'crush', 'reweight', 'osd.1', '0'],
+            timeout=300
+        )
+
         bcache_remove.assert_called_with(
             '/dev/bcache0', '/dev/backing', '/dev/caching')
         report = obj.report
