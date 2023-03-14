@@ -845,8 +845,12 @@ def assess_status():
                        'Unit is ready ({} OSD)'.format(len(running_osds)))
     else:
         pristine = True
-        osd_journals = get_journal_devices()
-        for dev in list(set(ceph.unmounted_disks()) - set(osd_journals)):
+        # Check unmounted disks that should be configured but don't check
+        # journals or already processed devices
+        config_devices = (set(get_devices()) & set(ceph.unmounted_disks()))
+        osd_journals = set(get_journal_devices())
+        touched_devices = set(kv().get('osd-devices', []))
+        for dev in config_devices - osd_journals - touched_devices:
             if (not ceph.is_active_bluestore_device(dev) and
                     not ceph.is_pristine_disk(dev) and
                     not ceph.is_mapped_luks_device(dev)):
