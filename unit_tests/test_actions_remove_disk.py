@@ -94,7 +94,7 @@ class RemoveDiskActionTests(CharmTestCase):
         )
         check_call.assert_any_call(
             prefix_args + ['osd', 'purge', 'osd.1', '--yes-i-really-mean-it'],
-            timeout=300
+            timeout=600
         )
         check_call.assert_any_call(
             prefix_args + ['osd', 'crush', 'reweight', 'osd.1', '0'],

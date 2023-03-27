@@ -129,7 +129,7 @@ def reweight_osd(osd_id, timeout=300):
     ], timeout=timeout)
 
 
-def destroy(osd_id, purge=False, timeout=300):
+def destroy(osd_id, purge=False, timeout=600):
     """Destroy or purge an OSD id."""
     for _ in range(10):
         # We might get here before the OSD is marked as down. As such,
