@@ -69,6 +69,7 @@ class RemoveDiskActionTests(CharmTestCase):
         obj = remove_disk.ActionOSD(dev_map, osd_id='1')
         self.assertEqual(obj.device, '/dev/sdx1')
 
+    @mock.patch.object(remove_disk.charms_ceph.utils, 'disable_osd')
     @mock.patch.object(remove_disk, 'device_size')
     @mock.patch.object(remove_disk.charms_ceph.utils, 'stop_osd')
     @mock.patch.object(remove_disk, 'bcache_remove')
@@ -76,7 +77,8 @@ class RemoveDiskActionTests(CharmTestCase):
     @mock.patch.object(remove_disk.subprocess, 'check_call')
     @mock.patch.object(remove_disk, 'get_bcache_names')
     def test_action_osd_remove(self, get_bcache_names, check_call,
-                               call, bcache_remove, stop_osd, device_size):
+                               call, bcache_remove, stop_osd, device_size,
+                               disable_osd):
         call.return_value = 0
         get_bcache_names.return_value = ('/dev/backing', '/dev/caching')
         device_size.side_effect = lambda x: 1 if x == '/dev/caching' else 0
