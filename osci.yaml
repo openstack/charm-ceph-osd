@@ -4,6 +4,11 @@
       - charm-unit-jobs-py310
       - charm-xena-functional-jobs
       - charm-yoga-functional-jobs
+      - charm-zed-functional-jobs
+    check:
+      jobs:
+        - jammy-antelope
+        - lunar-antelope
     vars:
       needs_charm_build: true
       charm_build_name: ceph-osd
