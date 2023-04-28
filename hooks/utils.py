@@ -73,6 +73,7 @@ except ImportError:
 _bootstrap_keyring = "/var/lib/ceph/bootstrap-osd/ceph.keyring"
 _upgrade_keyring = "/var/lib/ceph/osd/ceph.client.osd-upgrade.keyring"
 _removal_keyring = "/var/lib/ceph/osd/ceph.client.osd-removal.keyring"
+_client_crash_keyring = "/var/lib/ceph/osd/ceph.client.crash.keyring"
 
 
 def is_osd_bootstrap_ready():
@@ -127,6 +128,16 @@ def import_osd_removal_key(key):
     :type key: str
     :raises: subprocess.CalledProcessError"""
     _import_key(key, _removal_keyring, 'client.osd-removal')
+
+
+def import_client_crash_key(key):
+    """
+    Ensure that the client.crash keyring is set up.
+
+    :param key: The cephx key to add to the client.crash keyring
+    :type key: str
+    :raises: subprocess.CalledProcessError"""
+    _import_key(key, _client_crash_keyring, 'client.crash')
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
