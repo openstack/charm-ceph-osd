@@ -4,6 +4,8 @@ gate_bundles:
   - focal-xena
   - focal-yoga
   - jammy-yoga
+  - jammy-bobcat
+  - mantic-bobcat
 
 smoke_bundles:
   - focal-xena
