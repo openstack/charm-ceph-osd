@@ -1,7 +1,7 @@
 variables:
-  openstack-origin: &openstack-origin cloud:focal-yoga
+  openstack-origin: &openstack-origin cloud:jammy-zed
 
-series: focal
+series: jammy
 
 comment:
 - 'machines section to decide order of deployment. database sooner = faster'
@@ -30,30 +30,28 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   nova-cloud-controller-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
   placement-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
     num_units: 3
-    options:
-      source: *openstack-origin
     to:
       - '0'
       - '1'
       - '2'
-    channel: latest/edge
+    channel: 8.0/edge
 
   ceph-osd:
     charm: ../../ceph-osd.charm
@@ -84,11 +82,9 @@ applications:
   rabbitmq-server:
     charm: ch:rabbitmq-server
     num_units: 1
-    options:
-      source: *openstack-origin
     to:
       - '9'
-    channel: latest/edge
+    channel: 3.9/edge
 
   keystone:
     expose: True
@@ -98,7 +94,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '10'
-    channel: yoga/edge
+    channel: zed/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -107,7 +103,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '11'
-    channel: yoga/edge
+    channel: zed/edge
 
   glance:
     expose: True
@@ -117,7 +113,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '12'
-    channel: yoga/edge
+    channel: zed/edge
 
   cinder:
     expose: True
@@ -129,11 +125,11 @@ applications:
       glance-api-version: '2'
     to:
       - '13'
-    channel: yoga/edge
+    channel: zed/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: yoga/edge
+    channel: zed/edge
 
   nova-cloud-controller:
     expose: True
@@ -143,7 +139,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '14'
-    channel: yoga/edge
+    channel: zed/edge
 
   placement:
     charm: ch:placement
@@ -152,7 +148,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '15'
-    channel: yoga/edge
+    channel: zed/edge
 
 relations:
   - - 'nova-compute:amqp'
