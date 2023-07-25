@@ -21,6 +21,7 @@ description: |
   .
   This charm provides the Ceph OSD personality for expanding storage capacity
   within a ceph deployment.
+docs: https://discourse.charmhub.io/t/ceph-osd-docs-index/10545
 extra-bindings:
   public:
   cluster:
