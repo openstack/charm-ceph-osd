@@ -63,6 +63,7 @@ options:
       These devices are the range of devices that will be checked for and
       used across all service units, in addition to any volumes attached
       via the --storage flag during deployment.
+      Any devices not found will be ignored.
       .
       For ceph < 14.2.0 (Nautilus) these can also be directories instead of
       devices. If the value does not start with "/dev" then it will be

@@ -46,8 +46,10 @@ for both charms.
 #### `osd-devices`
 
 The `osd-devices` option lists what block devices can be used for OSDs across
-the cluster. See section 'Storage devices' for an elaboration on this
-fundamental topic.
+the cluster. Devices that are listed in this option, but do not exist, will
+be ignored.
+
+See section 'Storage devices' for an elaboration on this fundamental topic.
 
 #### `osd-format`
 
