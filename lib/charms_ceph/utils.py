@@ -681,15 +681,29 @@ def _get_osd_num_from_dirname(dirname):
     return match.group('osd_id')
 
 
+def get_crimson_osd_ids():
+    """Return a set of the OSDs that are running with the Crimson backend."""
+    rv = set()
+    try:
+        out = subprocess.check_output(['pgrep', 'crimson-osd', '-a'])
+        for line in out.decode('utf8').splitlines():
+            rv.add(line.split()[-1])
+    except Exception:
+        pass
+
+    return rv
+
+
 def get_local_osd_ids():
     """This will list the /var/lib/ceph/osd/* directories and try
     to split the ID off of the directory name and return it in
-    a list.
+    a list. Excludes crimson OSD's from the returned list.
 
     :returns: list. A list of OSD identifiers
     :raises: OSError if something goes wrong with listing the directory.
     """
     osd_ids = []
+    crimson_osds = get_crimson_osd_ids()
     osd_path = os.path.join(os.sep, 'var', 'lib', 'ceph', 'osd')
     if os.path.exists(osd_path):
         try:
@@ -698,7 +712,8 @@ def get_local_osd_ids():
                 osd_id = osd_dir.split('-')[1] if '-' in osd_dir else ''
                 if (_is_int(osd_id) and
                         filesystem_mounted(os.path.join(
-                            os.sep, osd_path, osd_dir))):
+                            os.sep, osd_path, osd_dir)) and
+                        osd_id not in crimson_osds):
                     osd_ids.append(osd_id)
         except OSError:
             raise
@@ -1134,7 +1149,8 @@ def get_mds_bootstrap_key():
 
 _default_caps = collections.OrderedDict([
     ('mon', ['allow r',
-             'allow command "osd blacklist"']),
+             'allow command "osd blacklist"',
+             'allow command "osd blocklist"']),
     ('osd', ['allow rwx']),
 ])
 
@@ -1166,7 +1182,10 @@ osd_upgrade_caps = collections.OrderedDict([
 ])
 
 rbd_mirror_caps = collections.OrderedDict([
-    ('mon', ['profile rbd; allow r']),
+    ('mon', ['allow profile rbd-mirror-peer',
+             'allow command "service dump"',
+             'allow command "service status"'
+             ]),
     ('osd', ['profile rbd']),
     ('mgr', ['allow r']),
 ])
@@ -1212,28 +1231,15 @@ def get_named_key(name, caps=None, pool_list=None):
     :param caps: dict of cephx capabilities
     :returns: Returns a cephx key
     """
-    key_name = 'client.{}'.format(name)
-    try:
-        # Does the key already exist?
-        output = str(subprocess.check_output(
-            [
-                'sudo',
-                '-u', ceph_user(),
-                'ceph',
-                '--name', 'mon.',
-                '--keyring',
-                '/var/lib/ceph/mon/ceph-{}/keyring'.format(
-                    socket.gethostname()
-                ),
-                'auth',
-                'get',
-                key_name,
-            ]).decode('UTF-8')).strip()
-        return parse_key(output)
-    except subprocess.CalledProcessError:
-        # Couldn't get the key, time to create it!
-        log("Creating new key for {}".format(name), level=DEBUG)
     caps = caps or _default_caps
+    key_name = 'client.{}'.format(name)
+
+    key = ceph_auth_get(key_name)
+    if key:
+        upgrade_key_caps(key_name, caps)
+        return key
+
+    log("Creating new key for {}".format(name), level=DEBUG)
     cmd = [
         "sudo",
         "-u",
@@ -1255,12 +1261,37 @@ def get_named_key(name, caps=None, pool_list=None):
                 pools = " ".join(['pool={0}'.format(i) for i in pool_list])
                 subcaps[0] = subcaps[0] + " " + pools
         cmd.extend([subsystem, '; '.join(subcaps)])
+    ceph_auth_get.cache_clear()
 
     log("Calling check_output: {}".format(cmd), level=DEBUG)
     return parse_key(str(subprocess
                          .check_output(cmd)
                          .decode('UTF-8'))
                      .strip())  # IGNORE:E1103
+
+
+@functools.lru_cache()
+def ceph_auth_get(key_name):
+    try:
+        # Does the key already exist?
+        output = str(subprocess.check_output(
+            [
+                'sudo',
+                '-u', ceph_user(),
+                'ceph',
+                '--name', 'mon.',
+                '--keyring',
+                '/var/lib/ceph/mon/ceph-{}/keyring'.format(
+                    socket.gethostname()
+                ),
+                'auth',
+                'get',
+                key_name,
+            ]).decode('UTF-8')).strip()
+        return parse_key(output)
+    except subprocess.CalledProcessError:
+        # Couldn't get the key
+        pass
 
 
 def upgrade_key_caps(key, caps, pool_list=None):
@@ -2063,7 +2094,7 @@ def filesystem_mounted(fs):
 
 def get_running_osds():
     """Returns a list of the pids of the current running OSD daemons"""
-    cmd = ['pgrep', 'ceph-osd']
+    cmd = ['pgrep', 'ceph-osd|crimson-osd']
     try:
         result = str(subprocess.check_output(cmd).decode('UTF-8'))
         return result.split()
@@ -2514,7 +2545,7 @@ class WatchDog(object):
         :type timeout: int
         """
         start_time = time.time()
-        while(not wait_f()):
+        while not wait_f():
             now = time.time()
             if now > start_time + timeout:
                 raise WatchDog.WatchDogTimeoutException()
@@ -3215,6 +3246,9 @@ UCA_CODENAME_MAP = {
     'wallaby': 'pacific',
     'xena': 'pacific',
     'yoga': 'quincy',
+    'zed': 'quincy',
+    'antelope': 'quincy',
+    'bobcat': 'quincy',
 }
 
 
@@ -3414,7 +3448,7 @@ def apply_osd_settings(settings):
     set_cmd = base_cmd + ' set {key} {value}'
 
     def _get_cli_key(key):
-        return(key.replace(' ', '_'))
+        return key.replace(' ', '_')
     # Retrieve the current values to check keys are correct and to make this a
     # noop if setting are already applied.
     for osd_id in get_local_osd_ids():
@@ -3453,6 +3487,9 @@ def enabled_manager_modules():
     :rtype: List[str]
     """
     cmd = ['ceph', 'mgr', 'module', 'ls']
+    quincy_or_later = cmp_pkgrevno('ceph-common', '17.1.0') >= 0
+    if quincy_or_later:
+        cmd.append('--format=json')
     try:
         modules = subprocess.check_output(cmd).decode('UTF-8')
     except subprocess.CalledProcessError as e:

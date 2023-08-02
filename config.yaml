@@ -5,7 +5,7 @@ options:
     description: OSD debug level. Max is 20.
   source:
     type: string
-    default: yoga
+    default: quincy
     description: |
       Optional configuration to support use of additional sources such as:
       .
