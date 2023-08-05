@@ -57,7 +57,7 @@ class ZapDiskActionTests(CharmTestCase):
         self.hookenv.action_set.assert_called_with({
             'message': "1 disk(s) have been zapped, to use "
                        "them as OSDs, run: \njuju "
-                       "run-action ceph-osd-test/0 add-disk "
+                       "run ceph-osd-test/0 add-disk "
                        "osd-devices=\"/dev/vdb\""
         })
 
@@ -84,7 +84,7 @@ class ZapDiskActionTests(CharmTestCase):
         self.hookenv.action_set.assert_called_with({
             'message': "2 disk(s) have been zapped, to use "
                        "them as OSDs, run: \njuju "
-                       "run-action ceph-osd-test/0 add-disk "
+                       "run ceph-osd-test/0 add-disk "
                        "osd-devices=\"/dev/vdb /dev/vdc\""
         })
 
@@ -182,7 +182,7 @@ class ZapDiskActionTests(CharmTestCase):
         self.hookenv.action_set.assert_called_with({
             'message': "1 disk(s) have been zapped, to use "
                        "them as OSDs, run: \njuju "
-                       "run-action ceph-osd-test/0 add-disk "
+                       "run ceph-osd-test/0 add-disk "
                        "osd-devices=\"/dev/vdb\""
         })
 

@@ -300,7 +300,7 @@ def write_report(report, ftype):
         for device, action_args in report.items():
             args = json.dumps(action_args, separators=(' ', '='))
             args = args.replace('{', '').replace('}', '').replace('"', '')
-            msg += 'juju run-action {} add-disk {} {}'.format(
+            msg += 'juju run {} add-disk {} {}'.format(
                 hookenv.local_unit(), 'osd-devices=' + device, args)
     else:
         msg = json.dumps(report)

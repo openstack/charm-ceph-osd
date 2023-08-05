@@ -131,7 +131,7 @@ class RemoveDiskActionTests(CharmTestCase):
         remove_disk.write_report(report, 'text')
         self.assertIn('message', output)
         msg = output['message']
-        self.assertIn('juju run-action ceph-osd/0 add-disk', msg)
+        self.assertIn('juju run ceph-osd/0 add-disk', msg)
         self.assertIn('osd-devices=dev@', msg)
         self.assertIn('osd-ids=osd.1', msg)
         self.assertIn('cache-devices=cache@', msg)
