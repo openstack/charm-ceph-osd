@@ -9,3 +9,4 @@
       needs_charm_build: true
       charm_build_name: ceph-osd
       build_type: charmcraft
+      charmcraft_channel: 2.x/stable
