@@ -1223,6 +1223,11 @@ def get_upgrade_key():
     return get_named_key('upgrade-osd', _upgrade_caps)
 
 
+def is_internal_client(name):
+    keys = ('osd-upgrade', 'osd-removal', 'admin', 'rbd-mirror', 'mds')
+    return any(name.startswith(key) for key in keys)
+
+
 def get_named_key(name, caps=None, pool_list=None):
     """Retrieve a specific named cephx key.
 
@@ -1236,7 +1241,8 @@ def get_named_key(name, caps=None, pool_list=None):
 
     key = ceph_auth_get(key_name)
     if key:
-        upgrade_key_caps(key_name, caps)
+        if is_internal_client(name):
+            upgrade_key_caps(key_name, caps)
         return key
 
     log("Creating new key for {}".format(name), level=DEBUG)
