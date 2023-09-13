@@ -3231,6 +3231,7 @@ UPGRADE_PATHS = collections.OrderedDict([
     ('nautilus', 'octopus'),
     ('octopus', 'pacific'),
     ('pacific', 'quincy'),
+    ('quincy', 'reef'),
 ])
 
 # Map UCA codenames to Ceph codenames
@@ -3254,7 +3255,7 @@ UCA_CODENAME_MAP = {
     'yoga': 'quincy',
     'zed': 'quincy',
     'antelope': 'quincy',
-    'bobcat': 'quincy',
+    'bobcat': 'reef',
 }
 
 
