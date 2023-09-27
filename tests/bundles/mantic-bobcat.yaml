@@ -66,7 +66,8 @@ applications:
     channel: latest/edge
 
   ceph-osd:
-    charm: ../../ceph-osd.charm
+    charm: ch:ceph-osd
+    channel: latest/edge
     num_units: 3
     storage:
       osd-devices: 'cinder,10G,2'

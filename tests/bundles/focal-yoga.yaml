@@ -30,19 +30,19 @@ applications:
 
   keystone-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0.19/edge
   glance-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0.19/edge
   cinder-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0.19/edge
   nova-cloud-controller-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0.19/edge
   placement-mysql-router:
     charm: ch:mysql-router
-    channel: latest/edge
+    channel: 8.0.19/edge
 
   mysql-innodb-cluster:
     charm: ch:mysql-innodb-cluster
@@ -53,10 +53,11 @@ applications:
       - '0'
       - '1'
       - '2'
-    channel: latest/edge
+    channel: 8.0.19/edge
 
   ceph-osd:
-    charm: ../../ceph-osd.charm
+    charm: ch:ceph-osd
+    channel: quincy/edge
     num_units: 3
     storage:
       osd-devices: 'cinder,10G,2'
@@ -88,7 +89,7 @@ applications:
       source: *openstack-origin
     to:
       - '9'
-    channel: latest/edge
+    channel: 3.9/edge
 
   keystone:
     expose: True

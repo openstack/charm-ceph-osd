@@ -8,3 +8,15 @@
       charm_build_name: ceph-osd
       build_type: charmcraft
       charmcraft_channel: 2.x/stable
+    check:
+      jobs:
+        - new-install-jammy-antelope
+- job:
+    name: new-install-jammy-antelope
+    parent: func-target
+    dependencies:
+      - osci-lint
+      - charm-build
+      - tox-py38
+    vars:
+      tox_extra_args: '-- install:local-jammy-antelope'
