@@ -386,6 +386,18 @@ def warn_if_memory_outside_bounds(value):
             "This is not recommended.", level=WARNING)
 
 
+def is_tune_osd_memory_target_valid() -> bool:
+    """
+    Check if the tune-osd-memory-target value is valid
+
+    :returns: True if valid, else False
+    :rtype: bool
+    """
+    # NOTE: keep this logic in sync with get_osd_memory_target()
+    value = config('tune-osd-memory-target')
+    return not value or bool(re.match(r"\d+(?:GB|%)$", value))
+
+
 def get_osd_memory_target():
     """
     Processes the config value of tune-osd-memory-target.
@@ -868,6 +880,11 @@ VERSION_PACKAGE = 'ceph-common'
 
 def assess_status():
     """Assess status of current unit"""
+
+    if not is_tune_osd_memory_target_valid():
+        status_set('blocked', 'tune-osd-memory-target config value is invalid')
+        return
+
     # check to see if the unit is paused.
     application_version_set(get_upstream_version(VERSION_PACKAGE))
     if is_unit_upgrading_set():

@@ -738,6 +738,38 @@ class CephHooksTestCase(unittest.TestCase):
         )
 
     @patch.object(ceph_hooks, "config")
+    def test_is_tune_osd_memory_target_valid(self, mock_config):
+        def tune(value):
+            return lambda k: (
+                value if k == "tune-osd-memory-target" else KeyError
+            )
+
+        # value, is_valid
+        scenarios = [
+            ("", True),
+            ("5GB", True),
+            ("020GB", True),
+            ("34GB", True),
+            ("5%", True),
+            ("05%", True),
+            ("50%", True),
+            ("test", False),
+            ("   ", False),
+            ("5", False),
+            ("GB", False),
+            ("%", False),
+            ("test5GB", False),
+            ("50%%", False),
+        ]
+        for value, expected_valid in scenarios:
+            mock_config.side_effect = tune(value)
+            print(f"testing tune-osd-memory-target set to {value}")
+            self.assertEqual(
+                ceph_hooks.is_tune_osd_memory_target_valid(),
+                expected_valid
+            )
+
+    @patch.object(ceph_hooks, "config")
     @patch.object(ceph_hooks, "get_total_ram")
     @patch.object(ceph_hooks, "kv")
     @patch.object(ceph_hooks, "log")
