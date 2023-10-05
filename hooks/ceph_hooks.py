@@ -26,6 +26,8 @@ import subprocess
 import sys
 import traceback
 
+import utils
+
 sys.path.append('lib')
 import charms_ceph.utils as ceph
 from charmhelpers.core import hookenv
@@ -146,6 +148,14 @@ def check_for_upgrade():
     old_version_os = get_os_codename_install_source(c.previous('source') or
                                                     'distro')
     new_version_os = get_os_codename_install_source(hookenv.config('source'))
+
+    # If the new version is reef, and we detect that we are running FileStore
+    # bail out with an error message
+    filestore_osds = utils.find_filestore_osds()
+    if new_version == 'reef' and filestore_osds:
+        log("Refuse to upgrade to reef with FileStore OSDs present: {}".format(
+            filestore_osds), level=ERROR)
+        return
 
     # May be in a previous upgrade that was failed if the directories
     # still need an ownership update. Check this condition.
@@ -464,7 +474,6 @@ def get_ceph_context(upgrading=False):
         'dio': str(config('use-direct-io')).lower(),
         'short_object_len': use_short_objects(),
         'upgrade_in_progress': upgrading,
-        'bluestore': ceph.use_bluestore(),
         'bluestore_experimental': cmp_pkgrevno('ceph', '12.1.0') < 0,
         'bluestore_block_wal_size': config('bluestore-block-wal-size'),
         'bluestore_block_db_size': config('bluestore-block-db-size'),
@@ -619,13 +628,11 @@ def prepare_disks_and_activate():
         log('ceph bootstrapped, rescanning disks')
         emit_cephconf()
         ceph.udevadm_settle()
-        bluestore = ceph.use_bluestore()
         for dev in get_devices():
             ceph.osdize(dev, config('osd-format'),
                         osd_journal,
                         config('ignore-device-errors'),
                         config('osd-encrypt'),
-                        bluestore,
                         config('osd-encrypt-keymanager'))
             # Make it fast!
             if config('autotune'):

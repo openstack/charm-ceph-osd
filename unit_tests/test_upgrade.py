@@ -15,7 +15,9 @@ class UpgradeRollingTestCase(CharmTestCase):
     @patch('ceph_hooks.emit_cephconf')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_osd_cluster')
-    def test_check_for_upgrade(self, roll_osd_cluster, hookenv,
+    @patch('utils.find_filestore_osds')
+    def test_check_for_upgrade(self, find_filestore_osds,
+                               roll_osd_cluster, hookenv,
                                emit_cephconf, version, exists,
                                dirs_need_ownership_update,
                                notify_mon_of_upgrade):
@@ -47,7 +49,9 @@ class UpgradeRollingTestCase(CharmTestCase):
     @patch('ceph_hooks.emit_cephconf')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_osd_cluster')
-    def test_resume_failed_upgrade(self, roll_osd_cluster,
+    @patch('utils.find_filestore_osds')
+    def test_resume_failed_upgrade(self, find_filestore_osds,
+                                   roll_osd_cluster,
                                    hookenv, emit_cephconf, version,
                                    exists,
                                    dirs_need_ownership_update,
@@ -94,7 +98,9 @@ class UpgradeRollingTestCase(CharmTestCase):
     @patch('ceph_hooks.ceph.is_bootstrapped')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_monitor_cluster')
-    def test_check_for_upgrade_from_pike_to_queens(self, roll_monitor_cluster,
+    @patch('utils.find_filestore_osds')
+    def test_check_for_upgrade_from_pike_to_queens(self, find_filestore_osds,
+                                                   roll_monitor_cluster,
                                                    hookenv, is_bootstrapped,
                                                    add_source,
                                                    dirs_need_ownership_update,
@@ -116,7 +122,9 @@ class UpgradeRollingTestCase(CharmTestCase):
     @patch('ceph_hooks.ceph.is_bootstrapped')
     @patch('ceph_hooks.hookenv')
     @patch('ceph_hooks.ceph.roll_monitor_cluster')
-    def test_check_for_upgrade_from_rocky_to_stein(self, roll_monitor_cluster,
+    @patch('utils.find_filestore_osds')
+    def test_check_for_upgrade_from_rocky_to_stein(self, find_filestore_osds,
+                                                   roll_monitor_cluster,
                                                    hookenv, is_bootstrapped,
                                                    add_source,
                                                    dirs_need_ownership_update,
@@ -131,6 +139,30 @@ class UpgradeRollingTestCase(CharmTestCase):
         check_for_upgrade()
         roll_monitor_cluster.assert_not_called()
         add_source.assert_called_with('cloud:bionic-stein', 'some-key')
+
+    @patch('ceph_hooks.os.path.exists')
+    @patch('ceph_hooks.ceph.dirs_need_ownership_update')
+    @patch('ceph_hooks.add_source')
+    @patch('ceph_hooks.ceph.is_bootstrapped')
+    @patch('ceph_hooks.hookenv')
+    @patch('ceph_hooks.ceph.roll_monitor_cluster')
+    @patch('utils.find_filestore_osds')
+    def test_check_for_upgrade_reef_filestore(self, find_filestore_osds,
+                                              roll_monitor_cluster,
+                                              hookenv, is_bootstrapped,
+                                              add_source,
+                                              dirs_need_ownership_update,
+                                              exists):
+        exists.return_value = True
+        is_bootstrapped.return_value = True
+        find_filestore_osds.return_value = ['ceph-0']
+        hookenv.config.side_effect = self.test_config
+        self.test_config.set('key', 'some-key')
+        self.test_config.set_previous('source', 'cloud:jammy-antelope')
+        self.test_config.set('source', 'cloud:jammy-bobcat')
+        check_for_upgrade()
+        roll_monitor_cluster.assert_not_called()
+        dirs_need_ownership_update.assert_not_called()
 
 
 class UpgradeUtilTestCase(CharmTestCase):

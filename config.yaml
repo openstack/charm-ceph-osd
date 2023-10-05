@@ -90,15 +90,6 @@ options:
       where the specified journal device does not exist on a node.
       .
       Only supported with ceph >= 0.48.3.
-  bluestore:
-    type: boolean
-    default: True
-    description: |
-      Enable BlueStore storage backend for OSD devices.
-      .
-      Only supported with ceph >= 12.2.0.
-      .
-      Setting to 'False' will use FileStore as the storage format.
   bluestore-wal:
     type: string
     default:

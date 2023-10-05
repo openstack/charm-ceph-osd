@@ -68,7 +68,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -99,7 +98,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0}
@@ -116,7 +114,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph, 'config')
     @patch.object(ceph_hooks, 'config')
     def test_get_ceph_context_invalid_bdev_enable_discard(self, mock_config,
@@ -146,7 +143,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': False,
-                    'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0}
@@ -161,7 +157,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno',
                   lambda pkg, ver: -1 if ver == '12.1.0' else 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -192,7 +187,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': False,
                     'bluestore_experimental': True,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0}
@@ -206,7 +200,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: True)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -244,7 +237,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': True,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': BLUESTORE_WAL_TEST_SIZE,
                     'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
@@ -259,7 +251,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno',
                   lambda pkg, ver: -1 if ver == '12.1.0' else 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: True)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -268,7 +259,6 @@ class CephHooksTestCase(unittest.TestCase):
     def test_get_ceph_context_bluestore_old(self, mock_config, mock_config2):
         self.maxDiff = None
         config = copy.deepcopy(CHARM_CONFIG)
-        config['bluestore'] = True
         config['bluestore-block-wal-size'] = BLUESTORE_WAL_TEST_SIZE
         config['bluestore-block-db-size'] = BLUESTORE_DB_TEST_SIZE
         mock_config.side_effect = lambda key: config[key]
@@ -294,7 +284,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': True,
                     'bluestore_experimental': True,
                     'bluestore_block_wal_size': BLUESTORE_WAL_TEST_SIZE,
                     'bluestore_block_db_size': BLUESTORE_DB_TEST_SIZE}
@@ -308,7 +297,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -341,7 +329,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0}
@@ -355,7 +342,6 @@ class CephHooksTestCase(unittest.TestCase):
     @patch.object(ceph_hooks, 'get_public_addr', lambda *args: "10.0.0.1")
     @patch.object(ceph_hooks, 'get_cluster_addr', lambda *args: "10.1.0.1")
     @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
-    @patch.object(ceph_utils, 'use_bluestore', lambda *args: False)
     @patch.object(ceph_hooks, 'get_mon_hosts', lambda *args: ['10.0.0.1',
                                                               '10.0.0.2'])
     @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
@@ -390,7 +376,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0}
@@ -440,7 +425,6 @@ class CephHooksTestCase(unittest.TestCase):
                     'upgrade_in_progress': False,
                     'use_syslog': 'true',
                     'bdev_discard': True,
-                    'bluestore': False,
                     'bluestore_experimental': False,
                     'bluestore_block_wal_size': 0,
                     'bluestore_block_db_size': 0,

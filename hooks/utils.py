@@ -692,3 +692,26 @@ def get_parent_device(dev):
             return '/dev/' + child['name']
 
     return dev
+
+
+def find_filestore_osds():
+    # Path to Ceph OSD
+    osd_path = '/var/lib/ceph/osd'
+
+    # Search through OSD directories in path starting with 'ceph-'
+    dirs = [d for d in os.listdir(osd_path)
+            if d.startswith('ceph-')
+            and os.path.isdir(os.path.join(osd_path, d))]
+
+    found = []
+    for dir in dirs:
+        # Construct the full path
+        type_file_path = os.path.join(osd_path, dir, 'type')
+        # Open and read the type file
+        with open(type_file_path, 'r') as f:
+            content = f.read()
+        # Check if the content includes 'filestore'
+        if 'filestore' in content:
+            found.append(dir)
+
+    return found

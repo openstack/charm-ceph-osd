@@ -25,17 +25,14 @@ class AddDiskActionTests(CharmTestCase):
             add_disk, ['hookenv', 'kv'])
         self.kv.return_value = self.kv
 
-    @mock.patch.object(add_disk.charms_ceph.utils, 'use_bluestore')
     @mock.patch.object(add_disk.ceph_hooks, 'get_journal_devices')
     @mock.patch.object(add_disk.charms_ceph.utils, 'osdize')
-    def test_add_device(self, mock_osdize, mock_get_journal_devices,
-                        mock_use_bluestore):
+    def test_add_device(self, mock_osdize, mock_get_journal_devices):
 
         def fake_config(key):
             return {
                 'ignore-device-errors': True,
                 'osd-encrypt': True,
-                'bluestore': True,
                 'osd-encrypt-keymanager': True,
                 'autotune': False,
             }.get(key)
@@ -43,7 +40,6 @@ class AddDiskActionTests(CharmTestCase):
         self.hookenv.config.side_effect = fake_config
         mock_get_journal_devices.return_value = ''
         self.hookenv.relation_ids.return_value = ['ceph:0']
-        mock_use_bluestore.return_value = True
 
         db = mock.MagicMock()
         self.kv.return_value = db
@@ -56,7 +52,7 @@ class AddDiskActionTests(CharmTestCase):
                          relation_settings={'bootstrapped-osds': 1})
         self.hookenv.relation_set.assert_has_calls([call])
         mock_osdize.assert_has_calls([mock.call('/dev/myosddev',
-                                                None, '', True, True, True,
+                                                None, '', True, True,
                                                 True, None)])
 
         piter = add_disk.PartitionIter(['/dev/cache'], 100, ['/dev/myosddev'])

@@ -115,7 +115,6 @@ def add_device(request, device_path, bucket=None,
                              ceph_hooks.get_journal_devices(),
                              hookenv.config('ignore-device-errors'),
                              hookenv.config('osd-encrypt'),
-                             charms_ceph.utils.use_bluestore(),
                              hookenv.config('osd-encrypt-keymanager'),
                              osd_id)
 
