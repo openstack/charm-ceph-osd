@@ -4,6 +4,7 @@
 /usr/bin/ceph-osd {
   #include <abstractions/base>
   #include <abstractions/nameservice>
+  #include <abstractions/openssl>
   #include <abstractions/python>
 
   /usr/bin/ceph-osd mr,
@@ -36,8 +37,12 @@
   /{,var/}run/ceph/* rwk,
   /{,var/}tmp/ r,
 
+  / r,
   /dev/ r,
   /dev/** rwk,
+  /run/udev/data/* r,
+  /sys/bus/nd/devices/ r,
+  /sys/bus/nd/devices/** r,
   /sys/devices/** r,
 
   /run/blkid/blkid.tab r,
@@ -48,4 +53,55 @@
   /usr/share/distro-info/** r,
   /etc/lsb-release r,
   /etc/debian_version r,
+
+  /usr/bin/sudo Px -> ceph-osd-sudo,
+}
+
+profile ceph-osd-sudo flags=(attach_disconnected) {
+  #include <abstractions/authentication>
+  #include <abstractions/base>
+  #include <abstractions/consoles>
+  #include <abstractions/nameservice>
+
+  capability audit_write,
+  capability setgid,
+  capability setuid,
+  capability sys_resource,
+
+  /usr/bin/sudo r,
+  /usr/libexec/sudo/* mr,
+
+  /etc/default/locale r,
+  /etc/environment r,
+  /etc/security/limits.d/ r,
+  /etc/security/limits.d/* r,
+  /etc/sudo.conf r,
+  /etc/sudoers r,
+  /etc/sudoers.d/ r,
+  /etc/sudoers.d/* r,
+
+  owner @{PROC}/1/limits r,
+  owner @{PROC}/@{pids}/stat r,
+
+  /usr/sbin/nvme Cx,
+  /usr/sbin/smartctl Cx,
+
+  profile /usr/sbin/nvme {
+    #include <abstractions/base>
+
+    /usr/sbin/nvme r,
+  }
+
+  profile /usr/sbin/smartctl {
+    #include <abstractions/base>
+
+    capability sys_admin,
+    capability sys_rawio,
+
+    /usr/sbin/smartctl r,
+    /var/lib/smartmontools/** r,
+
+    /dev/* r,
+    /sys/devices/** r,
+  }
 }
