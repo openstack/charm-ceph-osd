@@ -222,6 +222,30 @@ options:
       .
       Setting this option on a running Ceph OSD node will not affect running
       OSD devices, but will add the setting to ceph.conf for the next restart.
+  tune-osd-memory-target:
+    type: string
+    default:
+    description: |
+      Set to tune the value of osd_memory_target.
+
+      If unset or set to an empty string,
+      the charm will not update the value for ceph.
+      This means that a new deployment with this value unset will default to ceph's default (4GB).
+      And if a value was set, but then later unset, ceph will remain configured with the last set value.
+      This is to allow for manually configuring this value in ceph without interference from the charm.
+
+      If set to "{n}%" (where n is an integer), the value will be set as follows:
+
+        total ram * (n/100) / number of osds on the host
+
+      If set to "{n}GB" (n is an integer), osd_memory_target will be set per OSD directly.
+
+      Take care when choosing a value that it both provides enough memory for ceph
+      and leave enough memory for the system and other workloads to function.
+      For common cases,
+      it is recommended to stay within the bounds of 4GB < value < 90% of system memory.
+      If these bounds are broken, a warning will be emitted by the charm,
+      but the value will still be set.
   ignore-device-errors:
     type: boolean
     default: False
