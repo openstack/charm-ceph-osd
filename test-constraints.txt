@@ -1,0 +1,4 @@
+# Test with juju 2.9 to match testing env
+# Reasons to block the use of a release:
+# * 2.9.45, 2.9.46 - https://github.com/juju/python-libjuju/pull/975
+juju>=2.9.0,<3.0.0,!=2.9.45,!=2.9.46

@@ -4,7 +4,6 @@
       - charm-unit-jobs-py310
       - charm-xena-functional-jobs
       - charm-yoga-functional-jobs
-      - charm-zed-functional-jobs
     check:
       jobs:
         - jammy-antelope

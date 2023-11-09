@@ -6,9 +6,11 @@
 
 import os
 import sys
+from datetime import datetime, timedelta
 
 CRON_CHECK_TMPFILE = 'ceph-osd-checks'
 NAGIOS_HOME = '/var/lib/nagios'
+CACHE_MAX_AGE = timedelta(minutes=10)
 
 STATE_OK = 0
 STATE_WARNING = 1
@@ -32,17 +34,21 @@ def run_main():
         return STATE_UNKNOWN
 
     try:
+        s = os.stat(_tmp_file)
+        if datetime.now() - datetime.fromtimestamp(s.st_mtime) > CACHE_MAX_AGE:
+            print("Status file is older than {}".format(CACHE_MAX_AGE))
+            return STATE_CRITICAL
+    except Exception as e:
+        print("Something went wrong grabbing stats for the file: {}".format(
+            str(e)))
+        return STATE_UNKNOWN
+
+    try:
         with open(_tmp_file, 'rt') as f:
             lines = f.readlines()
     except Exception as e:
         print("Something went wrong reading the file: {}".format(str(e)))
         return STATE_UNKNOWN
-
-    # now remove the file in case the next check fails.
-    try:
-        os.remove(_tmp_file)
-    except Exception:
-        pass
 
     if not lines:
         print("checked status file is empty: {}".format(_tmp_file))
