@@ -130,7 +130,7 @@ three OSDs (one per ceph-osd unit) and three MONs:
 
     juju deploy -n 3 --config ceph-osd.yaml ceph-osd
     juju deploy -n 3 --to lxd:0,lxd:1,lxd:2 ceph-mon
-    juju add-relation ceph-osd:mon ceph-mon:osd
+    juju integrate ceph-osd:mon ceph-mon:osd
 
 Here, a containerised MON is running alongside each storage node. We've assumed
 that the machines spawned in the first command are assigned IDs of 0, 1, and 2.
@@ -281,10 +281,10 @@ completely (e.g. the storage hardware is reaching EOL).
 Examples:
 
     # Set OSDs '0' and '1' to 'out' on unit `ceph-osd/4`
-    juju run-action --wait ceph-osd/4 osd-out osds=osd.0,osd.1
+    juju run ceph-osd/4 osd-out osds=osd.0,osd.1
 
     # Set all OSDs to 'out' on unit `ceph-osd/2`
-    juju run-action --wait ceph-osd/2 osd-out osds=all
+    juju run ceph-osd/2 osd-out osds=all
 
 ### Set OSDs to 'in'
 
@@ -297,10 +297,10 @@ with the cluster 'noout' flag.
 Examples:
 
     # Set OSDs '0' and '1' to 'in' on unit `ceph-osd/4`
-    juju run-action --wait ceph-osd/4 osd-in osds=osd.0,osd.1
+    juju run ceph-osd/4 osd-in osds=osd.0,osd.1
 
     # Set all OSDs to 'in' on unit `ceph-osd/2`
-    juju run-action --wait ceph-osd/2 osd-in osds=all
+    juju run ceph-osd/2 osd-in osds=all
 
 ### Stop and start OSDs
 
@@ -312,10 +312,10 @@ Use the `stop` and `start` actions to stop and start OSD daemons on a unit.
 Examples:
 
     # Stop services 'ceph-osd@0' and 'ceph-osd@1' on unit `ceph-osd/4`
-    juju run-action --wait ceph-osd/4 stop osds=0,1
+    juju run ceph-osd/4 stop osds=0,1
 
     # Start all ceph-osd services on unit `ceph-osd/2`
-    juju run-action --wait ceph-osd/2 start osds=all
+    juju run ceph-osd/2 start osds=all
 
 > **Note**: Stopping an OSD daemon will put the associated unit into a blocked
   state.
@@ -339,7 +339,7 @@ The action lists the unit's block devices by categorising them in three ways:
 Example:
 
     # List disks on unit `ceph-osd/4`
-    juju run-action --wait ceph-osd/4 list-disks
+    juju run ceph-osd/4 list-disks
 
 ### Add a disk
 
@@ -365,7 +365,7 @@ operator to manually add OSD volumes (for disks that are not listed by
 Example:
 
     # Add disk /dev/vde on unit `ceph-osd/4`
-    juju run-action --wait ceph-osd/4 add-disk osd-devices=/dev/vde
+    juju run ceph-osd/4 add-disk osd-devices=/dev/vde
 
 ### Blacklist a disk
 
@@ -392,7 +392,7 @@ Use the `list-disks` action to list the unit's blacklist entries.
 Example:
 
     # Blacklist disks /dev/vda and /dev/vdf on unit `ceph-osd/0`
-    juju run-action --wait ceph-osd/0 \
+    juju run ceph-osd/0 \
        blacklist-add-disk osd-devices='/dev/vda /dev/vdf'
 
 ### Un-blacklist a disk
@@ -413,7 +413,7 @@ Each device should have an existing entry in the unit's blacklist. Use the
 Example:
 
     # Un-blacklist disk /dev/vdb on unit `ceph-osd/1`
-    juju run-action --wait ceph-osd/1 \
+    juju run ceph-osd/1 \
        blacklist-remove-disk osd-devices=/dev/vdb
 
 ### Zap a disk
@@ -441,7 +441,7 @@ action.
 Example:
 
     # Zap disk /dev/vdc on unit `ceph-osd/3`
-    juju run-action --wait ceph-osd/3 \
+    juju run ceph-osd/3 \
        zap-disk i-really-mean-it=true devices=/dev/vdc
 
 > **Note**: The `zap-disk` action cannot be run on a mounted device, an active

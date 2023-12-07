@@ -109,7 +109,7 @@ def zap():
     db.flush()
     hookenv.action_set({
         'message': "{} disk(s) have been zapped, to use them as OSDs, run: \n"
-                   "juju run-action {} add-disk osd-devices=\"{}\"".format(
+                   "juju run {} add-disk osd-devices=\"{}\"".format(
                        len(devices),
                        hookenv.local_unit(),
                        " ".join(devices))
