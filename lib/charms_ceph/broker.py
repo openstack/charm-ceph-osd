@@ -291,7 +291,8 @@ def pool_permission_list_for_service(service):
         for prefix in prefixes:
             permissions.append("allow {} object_prefix {}".format(permission,
                                                                   prefix))
-    return ['mon', 'allow r, allow command "osd blacklist"',
+    return ['mon', ('allow r, allow command "osd blacklist"'
+                    ', allow command "osd blocklist"'),
             'osd', ', '.join(permissions)]
 
 
