@@ -488,6 +488,8 @@ def get_ceph_context(upgrading=False):
         cephcontext['bdev_discard'] = False
 
     if config('prefer-ipv6'):
+        cephcontext['ms_bind_ipv4'] = False
+        cephcontext['ms_bind_ipv6'] = True
         dynamic_ipv6_address = get_ipv6_addr()[0]
         if not public_network:
             cephcontext['public_addr'] = dynamic_ipv6_address

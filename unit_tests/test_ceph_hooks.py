@@ -431,6 +431,56 @@ class CephHooksTestCase(unittest.TestCase):
                     'fake-bluestore-compression-key': 'fake-value'}
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks.ch_context, 'CephBlueStoreCompressionContext',
+                  lambda: lambda: {})
+    @patch.object(ceph_hooks, 'get_mon_hosts',
+                  lambda *args: ['2a01:348:2f4:0:685e:5748:ae62:209f',
+                                 '2a01:348:2f4:0:685e:5748:ae62:20a0'])
+    @patch.object(ceph_hooks, 'get_ipv6_addr',
+                  lambda *args: ['2a01:348:2f4:0:685e:5748:ae62:209f'])
+    @patch.object(ceph_hooks.ch_ceph, 'get_osd_settings', lambda *args: {})
+    @patch.object(ceph_hooks, 'get_fsid', lambda *args: '1234')
+    @patch.object(ceph_hooks, 'get_auth', lambda *args: False)
+    @patch.object(ceph_hooks, 'cmp_pkgrevno', lambda *args: 1)
+    @patch.object(ceph_hooks, 'get_networks', lambda *args: "")
+    @patch.object(ceph, 'config')
+    @patch.object(ceph_hooks, 'config')
+    def test_ipv6_only_env_bindings(self, mock_config, mock_config2):
+        config = copy.deepcopy(CHARM_CONFIG)
+        config['prefer-ipv6'] = True
+        mock_config.side_effect = lambda key: config[key]
+        mock_config2.side_effect = lambda key: config[key]
+        ctxt = ceph_hooks.get_ceph_context()
+        expected = {
+            'auth_supported': False,
+            'ceph_cluster_network': '',
+            'ceph_public_network': '',
+            'dio': 'true',
+            'fsid': '1234',
+            'loglevel': 1,
+            'old_auth': False,
+            'crush_initial_weight': '0',
+            'osd_journal_size': 1024,
+            'osd_max_backfills': 1,
+            'osd_recovery_max_active': 2,
+            'osd_from_client': OrderedDict(),
+            'osd_from_client_conflict': OrderedDict(),
+            'short_object_len': True,
+            'upgrade_in_progress': False,
+            'use_syslog': 'true',
+            'bdev_discard': True,
+            'bluestore_experimental': False,
+            'bluestore_block_wal_size': 0,
+            'bluestore_block_db_size': 0,
+            'cluster_addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
+            'public_addr': '2a01:348:2f4:0:685e:5748:ae62:209f',
+            'mon_hosts': '2a01:348:2f4:0:685e:5748:ae62:209f '
+                         '2a01:348:2f4:0:685e:5748:ae62:20a0',
+            'ms_bind_ipv4': False,
+            'ms_bind_ipv6': True,
+        }
+        self.assertEqual(ctxt, expected)
+
     @patch.object(ceph_hooks, 'ceph')
     @patch.object(ceph_hooks, 'service_restart')
     @patch.object(ceph_hooks, 'service_reload')
