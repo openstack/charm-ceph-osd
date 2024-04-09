@@ -43,6 +43,7 @@ CEPH_MONS = [
 ]
 
 
+@patch.object(hooks, 'get_mon_hosts', new=MagicMock(return_value=['1.1.1.1']))
 class ServiceStatusTestCase(test_utils.CharmTestCase):
 
     def setUp(self):
