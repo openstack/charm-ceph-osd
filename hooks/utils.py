@@ -85,15 +85,17 @@ def is_osd_bootstrap_ready():
     return os.path.exists(_bootstrap_keyring)
 
 
-def _import_key(key, path, name):
-    if not os.path.exists(path):
+def _import_key(key, path, name, override=False):
+    exists = os.path.exists(path)
+    if not exists or override:
+        create = ['--create-keyring'] if not exists else []
         cmd = [
             'sudo',
             '-u',
             ceph.ceph_user(),
             'ceph-authtool',
-            path,
-            '--create-keyring',
+            path
+        ] + create + [
             '--name={}'.format(name),
             '--add-key={}'.format(key)
         ]
@@ -138,6 +140,19 @@ def import_client_crash_key(key):
     :type key: str
     :raises: subprocess.CalledProcessError"""
     _import_key(key, _client_crash_keyring, 'client.crash')
+
+
+def import_pending_key(key, osd_id):
+    """
+    Import a pending key, used for key rotation.
+
+    :param key: The pending cephx key that will replace the current one.
+    :type key: str
+    :param osd_id: The OSD id whose key will be replaced.
+    :type osd_id: str
+    :raises: subprocess.CalledProcessError"""
+    _import_key(key, '/var/lib/ceph/osd/ceph-%s/keyring' % osd_id,
+                'osd.%s' % osd_id, override=True)
 
 
 def render_template(template_name, context, template_dir=TEMPLATES_DIR):
