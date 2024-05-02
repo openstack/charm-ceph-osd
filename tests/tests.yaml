@@ -5,7 +5,7 @@ gate_bundles:
   - focal-yoga
   - jammy-yoga
   - jammy-bobcat
-  - mantic-bobcat
+  - jammy-caracal
 
 smoke_bundles:
   - jammy-antelope
