@@ -885,6 +885,18 @@ class CephHooksTestCase(unittest.TestCase):
             level=ceph_hooks.ERROR,
         )
 
+    @patch.object(ceph_hooks, 'service_restart')
+    @patch.object(ceph_hooks, 'import_pending_key')
+    @patch.object(ceph_hooks.os.path, 'exists')
+    def test_handle_pending_key(self, exists, import_pending_key,
+                                service_restart):
+        exists.return_value = True
+        pending_key = '{"0":"some-key"}'
+        ceph_hooks.handle_pending_key(pending_key)
+        exists.assert_called_with('/var/lib/ceph/osd/ceph-0')
+        import_pending_key.assert_called_with('some-key', '0')
+        service_restart.assert_called_with('ceph-osd@0')
+
 
 @patch.object(ceph_hooks, 'local_unit')
 @patch.object(ceph_hooks, 'relation_get')
@@ -969,3 +981,17 @@ class VaultLockerTestCase(unittest.TestCase):
         _cmp_pkgrevno.return_value = -1
         self.assertRaises(ValueError,
                           ceph_hooks.use_vaultlocker)
+
+
+class KeyRotationTestCase(unittest.TestCase):
+
+    @patch.object(ceph_hooks, 'import_pending_key')
+    @patch.object(ceph_hooks, 'service_restart')
+    @patch.object(ceph_hooks.os.path, 'exists')
+    def test_pending_key(self, exists, service_restart, import_pending_key):
+        pending_key = '{"1":"key1","2":"key2"}'
+        exists.side_effect = lambda x: x == '/var/lib/ceph/osd/ceph-2'
+
+        ceph_hooks.handle_pending_key(pending_key)
+        import_pending_key.assert_called_with("key2", "2")
+        service_restart.assert_called_with("ceph-osd@2")

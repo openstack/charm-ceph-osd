@@ -85,6 +85,7 @@ from utils import (
     import_osd_upgrade_key,
     import_osd_removal_key,
     import_client_crash_key,
+    import_pending_key,
     get_host_ip,
     get_networks,
     assert_charm_supports_ipv6,
@@ -740,8 +741,23 @@ def get_bdev_enable_discard():
                           "bdev-enable-discard: %s") % bdev_enable_discard)
 
 
+def handle_pending_key(pending_key):
+    key_map = json.loads(pending_key)
+    for osd_id, key in key_map.items():
+        if not os.path.exists('/var/lib/ceph/osd/ceph-%s' % osd_id):
+            continue
+
+        import_pending_key(key, osd_id)
+        service_restart('ceph-osd@%s' % osd_id)
+
+
 @hooks.hook('mon-relation-changed')
 def mon_relation():
+    pending_key = relation_get('pending_key')
+    if pending_key:
+        handle_pending_key(pending_key)
+        return
+
     bootstrap_key = relation_get('osd_bootstrap_key')
     upgrade_key = relation_get('osd_upgrade_key')
     removal_key = relation_get('osd_disk_removal_key')
