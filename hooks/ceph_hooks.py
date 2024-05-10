@@ -321,7 +321,11 @@ def install_udev_rules():
 def install():
     add_source(config('source'), config('key'))
     apt_update(fatal=True)
-    apt_install(packages=ceph.determine_packages(), fatal=True)
+    packages = ceph.determine_packages()
+    # TODO(chrome0): temp. fix for bug #2064717; remove once this has been
+    # fixed
+    packages.append('python3-packaging')
+    apt_install(packages=packages, fatal=True)
     if config('autotune'):
         log('The autotune config is deprecated and planned '
             'for removal in the next release.', level=WARNING)

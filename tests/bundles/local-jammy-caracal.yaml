@@ -1,5 +1,5 @@
 variables:
-  openstack-origin: &openstack-origin cloud:jammy-antelope
+  openstack-origin: &openstack-origin cloud:jammy-caracal
 
 series: jammy
 
@@ -94,7 +94,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '10'
-    channel: 2023.1/edge
+    channel: latest/edge
 
   nova-compute:
     charm: ch:nova-compute
@@ -103,7 +103,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '11'
-    channel: 2023.1/edge
+    channel: latest/edge
 
   glance:
     expose: True
@@ -113,7 +113,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '12'
-    channel: 2023.1/edge
+    channel: latest/edge
 
   cinder:
     expose: True
@@ -125,11 +125,11 @@ applications:
       glance-api-version: '2'
     to:
       - '13'
-    channel: 2023.1/edge
+    channel: latest/edge
 
   cinder-ceph:
     charm: ch:cinder-ceph
-    channel: 2023.1/edge
+    channel: latest/edge
 
   nova-cloud-controller:
     expose: True
@@ -139,7 +139,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '14'
-    channel: 2023.1/edge
+    channel: latest/edge
 
   placement:
     charm: ch:placement
@@ -148,7 +148,7 @@ applications:
       openstack-origin: *openstack-origin
     to:
       - '15'
-    channel: 2023.1/edge
+    channel: latest/edge
 
 relations:
   - - 'nova-compute:amqp'

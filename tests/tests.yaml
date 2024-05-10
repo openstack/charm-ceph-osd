@@ -1,14 +1,12 @@
 charm_name: ceph-osd
 
 gate_bundles:
-  - focal-xena
-  - focal-yoga
   - jammy-yoga
   - jammy-bobcat
   - jammy-caracal
 
 smoke_bundles:
-  - jammy-antelope
+  - jammy-caracal
 
 configure:
   - install:

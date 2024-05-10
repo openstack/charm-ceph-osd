@@ -5,7 +5,7 @@ options:
     description: OSD debug level. Max is 20.
   source:
     type: string
-    default: bobcat
+    default: caracal
     description: |
       Optional configuration to support use of additional sources such as:
       .
