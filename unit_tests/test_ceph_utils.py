@@ -352,3 +352,15 @@ cset.uuid		57add9da-e5de-47c6-8f39-3e16aafb8d31
   }]
 }'''
         self.assertEqual(utils.get_parent_device('/dev/loop1p1'), '/dev/loop1')
+
+    @patch.object(utils.ceph, 'ceph_user')
+    @patch.object(utils.subprocess, 'check_call')
+    @patch.object(utils.os.path, 'exists')
+    def test_import_pending_key(self, exists, check_call, ceph_user):
+        ceph_user.return_value = 'ceph'
+        exists.return_value = True
+        utils.import_pending_key('some-key', '0')
+        exists.assert_called_with('/var/lib/ceph/osd/ceph-0/keyring')
+        check_call.assert_called_with(['sudo', '-u', 'ceph', 'ceph-authtool',
+                                       '/var/lib/ceph/osd/ceph-0/keyring',
+                                       '--name=osd.0', '--add-key=some-key'])
