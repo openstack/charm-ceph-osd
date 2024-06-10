@@ -28,7 +28,8 @@ from charmhelpers.core.hookenv import (
     function_fail,
     log,
 )
-from ceph_hooks import assess_status
+
+from ceph_hooks import assess_status, update_apparmor
 from utils import parse_osds_arguments, ALL
 
 START = 'start'
@@ -138,6 +139,7 @@ def start():
 
 ACTIONS = {'stop': stop,
            'start': start,
+           'update-apparmor-and-restart-osds': update_apparmor,
            }
 
 
