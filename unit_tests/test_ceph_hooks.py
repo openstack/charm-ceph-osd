@@ -481,19 +481,104 @@ class CephHooksTestCase(unittest.TestCase):
         }
         self.assertEqual(ctxt, expected)
 
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks.glob, "glob")
+    @patch.object(ceph_hooks, "file_hash")
+    def test_check_aa_profile_needs_update_True(
+            self, mock_hash, mock_glob, mock_kv):
+        mock_glob.return_value = ['file1', 'file2', 'file3']
+        mock_hash.side_effect = ['hash1', 'hash2']
+        mock_kv.return_value = {'hash:file1': 'hash1',
+                                'hash:file2': 'hash2_old'}
+        result = ceph_hooks.check_aa_profile_needs_update()
+        self.assertTrue(result)
+        mock_hash.assert_has_calls([call('file1'), call('file2')])
+
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks.glob, "glob")
+    @patch.object(ceph_hooks, "file_hash")
+    def test_check_aa_profile_needs_update_False(
+            self, mock_hash, mock_glob, mock_kv):
+        mock_glob.return_value = ['file1', 'file2', 'file3']
+        mock_hash.side_effect = ['hash1', 'hash2', 'hash3']
+        mock_kv.return_value = {'hash:file1': 'hash1',
+                                'hash:file2': 'hash2',
+                                'hash:file3': 'hash3'}
+        result = ceph_hooks.check_aa_profile_needs_update()
+        self.assertFalse(result)
+        mock_hash.assert_has_calls(
+            [call('file1'), call('file2'), call('file3')])
+
+    @patch.object(ceph_hooks, "kv")
+    @patch.object(ceph_hooks.glob, "glob")
+    @patch.object(ceph_hooks, "file_hash")
+    def test_check_aa_profile_needs_update_never_installed(
+            self, mock_hash, mock_glob, mock_kv):
+        mock_glob.return_value = ['file1', 'file2', 'file3']
+        mock_kv.return_value = {}
+        self.assertRaises(ceph_hooks.AppArmorProfileNeverInstalledException,
+                          ceph_hooks.check_aa_profile_needs_update)
+        mock_hash.assert_not_called()
+
+    @patch.object(ceph_hooks, 'check_aa_profile_needs_update')
+    @patch.object(ceph_hooks, 'update_apparmor')
+    @patch.object(ceph_hooks, '_set_pending_apparmor_update_status')
+    def test_install_apparmor_profile_no_change(
+            self, mock_set, mock_update, mock_check):
+        mock_check.return_value = False
+        ceph_hooks.install_apparmor_profile()
+        mock_set.assert_not_called()
+        mock_update.assert_not_called()
+
+    @patch.object(ceph_hooks, 'check_aa_profile_needs_update')
+    @patch.object(ceph_hooks, 'update_apparmor')
+    @patch.object(ceph_hooks, '_set_pending_apparmor_update_status')
+    @patch.object(ceph_hooks, 'config')
+    def test_install_apparmor_profile_disable(
+            self, mock_config, mock_set, mock_update, mock_check):
+        mock_check.return_value = True
+        mock_config.return_value = 'disable'
+        ceph_hooks.install_apparmor_profile()
+        mock_set.assert_not_called()
+        mock_update.assert_called_once_with()
+
+    @patch.object(ceph_hooks, 'check_aa_profile_needs_update')
+    @patch.object(ceph_hooks, 'update_apparmor')
+    @patch.object(ceph_hooks, '_set_pending_apparmor_update_status')
+    @patch.object(ceph_hooks, 'config')
+    def test_install_apparmor_profile_never_installed(
+            self, mock_config, mock_set, mock_update, mock_check):
+        mock_check.side_effect = (
+            ceph_hooks.AppArmorProfileNeverInstalledException)
+        ceph_hooks.install_apparmor_profile()
+        mock_config.assert_not_called()
+        mock_set.assert_not_called()
+        mock_update.assert_called_once_with()
+
+    @patch.object(ceph_hooks, 'check_aa_profile_needs_update')
+    @patch.object(ceph_hooks, 'update_apparmor')
+    @patch.object(ceph_hooks, '_set_pending_apparmor_update_status')
+    @patch.object(ceph_hooks, 'config')
+    def test_install_apparmor_profile_enforce(
+            self, mock_config, mock_set, mock_update, mock_check):
+        mock_check.return_value = True
+        mock_config.return_value = 'enforce'
+        ceph_hooks.install_apparmor_profile()
+        mock_set.assert_called_once_with()
+        mock_update.assert_not_called()
+
+    @patch.object(ceph_hooks, 'assess_status')
     @patch.object(ceph_hooks, 'ceph')
     @patch.object(ceph_hooks, 'service_restart')
     @patch.object(ceph_hooks, 'service_reload')
     @patch.object(ceph_hooks, 'copy_profile_into_place')
     @patch.object(ceph_hooks, 'CephOsdAppArmorContext')
     @patch.object(ceph_hooks, 'config')
-    def test_install_apparmor_profile(self, mock_config,
-                                      mock_apparmor_context,
-                                      mock_copy_profile_into_place,
-                                      mock_service_reload,
-                                      mock_service_restart,
-                                      mock_ceph):
-        '''Apparmor profile reloaded when config changes (upstart)'''
+    def test_update_apparmor_upstart_config_changed(
+            self, mock_config, mock_apparmor_context,
+            mock_copy_profile_into_place, mock_service_reload,
+            mock_service_restart, mock_ceph,
+            mock_assess_status):
         m_config = MagicMock()
         m_config.changed.return_value = True
         mock_config.return_value = m_config
@@ -502,81 +587,67 @@ class CephHooksTestCase(unittest.TestCase):
         mock_ceph.systemd.return_value = False
         mock_copy_profile_into_place.return_value = False
 
-        ceph_hooks.install_apparmor_profile()
+        ceph_hooks.update_apparmor()
 
         m_aa_context.setup_aa_profile.assert_called()
         mock_copy_profile_into_place.assert_called()
         mock_service_restart.assert_called_with('ceph-osd-all')
         m_config.changed.assert_called_with('aa-profile-mode')
         mock_service_reload.assert_called_with('apparmor')
+        mock_assess_status.assert_called_once_with()
 
+    @patch.object(ceph_hooks, 'assess_status')
     @patch.object(ceph_hooks, 'ceph')
     @patch.object(ceph_hooks, 'service_restart')
     @patch.object(ceph_hooks, 'service_reload')
     @patch.object(ceph_hooks, 'copy_profile_into_place')
     @patch.object(ceph_hooks, 'CephOsdAppArmorContext')
     @patch.object(ceph_hooks, 'config')
-    def test_install_apparmor_profile_systemd(self, mock_config,
-                                              mock_apparmor_context,
-                                              mock_copy_profile_into_place,
-                                              mock_service_reload,
-                                              mock_service_restart,
-                                              mock_ceph):
-        '''Apparmor profile reloaded when config changes (systemd)'''
-        m_config = MagicMock()
-        m_config.changed.return_value = True
-        mock_config.return_value = m_config
+    def test_update_apparmor_systemd_profile_changed(
+            self, mock_config, mock_apparmor_context,
+            mock_copy_profile_into_place, mock_service_reload,
+            mock_service_restart, mock_ceph,
+            mock_assess_status):
         m_aa_context = MagicMock()
         mock_apparmor_context.return_value = m_aa_context
         mock_ceph.systemd.return_value = True
-        mock_ceph.get_local_osd_ids.return_value = [0, 1, 2]
-        mock_copy_profile_into_place.return_value = False
-
-        ceph_hooks.install_apparmor_profile()
-
-        m_aa_context.setup_aa_profile.assert_called()
-        mock_copy_profile_into_place.assert_called()
-        m_config.changed.assert_called_with('aa-profile-mode')
-        mock_service_reload.assert_called_with('apparmor')
-        mock_service_restart.assert_has_calls([
-            call('ceph-osd@0'),
-            call('ceph-osd@1'),
-            call('ceph-osd@2'),
-        ])
-
-    @patch.object(ceph_hooks, 'ceph')
-    @patch.object(ceph_hooks, 'service_restart')
-    @patch.object(ceph_hooks, 'service_reload')
-    @patch.object(ceph_hooks, 'copy_profile_into_place')
-    @patch.object(ceph_hooks, 'CephOsdAppArmorContext')
-    @patch.object(ceph_hooks, 'config')
-    def test_install_apparmor_profile_new_install(self, mock_config,
-                                                  mock_apparmor_context,
-                                                  mock_copy_profile_into_place,
-                                                  mock_service_reload,
-                                                  mock_service_restart,
-                                                  mock_ceph):
-        '''Apparmor profile always reloaded on fresh install'''
-        m_config = MagicMock()
-        m_config.changed.return_value = True
-        mock_config.return_value = m_config
-        m_aa_context = MagicMock()
-        mock_apparmor_context.return_value = m_aa_context
-        mock_ceph.systemd.return_value = True
-        mock_ceph.get_local_osd_ids.return_value = [0, 1, 2]
         mock_copy_profile_into_place.return_value = True
 
-        ceph_hooks.install_apparmor_profile()
+        ceph_hooks.update_apparmor()
 
         m_aa_context.setup_aa_profile.assert_called()
         mock_copy_profile_into_place.assert_called()
-        m_config.changed.assert_not_called()
+        mock_config.changed.assert_not_called()
         mock_service_reload.assert_called_with('apparmor')
-        mock_service_restart.assert_has_calls([
-            call('ceph-osd@0'),
-            call('ceph-osd@1'),
-            call('ceph-osd@2'),
-        ])
+        mock_service_restart.assert_called_once_with('ceph-osd.target')
+        mock_assess_status.assert_called_once_with()
+
+    @patch.object(ceph_hooks, 'assess_status')
+    @patch.object(ceph_hooks, 'ceph')
+    @patch.object(ceph_hooks, 'service_restart')
+    @patch.object(ceph_hooks, 'service_reload')
+    @patch.object(ceph_hooks, 'copy_profile_into_place')
+    @patch.object(ceph_hooks, 'CephOsdAppArmorContext')
+    @patch.object(ceph_hooks, 'config')
+    def test_update_apparmor_disable(
+            self, mock_config, mock_apparmor_context,
+            mock_copy_profile_into_place,
+            mock_service_reload, mock_service_restart,
+            mock_ceph, mock_assess_status):
+        mock_config.return_value = 'disable'
+        m_aa_context = MagicMock()
+        mock_apparmor_context.return_value = m_aa_context
+        mock_ceph.systemd.return_value = True
+        mock_copy_profile_into_place.return_value = True
+
+        ceph_hooks.update_apparmor()
+
+        m_aa_context.setup_aa_profile.assert_called()
+        mock_copy_profile_into_place.assert_called()
+        mock_config.changed.assert_not_called()
+        mock_service_reload.assert_called_with('apparmor')
+        mock_service_restart.assert_not_called()
+        mock_assess_status.assert_not_called()
 
     @patch.object(ceph_hooks, 'is_block_device')
     @patch.object(ceph_hooks, 'storage_list')

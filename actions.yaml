@@ -149,6 +149,11 @@ stop:
     - osds
 security-checklist:
   description: Validate the running configuration against the OpenStack security guides checklist
+update-apparmor-and-restart-osds:
+  description: |
+    Invoke pending continuation of update of AppArmor profiles followed by restarting OSD
+    services. Make sure to run this action separately in each unit at different times
+    to avoid simultaneous restart of OSDs.
 get-availability-zone:
   description: |
     Obtain information about the availability zone, which will contain information about the CRUSH
