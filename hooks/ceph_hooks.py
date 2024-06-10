@@ -132,6 +132,10 @@ STORAGE_MOUNT_PATH = '/var/lib/ceph'
 CRON_CEPH_CHECK_FILE = '/etc/cron.d/check-osd-services'
 
 
+class AppArmorProfileNeverInstalledException(Exception):
+    pass
+
+
 def check_for_upgrade():
 
     if not os.path.exists(_upgrade_keyring):
@@ -211,18 +215,45 @@ def tune_network_adapters():
         ceph.tune_nic(interface)
 
 
+def check_aa_profile_needs_update():
+    """
+    Compares the hash of a new AA profile and the previously installed one,
+    if one exists.
+    """
+    db = kv()
+    for x in glob.glob('files/apparmor/*'):
+        db_key = 'hash:{}'.format(x)
+        previous_hash = db.get(db_key)
+        if previous_hash is None:
+            raise AppArmorProfileNeverInstalledException()
+        new_hash = file_hash(x)
+        if new_hash != previous_hash:
+            return True
+    return False
+
+
+def _set_pending_apparmor_update_status():
+    # Setting to active to avoid impact of other workflows
+    status_set('active',
+               ('Pending update-apparmor-and-restart-osds action required,'
+                ' please refer to the action documentation.'))
+
+
 def aa_profile_changed(service_name='ceph-osd-all'):
     """
     Reload AA profile and restart OSD processes.
     """
     log("Loading new AppArmor profile")
     service_reload('apparmor')
+    if config('aa-profile-mode') == 'disable':
+        # No need to restart services if AppArmor is not enabled
+        return
     log("Restarting ceph-osd services with new AppArmor profile")
     if ceph.systemd():
-        for osd_id in ceph.get_local_osd_ids():
-            service_restart('ceph-osd@{}'.format(osd_id))
+        service_restart('ceph-osd.target')
     else:
         service_restart(service_name)
+    assess_status()
 
 
 def copy_profile_into_place():
@@ -285,12 +316,8 @@ def use_vaultlocker():
     return False
 
 
-def install_apparmor_profile():
-    """
-    Install ceph apparmor profiles and configure
-    based on current setting of 'aa-profile-mode'
-    configuration option.
-    """
+def update_apparmor():
+    """Action: Proceed to updating the profile and restarting OSDs."""
     changes = copy_profile_into_place()
     # NOTE(jamespage): If any profiles where changed or
     #                  freshly installed then force
@@ -300,6 +327,28 @@ def install_apparmor_profile():
         aa_context = CephOsdAppArmorContext()
         aa_context.setup_aa_profile()
         aa_profile_changed()
+
+
+def install_apparmor_profile():
+    """
+    Install ceph apparmor profiles and configure
+    based on current setting of 'aa-profile-mode'
+    configuration option.
+    """
+    changes = False
+    try:
+        changes = check_aa_profile_needs_update()
+    except AppArmorProfileNeverInstalledException:
+        update_apparmor()
+        return
+    if not changes:
+        return
+    if config('aa-profile-mode') != 'disable':
+        log("Deferring update of AppArmor profiles to avoid "
+            "restarting ceph-osd services all at the same time.")
+        _set_pending_apparmor_update_status()
+    else:
+        update_apparmor()
 
 
 def install_udev_rules():
@@ -957,8 +1006,16 @@ def assess_status():
             status_set('blocked',
                        'No block devices detected using current configuration')
         else:
-            status_set('active',
-                       'Unit is ready ({} OSD)'.format(len(running_osds)))
+            aa_needs_update = False
+            try:
+                aa_needs_update = check_aa_profile_needs_update()
+            except AppArmorProfileNeverInstalledException:
+                pass
+            if aa_needs_update and config('aa-profile-mode') != 'disable':
+                _set_pending_apparmor_update_status()
+            else:
+                status_set('active',
+                           'Unit is ready ({} OSD)'.format(len(running_osds)))
     else:
         pristine = True
         # Check unmounted disks that should be configured but don't check
