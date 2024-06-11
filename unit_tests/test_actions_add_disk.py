@@ -53,7 +53,7 @@ class AddDiskActionTests(CharmTestCase):
         self.hookenv.relation_set.assert_has_calls([call])
         mock_osdize.assert_has_calls([mock.call('/dev/myosddev',
                                                 None, '', True, True,
-                                                True, None)])
+                                                True, None, None)])
 
         piter = add_disk.PartitionIter(['/dev/cache'], 100, ['/dev/myosddev'])
         mock_create_bcache = mock.MagicMock(side_effect=lambda b: '/dev/cache')

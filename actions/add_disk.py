@@ -79,8 +79,8 @@ def start_crimson_osd(osd_id, device):
                            'crimson-osd@{}'.format(osd_id)])
 
 
-def add_device(request, device_path, bucket=None,
-               osd_id=None, part_iter=None, use_crimson=False):
+def add_device(request, device_path, bucket=None, osd_id=None,
+               part_iter=None, use_crimson=False, bluestore_skip=None):
     """Add a new device to be used by the OSD unit.
 
     :param request: A broker request to notify monitors of changes.
@@ -99,6 +99,12 @@ def add_device(request, device_path, bucket=None,
                       demand, to service bcache creation, or None, if no
                       partitions need to be created.
     :type part_iter: Option[PartitionIter, None]
+
+    :param use_crimson: Whether to use Crimson for the OSD (Experimental).
+    :type use_crimson: bool
+
+    :param bluestore_skip: Which Bluestore features to avoid.
+    :type bluestore_skip: Option[str, None]
     """
     if part_iter is not None:
         effective_dev = part_iter.create_bcache(device_path)
@@ -111,12 +117,15 @@ def add_device(request, device_path, bucket=None,
     if osd_id is not None and osd_id.startswith('osd.'):
         osd_id = osd_id[4:]
 
+    if bluestore_skip:
+        bluestore_skip = bluestore_skip.split(',')
+
     charms_ceph.utils.osdize(effective_dev, hookenv.config('osd-format'),
                              ceph_hooks.get_journal_devices(),
                              hookenv.config('ignore-device-errors'),
                              hookenv.config('osd-encrypt'),
                              hookenv.config('osd-encrypt-keymanager'),
-                             osd_id)
+                             osd_id, bluestore_skip)
 
     if use_crimson:
         start_crimson_osd(osd_id, effective_dev)
@@ -232,6 +241,8 @@ if __name__ == "__main__":
                 sys.exit(1)
     else:
         osd_ids = [None] * len(devices)
+
+    bluestore_skip = hookenv.action_get('bluestore-skip')
 
     errors = []
     for dev, osd_id in zip(devices, osd_ids):

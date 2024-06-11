@@ -106,6 +106,8 @@ def decode_req_encode_rsp(f):
     """Decorator to decode incoming requests and encode responses."""
 
     def decode_inner(req):
+        if isinstance(req, bytes):
+            req = req.decode('utf-8')
         return json.dumps(f(json.loads(req)))
 
     return decode_inner
@@ -767,7 +769,7 @@ def handle_create_cephfs(request, service):
             log(msg, level=ERROR)
             return {'exit-code': 1, 'stderr': msg}
 
-    if get_cephfs(service=service):
+    if cephfs_name in get_cephfs(service=service):
         # CephFS new has already been called
         log("CephFS already created")
         return
@@ -831,6 +833,69 @@ def handle_rgw_region_set(request, service):
         log(err.output, level=ERROR)
         return {'exit-code': 1, 'stderr': err.output}
     os.unlink(infile.name)
+
+
+def handle_create_cephfs_client(request, service):
+    """Creates a new CephFS client for a filesystem.
+
+    :param request: The broker request
+    :param service: The ceph client to run the command under.
+    :returns: dict. exit-code and reason if not 0.
+    """
+    fs_name = request.get('fs_name')
+    client_id = request.get('client_id')
+    # TODO: fs allows setting write permissions for a list of paths.
+    path = request.get('path')
+    perms = request.get('perms')
+    # Need all parameters
+    if not fs_name or not client_id or not path or not perms:
+        msg = "Missing fs_name, client_id, path or perms params"
+        log(msg, level=ERROR)
+        return {'exit-code': 1, 'stderr': msg}
+
+    # Skip creation if the request has already been called
+    # This makes it a bit more compatible with older Ceph versions
+    # that throw when trying to authorize a user with the same
+    # capabilites that it currently has.
+    try:
+        cmd = ["ceph", "--id", service, "auth", "ls", "-f", "json"]
+        auth_ls = json.loads(check_output(cmd, encoding="utf-8"))
+    except CalledProcessError as err:
+        log(err.output, level=ERROR)
+        return {'exit-code': 1, 'stderr': err.output}
+    except ValueError as err:
+        log(str(err), level=ERROR)
+        return {'exit-code': 1, 'stderr': str(err)}
+
+    client = "client.{}".format(client_id)
+    for elem in auth_ls["auth_dump"]:
+        if client == elem["entity"]:
+            log("Client {} has already been created".format(client))
+            return {'exit-code': 0, 'key': elem["key"]}
+
+    # Try to authorize the client
+    # `ceph fs authorize` already returns the correct error
+    # message if the filesystem doesn't exist.
+    try:
+        cmd = [
+            "ceph",
+            "--id", service,
+            "fs", "authorize",
+            fs_name,
+            client,
+            path,
+            perms,
+            "-f", "json"
+        ]
+        fs_auth = json.loads(check_output(cmd, encoding="utf-8"))
+    except CalledProcessError as err:
+        log(err.output, level=ERROR)
+        return {'exit-code': 1, 'stderr': err.output}
+    except ValueError as err:
+        log(str(err), level=ERROR)
+        return {'exit-code': 1, 'stderr': str(err)}
+
+    return {'exit-code': 0, 'key': fs_auth[0]["key"]}
 
 
 def process_requests_v1(reqs):
@@ -902,6 +967,8 @@ def process_requests_v1(reqs):
             ret = handle_add_permissions_to_key(request=req, service=svc)
         elif op == 'set-key-permissions':
             ret = handle_set_key_permissions(request=req, service=svc)
+        elif op == "create-cephfs-client":
+            ret = handle_create_cephfs_client(request=req, service=svc)
         else:
             msg = "Unknown operation '{}'".format(op)
             log(msg, level=ERROR)
