@@ -69,6 +69,11 @@ add-disk:
       type: boolean
       description: |
         Must be set when 'use-crimson' is True.
+    bluestore-skip:
+      type: string
+      description: |
+        A comma-separated list of what Bluestore features to omit. This can
+        be the WAL and DB devices (for example - "wal,db").
   required:
     - osd-devices
 blacklist-add-disk:
