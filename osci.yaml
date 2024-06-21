@@ -1,22 +1,9 @@
 - project:
     templates:
-      - charm-unit-jobs-py38
       - charm-unit-jobs-py310
       - charm-functional-jobs
     vars:
       needs_charm_build: true
       charm_build_name: ceph-osd
       build_type: charmcraft
-      charmcraft_channel: 2.x/stable
-    check:
-      jobs:
-        - new-install-jammy-caracal
-- job:
-    name: new-install-jammy-caracal
-    parent: func-target
-    dependencies:
-      - osci-lint
-      - charm-build
-      - tox-py38
-    vars:
-      tox_extra_args: '-- install:local-jammy-caracal'
+      charmcraft_channel: 3.x/beta

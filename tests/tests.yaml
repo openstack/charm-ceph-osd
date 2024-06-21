@@ -1,12 +1,10 @@
 charm_name: ceph-osd
 
 gate_bundles:
-  - jammy-yoga
-  - jammy-bobcat
-  - jammy-caracal
+  - noble-caracal
 
 smoke_bundles:
-  - jammy-caracal
+  - noble-caracal
 
 configure:
   - install:
