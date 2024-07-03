@@ -21,6 +21,7 @@ machines:
   '9':
   '10':
   '11':
+    series: jammy
   '12':
   '13':
   '14':
@@ -55,7 +56,6 @@ applications:
 
   ceph-osd:
     charm: ../../ceph-osd.charm
-    channel: latest/edge
     num_units: 3
     storage:
       osd-devices: 'cinder,10G,2'
@@ -105,6 +105,7 @@ applications:
     to:
       - '11'
     channel: latest/edge
+    series: jammy
 
   glance:
     expose: True
