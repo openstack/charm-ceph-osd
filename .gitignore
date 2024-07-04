@@ -11,3 +11,4 @@ bin
 func-results.json
 *__pycache__
 .settings
+*.charm

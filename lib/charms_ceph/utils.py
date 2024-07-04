@@ -3186,6 +3186,7 @@ UCA_CODENAME_MAP = {
     'stein': 'mimic',
     'train': 'nautilus',
     'ussuri': 'octopus',
+    'victoria': 'octopus',
 }
 
 
