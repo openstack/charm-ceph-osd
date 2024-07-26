@@ -251,7 +251,8 @@ if __name__ == "__main__":
                                  device_path=dev,
                                  bucket=hookenv.action_get("bucket"),
                                  osd_id=osd_id, part_iter=part_iter,
-                                 use_crimson=crimson)
+                                 use_crimson=crimson,
+                                 bluestore_skip=bluestore_skip)
         except Exception:
             errors.append(dev)
 
