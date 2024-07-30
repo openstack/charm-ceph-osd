@@ -695,7 +695,7 @@ def get_crimson_osd_ids():
 
 
 def get_local_osd_ids():
-    """This will list the /var/lib/ceph/osd/* directories and try
+    """This will list the /var/lib/ceph/osd/ceph-* directories and try
     to split the ID off of the directory name and return it in
     a list. Excludes crimson OSD's from the returned list.
 
@@ -704,19 +704,18 @@ def get_local_osd_ids():
     """
     osd_ids = []
     crimson_osds = get_crimson_osd_ids()
-    osd_path = os.path.join(os.sep, 'var', 'lib', 'ceph', 'osd')
+    osd_path = '/var/lib/ceph/osd'
     if os.path.exists(osd_path):
-        try:
-            dirs = os.listdir(osd_path)
-            for osd_dir in dirs:
-                osd_id = osd_dir.split('-')[1] if '-' in osd_dir else ''
-                if (_is_int(osd_id) and
-                        filesystem_mounted(os.path.join(
-                            os.sep, osd_path, osd_dir)) and
-                        osd_id not in crimson_osds):
-                    osd_ids.append(osd_id)
-        except OSError:
-            raise
+        dirs = [d for d in os.listdir(osd_path)
+                if d.startswith('ceph-')
+                and os.path.isdir(os.path.join(osd_path, d))]
+        for osd_dir in dirs:
+            osd_id = osd_dir.split('-', maxsplit=1)[1]
+            if (_is_int(osd_id) and
+                    filesystem_mounted(os.path.join(
+                        osd_path, osd_dir)) and
+                    osd_id not in crimson_osds):
+                osd_ids.append(osd_id)
     return osd_ids
 
 
