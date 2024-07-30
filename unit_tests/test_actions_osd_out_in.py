@@ -119,17 +119,27 @@ class OSDMountTestCase(CharmTestCase):
     def setUp(self):
         super(OSDMountTestCase, self).setUp(actions, [])
 
+    @mock.patch('os.path.isdir')
     @mock.patch('os.path.exists')
     @mock.patch('os.listdir')
     @mock.patch('charms_ceph.utils.filesystem_mounted')
-    def test_mounted_osds(self, fs_mounted, listdir, exists):
+    def test_mounted_osds(self, fs_mounted, listdir, exists, isdir):
+        # Simulate two osds, only one of which is mounted.
+        # Also include some unrelated files which should be cleanly ignored.
         exists.return_value = True
+        isdir.return_value = True
         listdir.return_value = [
-            '/var/lib/ceph/osd/ceph-1', '/var/lib/ceph/osd/ceph-2']
-        fs_mounted.side_effect = lambda x: x == listdir.return_value[0]
+            'ceph-1',
+            'ceph-2',
+            'ceph.client.crash.keyring',
+            'ceph.client.osd-removal.keyring',
+            'ceph.client.osd-upgrade.keyring',
+        ]
+        fs_mounted.side_effect = lambda x: x == '/var/lib/ceph/osd/ceph-1'
+
         osds = actions.get_local_osd_ids()
-        self.assertIn(listdir.return_value[0][-1], osds)
-        self.assertNotIn(listdir.return_value[1][-1], osds)
+
+        self.assertEqual(osds, ['1'])
 
 
 class MainTestCase(CharmTestCase):
