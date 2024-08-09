@@ -682,7 +682,7 @@ def _get_osd_num_from_dirname(dirname):
 
 
 def get_local_osd_ids():
-    """This will list the /var/lib/ceph/osd/ceph-* directories and try
+    """This will list the /var/lib/ceph/osd/* directories and try
     to split the ID off of the directory name and return it in
     a list.
 
@@ -690,7 +690,7 @@ def get_local_osd_ids():
     :raises: OSError if something goes wrong with listing the directory.
     """
     osd_ids = []
-    osd_path = '/var/lib/ceph/osd'
+    osd_path = os.path.join(os.sep, 'var', 'lib', 'ceph', 'osd')
     if os.path.exists(osd_path):
         dirs = [d for d in os.listdir(osd_path)
                 if d.startswith('ceph-')
@@ -1133,7 +1133,8 @@ def get_mds_bootstrap_key():
 
 _default_caps = collections.OrderedDict([
     ('mon', ['allow r',
-             'allow command "osd blacklist"']),
+             'allow command "osd blacklist"',
+             'allow command "osd blocklist"']),
     ('osd', ['allow rwx']),
 ])
 
@@ -1165,7 +1166,10 @@ osd_upgrade_caps = collections.OrderedDict([
 ])
 
 rbd_mirror_caps = collections.OrderedDict([
-    ('mon', ['profile rbd; allow r']),
+    ('mon', ['allow profile rbd-mirror-peer',
+             'allow command "service dump"',
+             'allow command "service status"'
+             ]),
     ('osd', ['profile rbd']),
     ('mgr', ['allow r']),
 ])
@@ -1212,26 +1216,11 @@ def get_named_key(name, caps=None, pool_list=None):
     :returns: Returns a cephx key
     """
     key_name = 'client.{}'.format(name)
-    try:
-        # Does the key already exist?
-        output = str(subprocess.check_output(
-            [
-                'sudo',
-                '-u', ceph_user(),
-                'ceph',
-                '--name', 'mon.',
-                '--keyring',
-                '/var/lib/ceph/mon/ceph-{}/keyring'.format(
-                    socket.gethostname()
-                ),
-                'auth',
-                'get',
-                key_name,
-            ]).decode('UTF-8')).strip()
-        return parse_key(output)
-    except subprocess.CalledProcessError:
-        # Couldn't get the key, time to create it!
-        log("Creating new key for {}".format(name), level=DEBUG)
+    key = ceph_auth_get(key_name)
+    if key:
+        return key
+
+    log("Creating new key for {}".format(name), level=DEBUG)
     caps = caps or _default_caps
     cmd = [
         "sudo",
@@ -1254,12 +1243,37 @@ def get_named_key(name, caps=None, pool_list=None):
                 pools = " ".join(['pool={0}'.format(i) for i in pool_list])
                 subcaps[0] = subcaps[0] + " " + pools
         cmd.extend([subsystem, '; '.join(subcaps)])
+    ceph_auth_get.cache_clear()
 
     log("Calling check_output: {}".format(cmd), level=DEBUG)
     return parse_key(str(subprocess
                          .check_output(cmd)
                          .decode('UTF-8'))
                      .strip())  # IGNORE:E1103
+
+
+@functools.lru_cache()
+def ceph_auth_get(key_name):
+    try:
+        # Does the key already exist?
+        output = str(subprocess.check_output(
+            [
+                'sudo',
+                '-u', ceph_user(),
+                'ceph',
+                '--name', 'mon.',
+                '--keyring',
+                '/var/lib/ceph/mon/ceph-{}/keyring'.format(
+                    socket.gethostname()
+                ),
+                'auth',
+                'get',
+                key_name,
+            ]).decode('UTF-8')).strip()
+        return parse_key(output)
+    except subprocess.CalledProcessError:
+        # Couldn't get the key
+        pass
 
 
 def upgrade_key_caps(key, caps, pool_list=None):
@@ -1513,11 +1527,12 @@ def get_devices(name):
 
 
 def osdize(dev, osd_format, osd_journal, ignore_errors=False, encrypt=False,
-           bluestore=False, key_manager=CEPH_KEY_MANAGER, osd_id=None):
+           bluestore=False, key_manager=CEPH_KEY_MANAGER, osd_id=None,
+           bluestore_skip=None):
     if dev.startswith('/dev'):
         osdize_dev(dev, osd_format, osd_journal,
                    ignore_errors, encrypt,
-                   bluestore, key_manager, osd_id)
+                   bluestore, key_manager, osd_id, bluestore_skip)
     else:
         if cmp_pkgrevno('ceph', '14.0.0') >= 0:
             log("Directory backed OSDs can not be created on Nautilus",
@@ -1528,7 +1543,7 @@ def osdize(dev, osd_format, osd_journal, ignore_errors=False, encrypt=False,
 
 def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
                encrypt=False, bluestore=False, key_manager=CEPH_KEY_MANAGER,
-               osd_id=None):
+               osd_id=None, bluestore_skip=None):
     """
     Prepare a block device for use as a Ceph OSD
 
@@ -1543,6 +1558,8 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
     :param: encrypt: Encrypt block devices using 'key_manager'
     :param: bluestore: Use bluestore native Ceph block device format
     :param: key_manager: Key management approach for encryption keys
+    :param: osd_id: The ID for the newly created OSD
+    :param: bluestore_skip: Bluestore parameters to skip ('wal' and/or 'db')
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            subprocess operation failed
     :raises ValueError: if an invalid key_manager is provided
@@ -1594,7 +1611,8 @@ def osdize_dev(dev, osd_format, osd_journal, ignore_errors=False,
                                encrypt,
                                bluestore,
                                key_manager,
-                               osd_id)
+                               osd_id,
+                               bluestore_skip)
         else:
             cmd = _ceph_disk(dev,
                              osd_format,
@@ -1678,7 +1696,8 @@ def _ceph_disk(dev, osd_format, osd_journal, encrypt=False, bluestore=False):
 
 
 def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
-                 key_manager=CEPH_KEY_MANAGER, osd_id=None):
+                 key_manager=CEPH_KEY_MANAGER, osd_id=None,
+                 bluestore_skip=None):
     """
     Prepare and activate a device for usage as a Ceph OSD using ceph-volume.
 
@@ -1691,6 +1710,7 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
     :param: bluestore: Use bluestore storage for OSD
     :param: key_manager: dm-crypt Key Manager to use
     :param: osd_id: The OSD-id to recycle, or None to create a new one
+    :param: bluestore_skip: Bluestore parameters to skip ('wal' and/or 'db')
     :raises subprocess.CalledProcessError: in the event that any supporting
                                            LVM operation failed.
     :returns: list. 'ceph-volume' command and required parameters for
@@ -1736,7 +1756,11 @@ def _ceph_volume(dev, osd_journal, encrypt=False, bluestore=False,
                                         key_manager=key_manager))
 
     if bluestore:
-        for extra_volume in ('wal', 'db'):
+        extras = ('wal', 'db')
+        if bluestore_skip:
+            extras = tuple(set(extras) - set(bluestore_skip))
+
+        for extra_volume in extras:
             devices = get_devices('bluestore-{}'.format(extra_volume))
             if devices:
                 cmd.append('--block.{}'.format(extra_volume))
@@ -2513,7 +2537,7 @@ class WatchDog(object):
         :type timeout: int
         """
         start_time = time.time()
-        while(not wait_f()):
+        while not wait_f():
             now = time.time()
             if now > start_time + timeout:
                 raise WatchDog.WatchDogTimeoutException()
@@ -3215,7 +3239,6 @@ UCA_CODENAME_MAP = {
     'xena': 'pacific',
     'yoga': 'quincy',
     'zed': 'quincy',
-    'antelope': 'quincy',
 }
 
 
@@ -3415,7 +3438,7 @@ def apply_osd_settings(settings):
     set_cmd = base_cmd + ' set {key} {value}'
 
     def _get_cli_key(key):
-        return(key.replace(' ', '_'))
+        return key.replace(' ', '_')
     # Retrieve the current values to check keys are correct and to make this a
     # noop if setting are already applied.
     for osd_id in get_local_osd_ids():
@@ -3454,6 +3477,9 @@ def enabled_manager_modules():
     :rtype: List[str]
     """
     cmd = ['ceph', 'mgr', 'module', 'ls']
+    quincy_or_later = cmp_pkgrevno('ceph-common', '17.1.0') >= 0
+    if quincy_or_later:
+        cmd.append('--format=json')
     try:
         modules = subprocess.check_output(cmd).decode('UTF-8')
     except subprocess.CalledProcessError as e:

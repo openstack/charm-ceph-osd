@@ -291,7 +291,8 @@ def pool_permission_list_for_service(service):
         for prefix in prefixes:
             permissions.append("allow {} object_prefix {}".format(permission,
                                                                   prefix))
-    return ['mon', 'allow r, allow command "osd blacklist"',
+    return ['mon', ('allow r, allow command "osd blacklist"'
+                    ', allow command "osd blocklist"'),
             'osd', ', '.join(permissions)]
 
 
@@ -906,7 +907,7 @@ def process_requests_v1(reqs):
             log(msg, level=ERROR)
             return {'exit-code': 1, 'stderr': msg}
 
-    if type(ret) == dict and 'exit-code' in ret:
+    if type(ret) is dict and 'exit-code' in ret:
         return ret
 
     return {'exit-code': 0}

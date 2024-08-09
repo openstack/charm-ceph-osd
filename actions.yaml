@@ -59,6 +59,11 @@ add-disk:
         The size of the partitions to create for the caching devices. If left
         unspecified, then the full size of the devices will be split evenly
         across partitions.
+    bluestore-skip:
+      type: string
+      description: |
+        A comma-separated list of what Bluestore features to omit. This can
+        be the WAL and DB devices (for example - "wal,db")
   required:
     - osd-devices
 blacklist-add-disk:

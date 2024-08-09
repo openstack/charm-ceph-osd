@@ -59,7 +59,7 @@ applications:
     charm: ../../ceph-osd.charm
     num_units: 3
     storage:
-      osd-devices: 'cinder,10G,2'
+      osd-devices: 'cinder,10G'
     options:
       osd-devices: '/dev/test-non-existent'
       source: *openstack-origin
