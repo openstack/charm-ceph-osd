@@ -131,6 +131,7 @@ STORAGE_MOUNT_PATH = '/var/lib/ceph'
 # cron.d related files
 CRON_CEPH_CHECK_FILE = '/etc/cron.d/check-osd-services'
 
+UPDATE_HOOK = False
 
 class AppArmorProfileNeverInstalledException(Exception):
     pass
@@ -1035,6 +1036,10 @@ def assess_status():
             status_set('active',
                        'Unit is ready ({} OSD)'.format(len(running_osds)))
 
+    if UPDATE_HOOK:
+        UPDATE_HOOK = False
+        return
+
     try:
         get_bdev_enable_discard()
     except ValueError as ex:
@@ -1050,6 +1055,7 @@ def assess_status():
 @hooks.hook('update-status')
 @harden()
 def update_status():
+    UPDATE_HOOK = True
     log('Updating status.')
 
 
